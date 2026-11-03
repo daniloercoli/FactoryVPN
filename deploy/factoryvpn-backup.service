@@ -1,0 +1,25 @@
+[Unit]
+Description=FactoryVPN backup and recovery coordinator
+Requires=docker.service
+After=docker.service
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=factoryvpn
+Group=factoryvpn
+SupplementaryGroups=docker
+WorkingDirectory=/opt/factoryvpn
+ExecStart=/opt/factoryvpn/.venv/bin/python -m scripts.backup_coordinator serve --project /opt/factoryvpn
+Restart=on-failure
+RestartSec=10
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/factoryvpn
+
+[Install]
+WantedBy=multi-user.target

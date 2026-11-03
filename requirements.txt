@@ -1,0 +1,29 @@
+# FastAPI and dependencies
+fastapi==0.109.0
+uvicorn[standard]==0.25.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# Database
+sqlalchemy[asyncio]==2.0.25
+alembic==1.13.1
+asyncpg==0.29.0
+psycopg2-binary==2.9.9
+
+# Authentication
+Authlib==1.9.1
+joserfc==1.7.7
+python-jose[cryptography]==3.3.0
+cryptography>=45.0.1
+argon2-cffi==23.1.0
+passlib==1.7.4
+
+# Logging and monitoring
+python-json-logger==2.0.7
+prometheus-client==0.19.0
+
+# Utilities
+python-multipart==0.0.6
+httpx==0.26.0
+aiofiles==23.2.1
+pyserial==3.5

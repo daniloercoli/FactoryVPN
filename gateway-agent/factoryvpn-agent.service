@@ -1,0 +1,17 @@
+[Unit]
+Description=FactoryVPN gateway agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/factoryvpn
+EnvironmentFile=/etc/factoryvpn/gateway.env
+ExecStart=/opt/factoryvpn/.venv/bin/python -m gateway-agent.main
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

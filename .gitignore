@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+.build/
+
+# Environment
+.env
+.env.local
+.env.*
+!.env.example
+*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Testing
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Docker
+docker-compose.override.yml
+docker/ssl/
+.runtime/
+.backup-control/
+.backup-private/
+.backups/
+.factoryvpn-lab/
+.factoryvpn-simulator/
+*.fvbackup
+.aws/
+
+# OS
+.DS_Store
+Thumbs.db
+# Downloaded credentials and VPN profiles
+*.key
+*.pem
+*.ovpn
+*.p12
+*.pfx

@@ -1,0 +1,15 @@
+# Minimal Linux userspace; the real gateway agent uses distribution packages.
+FROM alpine:3.24
+WORKDIR /app
+ENV PYTHONPATH=/app PYTHONUNBUFFERED=1
+RUN apk upgrade --no-cache && apk add --no-cache \
+    python3 py3-httpx py3-pydantic py3-dotenv py3-pyserial \
+    openvpn openssl ca-certificates iproute2 nftables \
+    && ln -s /usr/bin/python3 /usr/local/bin/python
+COPY pyproject.toml ./
+COPY factoryvpn_common/ ./factoryvpn_common/
+COPY gateway-agent/ ./gateway-agent/
+COPY api/__init__.py ./api/__init__.py
+COPY api/schemas/ ./api/schemas/
+COPY scripts/__init__.py scripts/local_lab_peers.py scripts/simulator_sms.py ./scripts/
+CMD ["python", "-m", "scripts.local_lab_peers", "serve"]

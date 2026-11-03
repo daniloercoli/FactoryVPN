@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Developers — FactoryVPN</title>
+  <meta name="description" content="Build a FactoryVPN client or custom connector. Authentication, session lifecycle, integration examples and downloadable OpenAPI documentation.">
+  <meta name="theme-color" content="#132fea"><link rel="canonical" href="https://factoryvpn.ercoliconsulting.eu/developers.html">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23132fea'/%3E%3Cpath d='M9 24V8h15v4H13v4h9v4h-9v4' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css"><script src="developers.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header wrap"><a class="brand" href="./"><span class="brand-mark" aria-hidden="true">F</span>Factory<span class="brand-light">VPN</span></a><nav aria-label="Main navigation"><a href="./#how-it-works">How it works</a><a href="./#integrations">Integrations</a><a href="developers.html" aria-current="page">Developers</a></nav></header>
+  <main id="main" class="wrap">
+    <section class="docs-hero"><p class="eyebrow">FACTORYVPN / DEVELOPERS</p><h1>Your workflow.<br>Your client.</h1><p class="intro">Connect your customer admin, service desk or application to FactoryVPN with a custom connector and an HTTP API.</p><div class="actions"><a class="button primary" href="api/">Browse API reference</a><a class="text-link" href="api/openapi.json" download="factoryvpn-openapi.json">Download OpenAPI JSON</a></div></section>
+    <div class="docs-layout">
+      <nav class="docs-nav" aria-label="Developer guide"><a href="#overview">Integration model</a><a href="#authentication">Authentication</a><a href="#quickstart">First session</a><a href="#lifecycle">Session lifecycle</a><a href="#errors">Errors &amp; retries</a><a href="#clients">Build a client</a></nav>
+      <div class="docs-content">
+        <section id="overview"><h2>A connector between your systems</h2><p>Your application keeps its own interface and business workflow. A custom connector translates its users, machines and service requests into FactoryVPN API calls.</p><ol><li>Map your equipment records to provisioned FactoryVPN gateway UUIDs.</li><li>Authenticate a FactoryVPN account with the appropriate permissions and group assignments.</li><li>Request a session, poll its status and show progress in your application.</li><li>Close the session when the service task ends and wait for network cleanup.</li></ol><p>The admin API can manage accounts and devices, inspect sessions and retrieve administrative audit events. A service desk connector can store the FactoryVPN session ID against a ticket.</p><div class="callout"><strong>Two separate connections.</strong> The HTTP API controls authorization and session state. Machine traffic travels through OpenVPN. An API client still needs a provisioned technician VPN profile and a running VPN client to reach the industrial LAN.</div><p>Connectors are custom development. Existing SSO, user mapping and business rules need an explicit integration design. OIDC SSO is available; the Cognito connector is experimental and requires validation on a real User Pool. Webhooks are not included; poll the API for updates.</p></section>
+        <section id="authentication"><h2>Authentication &amp; roles</h2><p>Use the API origin supplied for your FactoryVPN deployment, for example <code>https://vpn-api.example.com</code>. The public FactoryVPN website is a documentation site, not an API server.</p><p><code>POST /api/v1/auth/login</code> accepts JSON with <code>username</code> and <code>password</code>. For privileged local accounts and technicians who enable email verification, the response contains <code>challenge_required</code> and a <code>challenge_token</code>. Submit that token and the six-digit email <code>code</code> to <code>POST /api/v1/auth/login/verify</code>. Only then use the returned <code>access_token</code> as <code>Authorization: Bearer &lt;token&gt;</code>.</p><div class="table-scroll"><table><thead><tr><th>Caller</th><th>Access</th></tr></thead><tbody><tr><td>Technician</td><td>Read inventory in assigned groups and manage their own sessions there. Opening a VPN requires connect; changing devices requires gateways.manage.</td></tr><tr><td>Delegated administrator</td><td>Use users.manage, groups.manage, gateways.manage, sessions.manage or audit.read within assigned groups. Accounts spanning other groups require a global administrator.</td></tr><tr><td>Global administrator</td><td>Manage the entire instance. Gateways must be assigned to a group before anyone can connect.</td></tr></tbody></table></div><p>Tokens expire according to the deployment configuration (30 minutes by default). There is no refresh-token endpoint. Sign in again after expiry. Changes to passwords, account status, global role, permissions or memberships invalidate previously issued JWTs. Password changes, disabling an account and logout also terminate its VPN sessions; removing access terminates affected sessions. GET /api/v1/auth/me returns effective permissions and group IDs. PATCH /api/v1/auth/me updates the display name; changing email uses the verified portal procedure; POST /api/v1/auth/password changes the password after verification; POST /api/v1/auth/logout signs out all account sessions.</p><p>Keep administrator credentials in your connector’s backend. A browser client needs an explicitly allowed CORS origin. Gateway and worker credentials belong to the machine components and are not used by customer clients.</p></section>
+        <section id="quickstart"><h2>Request your first session</h2><p>These shell examples use <code>curl</code>, <code>jq</code>, Python 3 and Bash. Start with an account and a gateway provisioned by your administrator, assigned to the same group, and the connect permission. Replace the example API origin with your deployment.</p>
+          <div class="copy-row"><h3>1. Sign in</h3><button class="copy-button" type="button" data-copy="login-example">Copy</button></div>
+          <pre id="login-example"><code>export FACTORYVPN_API='https://vpn-api.example.com'
+read -r -p 'Username: ' FACTORYVPN_USER
+read -r -s -p 'Password: ' FACTORYVPN_PASSWORD
+printf '\n'
+
+FACTORYVPN_LOGIN=$(
+  printf '%s' "$FACTORYVPN_PASSWORD" |
+  jq -Rs --arg username "$FACTORYVPN_USER" \
+    '{username: $username, password: .}' |
+  curl --fail-with-body --silent --show-error \
+    "$FACTORYVPN_API/api/v1/auth/login" \
+    -H 'Content-Type: application/json' --data-binary @-
+)
+unset FACTORYVPN_PASSWORD
+if printf '%s' "$FACTORYVPN_LOGIN" | jq -e '.challenge_required == true' &gt;/dev/null; then
+  read -r -s -p 'Email code: ' FACTORYVPN_CODE
+  printf '\n'
+  FACTORYVPN_LOGIN=$(
+    printf '%s\n' "$FACTORYVPN_LOGIN" "\"$FACTORYVPN_CODE\"" |
+    jq -s '{challenge_token: .[0].challenge_token, code: .[1]}' |
+    curl --fail-with-body --silent --show-error \
+      "$FACTORYVPN_API/api/v1/auth/login/verify" \
+      -H 'Content-Type: application/json' --data-binary @-
+  )
+  unset FACTORYVPN_CODE
+fi
+FACTORYVPN_TOKEN=$(printf '%s' "$FACTORYVPN_LOGIN" | jq -er '.access_token')
+unset FACTORYVPN_LOGIN</code></pre>
+          <div class="copy-row"><h3>2. Select a gateway and request access</h3><button class="copy-button" type="button" data-copy="session-example">Copy</button></div>
+          <pre id="session-example"><code>curl --fail-with-body --silent --show-error \
+  "$FACTORYVPN_API/api/v1/gateways/" \
+  -H "Authorization: Bearer $FACTORYVPN_TOKEN"
+
+read -r -p 'Gateway UUID: ' FACTORYVPN_GATEWAY
+# Generate once for this request; keep the same key when retrying it.
+FACTORYVPN_REQUEST=$(python3 -c 'import uuid; print(uuid.uuid4())')
+jq -n --arg id "$FACTORYVPN_GATEWAY" '{gateway_id: $id}' |
+  curl --fail-with-body --silent --show-error \
+    "$FACTORYVPN_API/api/v1/sessions/" \
+    -H "Authorization: Bearer $FACTORYVPN_TOKEN" \
+    -H "Idempotency-Key: $FACTORYVPN_REQUEST" \
+    -H 'Content-Type: application/json' --data-binary @-</code></pre>
+          <p>Provide exactly one of <code>gateway_id</code> or <code>phone_number</code>. Gateway UUIDs work with both activation modes. A phone number can only select a gateway that has one configured.</p><p>Keep the request UUID and the exact request body until the outcome is known. After a timeout, repeat only the <code>jq</code>/<code>curl</code> request with the same key and body; do not generate another UUID. Replays return the same session without sending another SMS. Generate a new key for a new assistance session.</p>
+          <pre><code>{
+  "session_id": "22222222-2222-4222-8222-222222222222",
+  "status": "REQUESTED",
+  "message": "Waiting for gateway Wi-Fi check"
+}</code></pre>
+          <p>This is an illustrative Wi-Fi response. HTTP <code>200</code> means the request was handled. Always inspect <code>status</code>: an SMS provider rejection can return <code>FAILED</code> in a successful HTTP response.</p>
+          <div class="copy-row"><h3>3. Check readiness, connect and close</h3><button class="copy-button" type="button" data-copy="status-example">Copy</button></div>
+          <pre id="status-example"><code>read -r -p 'Session UUID from the response: ' FACTORYVPN_SESSION
+curl --fail-with-body --silent --show-error \
+  "$FACTORYVPN_API/api/v1/sessions/$FACTORYVPN_SESSION" \
+  -H "Authorization: Bearer $FACTORYVPN_TOKEN"
+
+# Wait for gateway_ready_at, then start your provisioned
+# OpenVPN client. Poll until status is ACTIVE before use.
+# When the assistance task is finished:
+curl --fail-with-body --silent --show-error --request DELETE \
+  "$FACTORYVPN_API/api/v1/sessions/$FACTORYVPN_SESSION" \
+  -H "Authorization: Bearer $FACTORYVPN_TOKEN"</code></pre>
+          <p>Poll every few seconds with a bounded timeout; stop on terminal states. Sessions last at most 30 minutes and may end earlier with the opening browser or SSO session. Use the returned <code>expires_at</code> deadline. A live session reserves both the technician and gateway, including while cleanup is pending.</p>
+        </section>
+        <section id="lifecycle"><h2>Understand the session lifecycle</h2><div class="table-scroll"><table><thead><tr><th>State</th><th>What your client should do</th></tr></thead><tbody><tr><td class="state">REQUESTED</td><td>Wait for <code>gateway_ready_at</code>, then connect the technician VPN. Continue polling. This state can also indicate reconnection is needed.</td></tr><tr><td class="state">ACTIVE</td><td>Both clients have been verified and the session network configured. Show that assistance can begin.</td></tr><tr><td class="state">CLOSED</td><td>The session was explicitly closed. Disconnect the technician VPN.</td></tr><tr><td class="state">EXPIRED</td><td>The session reached its deadline. Disconnect and request a new session only after cleanup.</td></tr><tr><td class="state">FAILED</td><td>Stop connecting. Display <code>error_reason</code> from the session detail where available.</td></tr></tbody></table></div><h3>Readiness and cleanup are separate milestones</h3><p><code>sms_sent_at</code> records provider acceptance, not delivery. <code>activation_received_at</code> records verified SMS receipt or the Wi-Fi gateway’s acknowledgment. <code>gateway_ready_at</code> means the gateway has prepared its network; <code>ACTIVE</code> also requires the technician connection.</p><p>Deleting a session confirms its state change, not immediate network teardown. Poll the session detail until <code>cleaned_at</code> is set before treating resources as reusable. Closing an already terminal session preserves its existing terminal state.</p><p><code>POST /api/v1/sessions/{session_id}/wake</code> resends the signed activation SMS for a live SMS session, for example after a gateway restart. It does not extend the session deadline. Wi-Fi sessions do not use this endpoint.</p><p>Session timestamps and administrative audit events describe the control workflow. They are not a recording of machine traffic or every action performed by a technician.</p></section>
+        <section id="errors"><h2>Handle errors &amp; retries</h2><p>Application errors return a JSON <code>detail</code> field; validation errors return a list in that field. A reverse proxy may return a different body, so check the HTTP status before decoding JSON.</p><div class="table-scroll"><table><thead><tr><th>Status</th><th>Meaning</th></tr></thead><tbody><tr><td><code>400</code></td><td>An account operation was rejected, such as deleting the current account or supplying an incorrect current password.</td></tr><tr><td><code>401</code></td><td>Invalid credentials, expired or revoked token, or inactive account. Re-authenticate when appropriate.</td></tr><tr><td><code>403</code></td><td>Missing or malformed bearer authorization, or the required administrative permission is absent.</td></tr><tr><td><code>404</code></td><td>Resource not found or outside the authorized group or session scope.</td></tr><tr><td><code>409</code></td><td>Resource conflict, busy technician/gateway, pending cleanup or an incompatible operation.</td></tr><tr><td><code>412</code></td><td>The resource changed since it was read. Reload it and use its current revision before saving.</td></tr><tr><td><code>422</code></td><td>Invalid fields, malformed UUID or an invalid gateway selector.</td></tr><tr><td><code>428</code></td><td>A required precondition is missing, such as an If-Match revision or recent identity confirmation. Complete the required step before retrying.</td></tr><tr><td><code>429</code></td><td>A rate limit or resend cooldown was reached. Respect Retry-After when supplied; do not immediately repeat the request.</td></tr><tr><td><code>503</code></td><td>A required service or credential configuration is unavailable.</td></tr></tbody></table></div><p>Back off on temporary network or service failures. Session creation accepts an optional UUID <code>Idempotency-Key</code>. Retry an uncertain request using the same account, key and request body: the API returns the original session with <code>replayed: true</code>, including terminal outcomes, without sending another SMS. Reusing the key with different input returns <code>409</code>. If no key was sent, reconcile the outcome through <code>GET /api/v1/sessions/</code> before creating another session. Keep the returned session ID.</p></section>
+        <section id="clients"><h2>Use OpenAPI to build your client</h2><p>The downloadable OpenAPI 3.1 specification describes customer-facing endpoints, request and response models, bearer and portal-cookie authentication, and documented errors. It is generated from the API code and can be imported into compatible API tools or client generators.</p><div class="actions"><a class="button primary" href="api/">Open Swagger UI</a><a class="text-link" href="api/openapi.json" download="factoryvpn-openapi.json">Download specification</a></div><h3>What is included</h3><p>Authentication, technician sessions, gateway discovery, device operations and administration. Internal worker routes and gateway machine authentication are outside the customer client specification.</p><p>Use a generator that supports OpenAPI 3.1 and nullable fields. Configure its base URL to your deployment’s API origin, then supply the bearer token from the login response for endpoints that accept <code>HTTPBearer</code>. Portal endpoints and backup operations use <code>PortalCookie</code> instead; follow the operation’s cookie, CSRF and recent-authentication requirements. Do not combine a portal cookie and a bearer token in one request. The reference is read-only; it does not send requests to a production API.</p><p>The deployment’s complete schema is also available at <code>/openapi.json</code> and Swagger UI at <code>/docs</code> when the API is reached directly. The standard reverse proxy does not publish these routes.</p></section>
+        <p id="copy-status" role="status" aria-live="polite"></p>
+      </div>
+    </div>
+  </main>
+  <footer class="site-footer wrap"><a class="brand" href="./"><span class="brand-mark" aria-hidden="true">F</span>Factory<span class="brand-light">VPN</span></a><p>Industrial connectivity, in your workflow.</p><div><a href="api/">API reference</a><a href="https://ercoliconsulting.eu/">Ercoli Consulting</a></div></footer>
+</body>
+</html>

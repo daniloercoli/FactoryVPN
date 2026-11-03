@@ -1,0 +1,70 @@
+"""The two labs must keep state and transport configuration independent."""
+
+import json
+from types import SimpleNamespace
+
+from dotenv import dotenv_values
+import pytest
+
+from scripts import local_lab
+
+
+@pytest.mark.parametrize("simulator", [False, True])
+def test_fresh_lab_configuration_is_isolated(tmp_path, monkeypatch, simulator):
+    root = tmp_path / "lab"
+    monkeypatch.setattr(local_lab, "port", lambda: 54321)
+    monkeypatch.setenv("SMS_PROVIDER_URL", "https://external.example.test/send")
+    monkeypatch.setenv("SMS_PROVIDER_API_KEY", "external-key")
+
+    def compose_config(args, *, env, **kwargs):
+        # The real Compose interpolation receives only local provider settings.
+        assert env["SMS_PROVIDER_URL"] == ("http://test-sms:8080/send" if simulator else "")
+        assert env["SMS_PROVIDER_API_KEY"] != "external-key"
+        return SimpleNamespace(
+            stdout=json.dumps(
+                {
+                    "services": {
+                        "nginx": {},
+                        "openvpn": {},
+                        "api": {
+                            "volumes": [
+                                {"source": "old", "target": "/backups"},
+                                {"source": "old", "target": "/backup-control"},
+                            ]
+                        },
+                    }
+                }
+            )
+        )
+
+    monkeypatch.setattr(local_lab.subprocess, "run", compose_config)
+    lab = local_lab.initialize_lab(root, simulator=simulator)
+    config = json.loads((root / "docker-compose.yml").read_text())["services"]
+    assert lab.root == root
+    assert lab.activation_mode(1) == ("sms" if simulator else "wifi")
+    assert lab.activation_mode(2) == "wifi"
+    assert config["peers"]["environment"] == {"FACTORYVPN_LOCAL_LAB": "1"}
+    assert str(root / "peers") + ":/lab" in config["peers"]["volumes"]
+    assert config["openvpn"]["ports"] == []
+    assert config["nginx"]["ports"][0]["host_ip"] == "127.0.0.1"
+    assert all(v["source"].startswith(str(root)) for v in config["api"]["volumes"])
+    assert ("test-sms" in config) is simulator
+    if simulator:
+        provider = config["test-sms"]
+        assert "ports" not in provider
+        assert provider["volumes"] == [str(root / "sms") + ":/sms"]
+        env = dotenv_values(root / ".env")
+        assert (
+            provider["environment"]["FACTORYVPN_SIMULATOR_SMS_KEY"] == env["SMS_PROVIDER_API_KEY"]
+        )
+    # Re-running up must preserve CA and passwords; another mode must not adopt it.
+    secret = (root / "credentials.json").read_bytes()
+    assert local_lab.initialize_lab(root, simulator=simulator).state == lab.state
+    assert (root / "credentials.json").read_bytes() == secret
+    with pytest.raises(RuntimeError, match="mode"):
+        local_lab.initialize_lab(root, simulator=not simulator)
+
+
+def test_unmarked_directory_is_never_overwritten(tmp_path):
+    with pytest.raises(RuntimeError, match="without its marker"):
+        local_lab.initialize_lab(tmp_path, simulator=True)

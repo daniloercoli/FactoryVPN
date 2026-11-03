@@ -1,0 +1,10 @@
+# Kept as a compatible build entry point. Compose uses Dockerfile.network.
+FROM python:3.12-slim
+WORKDIR /app
+ENV PYTHONPATH=/app
+RUN apt-get update && apt-get install -y --no-install-recommends nftables iproute2 procps && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+COPY factoryvpn_common/ ./factoryvpn_common/
+COPY session-worker/ ./session-worker/
+CMD ["python", "-m", "session-worker.main"]

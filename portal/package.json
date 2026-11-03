@@ -1,0 +1,33 @@
+{
+  "name": "factoryvpn-portal",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test:e2e": "playwright test",
+    "types": "openapi-typescript ../website/dist/api/openapi.json -o src/api/schema.d.ts",
+    "format": "prettier --write src --ignore-path .prettierignore",
+    "format:check": "prettier --check src --ignore-path .prettierignore"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "5.104.5",
+    "lucide-react": "1.59.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-router": "8.5.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "openapi-typescript": "7.13.0",
+    "prettier": "3.9.10",
+    "typescript": "5.9.3",
+    "vite": "8.3.4"
+  }
+}

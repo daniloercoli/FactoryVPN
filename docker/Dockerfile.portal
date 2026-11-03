@@ -1,0 +1,10 @@
+FROM node:24-alpine AS portal-build
+WORKDIR /build
+COPY portal/package.json portal/package-lock.json ./
+RUN npm ci
+COPY portal/ ./
+RUN npm run build
+
+FROM nginx:stable-alpine
+COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY --from=portal-build /build/dist/ /usr/share/nginx/html/app/
