@@ -56,6 +56,11 @@ docker/ssl/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local agent settings
+/.agents/
+/.codex/
+
 # Downloaded credentials and VPN profiles
 *.key
 *.pem
