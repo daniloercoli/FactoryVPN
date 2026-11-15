@@ -93,7 +93,7 @@ def main():
     children = []
     with tempfile.TemporaryDirectory(prefix="factoryvpn-browser-") as temporary:
         cert, key = certificate(temporary)
-        from scripts.bootstrap import initialize
+        from scripts.lab_pki import initialize
 
         pki = Path(temporary) / "pki"
         initialize(pki, "vpn.example.test")
@@ -125,6 +125,7 @@ def main():
             "STATUS_HTTPS_CERTIFICATE_FILE": str(cert),
             "STATUS_VPN_CERTIFICATE_FILE": str(pki / "server/server.crt"),
             "STATUS_VPN_CA_FILE": str(pki / "server/ca.crt"),
+            "STATUS_PKI_ROOT": str(pki),
             "OPENVPN_SERVER_HOST": "vpn.example.test",
             "SSO_PROVIDERS": json.dumps(
                 {

@@ -14,7 +14,7 @@ from factoryvpn_common.openvpn import ManagementClient
 
 
 def plan():
-    spec = SessionNetwork(str(uuid4()), 1, "10.100.128.2", "10.100.0.2", "192.168.1.0/24")
+    spec = SessionNetwork(str(uuid4()), "10.100.128.2", "10.100.0.2")
     return {
         "session_id": spec.session_id,
         "network": spec.to_dict(),
@@ -92,18 +92,20 @@ async def test_worker_activates_only_after_both_peers_are_connected(load_script)
         posts.append(request.url.path)
         return httpx.Response(200, json={})
 
-    ns, fw, vpn = Mock(), Mock(), Mock()
+    fw, vpn = Mock(), Mock()
     vpn.clients.return_value = {item["gateway_cn"]: item["network"]["gateway_ip"]}
     async with httpx.AsyncClient(
         base_url="http://test", transport=httpx.MockTransport(handler)
     ) as client:
-        worker = module.SessionWorker(client, ns, fw, vpn)
+        worker = module.SessionWorker(client, fw, vpn)
         await worker.reconcile()
-        ns.ensure.assert_not_called()
+        fw.ensure.assert_not_called()
         assert posts[-1].endswith("/waiting")
         vpn.clients.return_value[item["technician_cn"]] = item["network"]["technician_ip"]
         await worker.reconcile()
-        ns.ensure.assert_called_once()
+        assert fw.ensure.call_count == 2
+        assert fw.ensure.call_args_list[0].kwargs == {"renew": False}
+        assert 0 < fw.ensure.call_args_list[1].args[1] <= item["lease_seconds"]
         assert posts[-1].endswith("/ready")
 
 
@@ -119,15 +121,15 @@ async def test_worker_cleanup_acknowledgement_waits_for_real_disconnect(load_scr
         posts.append(request.url.path)
         return httpx.Response(200)
 
-    ns, fw, vpn = Mock(), Mock(), Mock()
+    fw, vpn = Mock(), Mock()
     vpn.clients.return_value = {item["gateway_cn"]: item["network"]["gateway_ip"]}
     async with httpx.AsyncClient(
         base_url="http://test", transport=httpx.MockTransport(handler)
     ) as client:
-        worker = module.SessionWorker(client, ns, fw, vpn)
+        worker = module.SessionWorker(client, fw, vpn)
         await worker.reconcile()
         assert posts == [f"/api/v1/internal/sessions/{item['session_id']}/diagnostics"]
-        ns.delete.assert_called_once()
+        fw.delete.assert_called_once()
         vpn.clients.return_value = {}
         await worker.reconcile()
         assert posts[-1].endswith("/cleaned")
@@ -135,14 +137,14 @@ async def test_worker_cleanup_acknowledgement_waits_for_real_disconnect(load_scr
 
 async def test_worker_api_failure_never_renews_a_lease(load_script):
     module = load_script("session-worker", "main")
-    ns, fw, vpn = Mock(), Mock(), Mock()
+    fw, vpn = Mock(), Mock()
     async with httpx.AsyncClient(
         base_url="http://test", transport=httpx.MockTransport(lambda request: httpx.Response(503))
     ) as client:
         with pytest.raises(httpx.HTTPStatusError):
-            await module.SessionWorker(client, ns, fw, vpn).reconcile()
-    ns.ensure.assert_not_called()
-    ns.delete.assert_not_called()
+            await module.SessionWorker(client, fw, vpn).reconcile()
+    fw.ensure.assert_not_called()
+    fw.delete.assert_not_called()
     fw.apply.assert_not_called()
 
 
@@ -163,21 +165,20 @@ async def test_gateway_rechecks_session_after_handshake_and_cleans_up(load_scrip
             {"connect": False},
         ]
     )
-    config = SimpleNamespace(
-        VPN_INTERFACE="tun0", LAN_INTERFACE="eth0", GATEWAY_API_KEY="key", ACTIVATION_MODE="wifi"
-    )
+    config = SimpleNamespace(VPN_INTERFACE="tun0", GATEWAY_API_KEY="key", ACTIVATION_MODE="wifi")
     agent = module.GatewayAgent(modem, vpn, network, heartbeat, config)
     await agent.step()
     vpn.start.assert_awaited_once()
     vpn.stop.assert_awaited_once()
     network.configure_session.assert_not_called()
-    network.disable_nat.assert_called_once()
+    network.disable.assert_called_once()
 
 
 async def test_openvpn_hook_reads_real_arguments_and_environment(
     load_script, monkeypatch, tmp_path
 ):
     hook = load_script("session-worker", "openvpn_hooks")
+    monkeypatch.setattr(hook, "validate_crls", lambda path: None)
     monkeypatch.setenv("common_name", "gateway-example")
     monkeypatch.setenv("tls_serial_0", "1234")
     call = Mock(return_value={"config": "ifconfig-push 10.100.0.2 255.255.0.0\n"})
@@ -205,9 +206,7 @@ async def test_gateway_renewal_keeps_its_installed_session_ready(load_script):
     heartbeat.send = AsyncMock(
         return_value={"connect": True, "network": item["network"], "lease_seconds": 20}
     )
-    config = SimpleNamespace(
-        VPN_INTERFACE="tun0", LAN_INTERFACE="eth0", GATEWAY_API_KEY="key", ACTIVATION_MODE="wifi"
-    )
+    config = SimpleNamespace(VPN_INTERFACE="tun0", GATEWAY_API_KEY="key", ACTIVATION_MODE="wifi")
     agent = module.GatewayAgent(modem, vpn, network, heartbeat, config)
     agent.spec = spec
     await agent.step()
@@ -222,7 +221,7 @@ async def test_gateway_renewal_keeps_its_installed_session_ready(load_script):
 async def test_worker_withdraws_network_when_activation_races_with_close(load_script):
     module = load_script("session-worker", "main")
     item = plan()
-    ns, fw, vpn = Mock(), Mock(), Mock()
+    fw, vpn = Mock(), Mock()
     vpn.clients.return_value = {
         item["gateway_cn"]: item["network"]["gateway_ip"],
         item["technician_cn"]: item["network"]["technician_ip"],
@@ -234,6 +233,6 @@ async def test_worker_withdraws_network_when_activation_races_with_close(load_sc
     async with httpx.AsyncClient(
         base_url="http://test", transport=httpx.MockTransport(handler)
     ) as client:
-        await module.SessionWorker(client, ns, fw, vpn).reconcile()
-    ns.ensure.assert_called_once()
-    ns.delete.assert_called_once_with(SessionNetwork(**item["network"]))
+        await module.SessionWorker(client, fw, vpn).reconcile()
+    fw.ensure.assert_called_once_with(SessionNetwork(**item["network"]), renew=False)
+    fw.delete.assert_called_once_with(SessionNetwork(**item["network"]))

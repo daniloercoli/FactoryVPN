@@ -17,6 +17,9 @@ Swagger UI fetches the local JSON specification.
 
 - `/` — product, assistance flow and custom connector integration.
 - `/developers.html` — authentication, examples, lifecycle, errors and client guidance.
+- `/developers.html#gateway-setup` — factory enrollment, manual ZIP setup and gateway firmware contracts.
+- `/developers.html#network-scope` — split tunnel, local Internet, SSH and web on the gateway's fixed VPN IP.
+- `/developers.html#timing` — VPN/login durations, temporary API failures and lease limits.
 - `/api/` — read-only Swagger UI.
 - `/api/openapi.json` — downloadable customer OpenAPI 3.1 contract.
 
@@ -42,6 +45,27 @@ and gateway machine operations and unused schemas.
 Commit regenerated `website/dist/api/openapi.json` alongside API changes. The
 export regression test fails when the committed specification is stale.
 The full API schema is still available directly from FastAPI at `/openapi.json`.
+
+## Keep public guidance aligned
+
+The gateway setup section follows the [initial setup guide](../documentation/gateway/INITIAL_SETUP.md)
+and [factory enrollment contract](../documentation/gateway/FACTORY_ENROLLMENT.md).
+Those files ship with the source distribution and are not served from `dist/`.
+
+The HTML pages are maintained directly; regenerating OpenAPI does not update
+their prose. When session timing, routing or logout behavior changes, review
+the homepage, developer guide, [repository README](../README.md) and
+[operator guides](../documentation/README.md) together. Check the deployment
+defaults against [.env.example](../.env.example) and the code that consumes them.
+The [installation guide](../documentation/DOCKER_GUIDE.md#durate-timeout-e-reti-instabili)
+is the operator reference for configuration and applying changes.
+
+Validate local links and section anchors in the served `dist/` tree, including
+Swagger UI and its JSON download, at desktop and mobile widths. Operator guides
+live in the repository; do not add links from `dist/` to files outside that
+public document root. Editing these files does not deploy the website.
+
+## API viewer
 
 Swagger UI **5.33.1** is vendored in `dist/vendor/swagger-ui/`, including its
 Apache-2.0 license and notice. The package was obtained from the official npm

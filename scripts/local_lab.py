@@ -26,7 +26,8 @@ from cryptography.hazmat.primitives import hashes, serialization
 from dotenv import dotenv_values, set_key
 import httpx
 
-from scripts.bootstrap import initialize, load_ca, write_private
+from scripts.lab_pki import initialize
+from factoryvpn_common.certificates import write_private
 from scripts.simulator_sms import PHONE
 from scripts.backup_coordinator import Coordinator
 
@@ -67,6 +68,16 @@ def wait_for(description, probe, timeout=90):
     raise RuntimeError("Timed out: " + description)
 
 
+def wait_for_worker_lease(probe, lease_seconds):
+    started = time.monotonic()
+    wait_for("worker-loss kernel lease expiry", probe, timeout=lease_seconds + 5)
+    elapsed = round(time.monotonic() - started, 2)
+    # The traffic probe can take two seconds; allow a little scheduling overhead.
+    if elapsed > lease_seconds + 2.5:
+        raise RuntimeError(f"Worker lease exceeded the expected bound: {elapsed}s")
+    return elapsed
+
+
 class Lab:
     def __init__(self, root=LAB):
         self.root = Path(root)
@@ -86,7 +97,7 @@ class Lab:
             "-f",
             str(self.root / "docker-compose.yml"),
         ]
-        self.context = ssl.create_default_context(cafile=str(self.root / ".runtime/ca/ca.crt"))
+        self.context = ssl.create_default_context(cafile=str(self.root / ".runtime/https/cert.pem"))
 
     def activation_mode(self, number):
         return "sms" if self.state.get("simulator") and number == 1 else "wifi"
@@ -247,9 +258,6 @@ class Lab:
                                 if self.activation_mode(number) == "wifi"
                                 else None
                             ),
-                            "lan_interface": "eth0",
-                            "lan_address": "192.168.1.1",
-                            "lan_cidr": "192.168.1.0/24",
                         },
                     )
                     self.deliver(admin, response, number, "gateway")
@@ -329,7 +337,9 @@ class Lab:
             raise RuntimeError("Gateway tunnel exists before simulated SMS delivery")
         if self.peer("query", number) != "blocked":
             raise RuntimeError("LAN reachable before simulated SMS delivery")
-        print("PASS: provider accepted SMS; gateway still asleep and LAN blocked", flush=True)
+        print(
+            "PASS: provider accepted SMS; gateway still asleep and VPN access blocked", flush=True
+        )
         self.peer("sms", number)
 
     def disconnect(self, client, number):
@@ -345,6 +355,17 @@ class Lab:
         self.peer("client-stop", number)
 
     def verify(self):
+        # Read the running API, not a historical default or an edited host .env.
+        lease_seconds = int(
+            self.docker(
+                "exec",
+                "-T",
+                "api",
+                "python",
+                "-c",
+                "from api.config import settings; print(settings.VPN_LEASE_SECONDS)",
+            )
+        )
         credentials = json.loads((self.root / "credentials.json").read_text())
         clients = [self.login(credentials[f"tech{number}"]) for number in (1, 2)]
         checks = []
@@ -355,12 +376,14 @@ class Lab:
             print("PASS: " + label, flush=True)
 
         def traffic(number, expected):
-            for protocol in ("tcp", "udp"):
+            for protocol in ("tcp", "https"):
                 observed = self.peer("query", number, protocol)
                 if observed != expected:
                     raise RuntimeError(
                         f"{protocol} site {number}: expected {expected}, got {observed}"
                     )
+
+            assert self.peer("query", number, "udp") == "blocked", "Direct LAN access"
 
         try:
             for number, client in enumerate(clients, 1):
@@ -368,11 +391,13 @@ class Lab:
                 self.call(client, "POST", "/sessions/", 404, json={"gateway_id": other})
                 self.disconnect(client, number)
                 traffic(number, "blocked")
-            record("No LAN traffic before a session; other group gateway denied")
+            record("No gateway traffic before a session; other group gateway denied")
             for number, client in enumerate(clients, 1):
                 self.connect(client, number)
                 traffic(number, f"site{number}")
-            record("Two real OpenVPN sessions reach distinct TCP/UDP hosts at 192.168.1.10")
+            record(
+                "Two real OpenVPN sessions reach HTTP/HTTPS on their gateway IP; direct LAN denied"
+            )
             if self.state.get("simulator"):
                 record("SMS waits for manual delivery and modem ACK; Wi-Fi starts without SMS")
             self.disconnect(clients[0], 1)
@@ -391,13 +416,9 @@ class Lab:
             # the container would destroy them and would not prove lease expiry.
             self.docker("pause", "session-worker")
             worker_paused = True
-            started = time.monotonic()
-            wait_for(
-                "worker-loss kernel lease expiry", lambda: self.peer("query", 2) == "blocked", 35
+            elapsed = wait_for_worker_lease(
+                lambda: self.peer("query", 2) == "blocked", lease_seconds
             )
-            elapsed = round(time.monotonic() - started, 2)
-            if elapsed > 32.5:  # 30s lease plus the 2s probe timeout and scheduling.
-                raise RuntimeError(f"Worker lease exceeded the expected bound: {elapsed}s")
             traffic(2, "blocked")
             record(
                 f"Worker loss blocks traffic through expiring kernel policy ({elapsed}s observed)"
@@ -423,6 +444,7 @@ class Lab:
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                     "checks": checks,
                     "worker_loss_seconds": elapsed,
+                    "configured_lease_seconds": lease_seconds,
                     "git_head": command(["git", "-C", str(ROOT), "rev-parse", "HEAD"])
                     .decode()
                     .strip(),
@@ -453,6 +475,11 @@ def initialize_lab(root=LAB, *, simulator=False):
         lab = Lab(root)
         if bool(lab.state.get("simulator")) != simulator:
             raise RuntimeError("Lab mode does not match the requested environment")
+        if not (root / ".runtime/pki-public/authority.json").is_file():
+            raise RuntimeError(
+                "Lab predates the offline-root PKI or is incomplete; "
+                "create a fresh lab with --directory instead of reusing it."
+            )
         return lab
     root.mkdir(mode=0o700)
     origin, mail_port = f"https://localhost:{port()}", port()
@@ -460,7 +487,9 @@ def initialize_lab(root=LAB, *, simulator=False):
     initialize(root / ".runtime", "localhost", root / ".env")
     # Add the internal proxy name to the lab certificate; every client verifies this CA.
     cert = x509.load_pem_x509_certificate((root / ".runtime/https/cert.pem").read_bytes())
-    ca_key, _ = load_ca(root / ".runtime")
+    ca_key = serialization.load_pem_private_key(
+        (root / ".runtime/https/key.pem").read_bytes(), None
+    )
     builder = (
         x509.CertificateBuilder()
         .subject_name(cert.subject)
@@ -642,7 +671,7 @@ def initialize_lab(root=LAB, *, simulator=False):
         },
     )
     (root / "peers").mkdir(mode=0o700)
-    write_private(root / "peers/ca.crt", (root / ".runtime/ca/ca.crt").read_bytes())
+    write_private(root / "peers/ca.crt", (root / ".runtime/https/cert.pem").read_bytes())
     save(
         root / "lab.json",
         {
@@ -684,7 +713,9 @@ def main(root=LAB, *, simulator=False):
         ],
     )
     parser.add_argument("--site", type=int, choices=[1, 2], default=1)
+    parser.add_argument("--directory", type=Path, default=root, help="Separate lab state directory")
     args = parser.parse_args()
+    root = args.directory.resolve()
     lab = initialize_lab(root, simulator=simulator) if args.action == "up" else Lab(root)
     if bool(lab.state.get("simulator")) != simulator:
         parser.error("Lab mode does not match the requested environment")
@@ -735,8 +766,8 @@ def main(root=LAB, *, simulator=False):
         lab.peer(args.action, args.site)
         print("Linux OpenVPN client: " + args.action.removeprefix("client-"))
     elif args.action == "query":
-        for protocol in ("tcp", "udp"):
-            print(protocol.upper() + ": " + lab.peer("query", args.site, protocol))
+        for protocol, label in (("tcp", "HTTP"), ("https", "HTTPS"), ("udp", "LAN UDP")):
+            print(label + ": " + lab.peer("query", args.site, protocol))
     elif args.action in ("connect", "disconnect"):
         credentials = json.loads((root / "credentials.json").read_text())
         with closing(lab.login(credentials[f"tech{args.site}"])) as client:

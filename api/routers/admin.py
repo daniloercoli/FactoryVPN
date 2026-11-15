@@ -243,12 +243,19 @@ async def update_gateway(
     actor: User = Depends(require_permission(Permission.GATEWAYS_MANAGE)),
     if_match: str | None = Header(None),
 ):
-    """Set or clear a display name; machine registration never overwrites it."""
+    """Aggiorna inventario e configurazione operativa.
+
+    MAC, modalità e telefono richiedono un amministratore globale, assenza di
+    sessioni/pulizie pendenti e nuovo provisioning dopo la revoca dei materiali.
+    Le correzioni di solo inventario mantengono i permessi delegati esistenti.
+    """
     await lock_actor(db, actor)
     check_permission(actor, Permission.GATEWAYS_MANAGE)
     gateway = await gateway_for_user(db, gateway_id, actor)
     check_revision(actor, if_match, gateway_revision(gateway))
-    gateway.display_name = request.display_name
+    from api.services.gateway_updates import update_fields
+
+    await update_fields(db, actor, gateway, request.model_dump(exclude_unset=True))
     record_event(db, "gateway_updated", actor.id, group_id=gateway.group_id, gateway_id=gateway.id)
     await db.commit()
     return gateway_summary(gateway)

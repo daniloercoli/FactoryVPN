@@ -37,7 +37,18 @@ def test_customer_contract_has_typed_responses_and_no_machine_surface():
     assert "/api/v1/gateways/register" not in schema["paths"]
     assert "/api/v1/gateways/heartbeat" not in schema["paths"]
     assert not any(path.startswith("/api/v1/internal/") for path in schema["paths"])
-    assert set(schema["components"]["securitySchemes"]) == {"HTTPBearer", "PortalCookie"}
+    assert not any(
+        path.startswith(("/api/v1/factory/", "/api/v1/gateway-enrollment/"))
+        for path in schema["paths"]
+    )
+    for path, methods in schema["paths"].items():
+        if path.startswith("/api/v1/admin/enrollments"):
+            assert all(operation["x-required-role"] == "admin" for operation in methods.values())
+    assert set(schema["components"]["securitySchemes"]) == {
+        "HTTPBearer",
+        "PortalCookie",
+        "VerificationCookie",
+    }
     assert "/api/v1/web/login" in schema["paths"]
     assert "GatewayRegisterRequest" not in schema["components"]["schemas"]
     for path, methods in schema["paths"].items():
@@ -69,6 +80,39 @@ def test_customer_contract_has_typed_responses_and_no_machine_surface():
 
     check_refs(schema)
     assert "/api/v1/internal/sessions/work" in app.openapi()["paths"]
+
+
+@pytest.mark.parametrize("suffix", ["verify", "resend"])
+def test_email_challenge_contract_does_not_require_an_authenticated_session(suffix, monkeypatch):
+    from api.config import settings
+    from api.services.email_security import binding_cookie
+
+    monkeypatch.setattr(settings, "PORTAL_PUBLIC_URL", "https://vpn.example.com")
+    schema = customer_schema(app.openapi())
+    operation = schema["paths"][f"/api/v1/web/login/{suffix}"]["post"]
+    assert operation["security"] == [{"VerificationCookie": []}]
+    cookie = schema["components"]["securitySchemes"]["VerificationCookie"]
+    assert cookie["in"] == "cookie"
+    assert cookie["name"] == binding_cookie()
+    assert "X-FactoryVPN-Portal: 1" in operation["description"]
+    assert "No authenticated portal session or CSRF token is required" in operation["description"]
+    assert "bearer" not in operation["responses"]["401"]["description"].lower()
+    for surface in ("auth", "web"):
+        responses = schema["paths"][f"/api/v1/{surface}/login/{suffix}"]["post"]["responses"]
+        assert {"400", "429"} <= responses.keys()
+        if suffix == "resend":
+            assert "503" in responses
+
+
+def test_browser_contract_distinguishes_initial_login_from_conditional_sessions():
+    paths = customer_schema(app.openapi())["paths"]
+    assert paths["/api/v1/web/login"]["post"]["security"] == []
+    for path in ("/api/v1/web/sso/start", "/api/v1/web/logout"):
+        assert paths[path]["post"]["security"] == [{}, {"PortalCookie": []}]
+    assert "reauthenticate=true" in paths["/api/v1/web/sso/start"]["post"]["description"]
+    assert "even expired or revoked" in paths["/api/v1/web/logout"]["post"]["description"]
+    for path, method in (("session", "get"), ("password", "post"), ("logout-all", "post")):
+        assert paths[f"/api/v1/web/{path}"][method]["security"] == [{"PortalCookie": []}]
 
 
 def test_session_contract_excludes_internal_diagnostic_storage():
@@ -182,7 +226,17 @@ def test_vpn_catalog_contract_exposes_pagination_availability_and_safe_label_edi
     assert "if-match" in {param["name"].lower() for param in patch["parameters"]}
     update = schema["components"]["schemas"]["GatewayUpdateRequest"]
     assert update["additionalProperties"] is False
-    assert update["required"] == ["display_name"]
+    assert not update.get("required")
+    assert update["minProperties"] == 1
+    assert set(update["properties"]) == {
+        "display_name",
+        "serial_number",
+        "imei",
+        "iccid",
+        "activation_mode",
+        "phone_number",
+        "mac_address",
+    }
 
 
 def test_component_and_log_contracts_do_not_export_machine_routes():

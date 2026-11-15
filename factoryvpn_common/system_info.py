@@ -52,6 +52,7 @@ class SystemCollector:
         self.sys_root = Path(sys_root)
         self._task = None
         self.modem_cache = None
+        self.modem_cached_at = 0.0
 
     def collect(self):
         components = {}
@@ -111,11 +112,14 @@ class SystemCollector:
         if self.modem is None:
             components["modem"] = Component(state="not_applicable")
         else:
-            if self.modem_cache is None and self.can_probe_modem():
+            if (
+                self.modem_cache is None or time.monotonic() - self.modem_cached_at >= 3600
+            ) and self.can_probe_modem():
                 try:
                     inventory = component(**self.modem.inventory(can_probe=self.can_probe_modem))
                     if inventory.state == "reported":
                         self.modem_cache = inventory
+                        self.modem_cached_at = time.monotonic()
                 except Exception:
                     components["modem"] = Component(state="collection_failed")
             components.setdefault("modem", self.modem_cache or Component(state="collection_failed"))

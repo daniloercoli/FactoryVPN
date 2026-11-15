@@ -1,4 +1,4 @@
-import { completeEmail, completeApi } from "./email";
+import { completeEmail } from "./email";
 import { test, expect, type Page } from "./fixtures";
 
 async function login(page: Page, username = "root") {
@@ -46,10 +46,9 @@ test("delegated administrators cannot see or directly open recovery", async ({ p
 test("an incorrect confirmation password keeps the portal session open", async ({ page }) => {
   await login(page);
   // Show the five-minute confirmation form without waiting in the browser test.
-  let forceConfirmation = true;
   await page.route("**/api/v1/backups", async route => {
     const response = await route.fetch();
-    await route.fulfill({ response, json: { ...await response.json(), needs_reauthentication: forceConfirmation || (await response.json()).needs_reauthentication } });
+    await route.fulfill({ response, json: { ...await response.json(), needs_reauthentication: true } });
   });
   await page.goto("/app/backups");
   const form = page.getByRole("region", { name: "Conferma identità" });
@@ -62,8 +61,13 @@ test("an incorrect confirmation password keeps the portal session open", async (
   await form.getByRole("button", { name: "Conferma identità", exact: true }).click();
   await expect(page.getByLabel("Codice email", { exact: true })).toBeVisible();
 
+  const verified = page.waitForResponse(response => response.url().endsWith("/web/email/verify") && response.request().method() === "POST");
   await completeEmail(page, "root", true);
-  forceConfirmation = false;
+  expect((await verified).ok()).toBeTruthy();
+  await expect(page.getByLabel("Codice email", { exact: true })).toHaveCount(0);
+  await page.unrouteAll({ behavior: "wait" });
   await page.reload();
+  // An absent form during loading does not prove reauthentication succeeded.
+  await expect(page.getByText("Coordinatore disponibile", { exact: true })).toBeVisible();
   await expect(form).toHaveCount(0);
 });

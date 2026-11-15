@@ -6,7 +6,7 @@ import zipfile
 from uuid import UUID, uuid4
 from datetime import timedelta
 import pytest
-from cryptography import x509
+from factoryvpn_common.certificates import validate_crls
 from sqlalchemy import select, func
 from api.config import settings
 from api.models.provisioning import ProvisioningJob, VPNCertificate, GatewayCredential
@@ -15,7 +15,7 @@ from api.models.user import User
 from api.models.session import Session
 from api.time_utils import utc_now
 from api.services.credentials import digest
-from scripts.bootstrap import initialize
+from scripts.lab_pki import initialize
 from scripts.provisioning_worker import cycle
 from test_access_control_postgres import (
     access as access_fixture,
@@ -50,9 +50,6 @@ def registration(access, **changes):
         "activation_mode": "wifi",
         "phone_number": None,
         "mac_address": "02:11:22:33:44:55",
-        "lan_interface": "eth0",
-        "lan_address": "192.168.1.1",
-        "lan_cidr": "192.168.1.0/24",
         **changes,
     }
 
@@ -76,7 +73,12 @@ async def test_gateway_full_flow_is_staged_idempotent_and_secret_free(access, br
         if mode == "sms"
         else {}
     )
-    body, job, key = await new_gateway(access, browser, pki, **options)
+    inventory = {
+        "serial_number": "factory-001",
+        "imei": "012345678901234",
+        "iccid": "08912345678901234567",
+    }
+    body, job, key = await new_gateway(access, browser, pki, **options, **inventory)
     replay = await browser.post(
         "/api/v1/provisioning/gateways", json=body, headers={"Idempotency-Key": key}
     )
@@ -89,13 +91,15 @@ async def test_gateway_full_flow_is_staged_idempotent_and_secret_free(access, br
     assert downloaded.headers["cache-control"] == "no-store"
     with zipfile.ZipFile(io.BytesIO(downloaded.content)) as bundle:
         config = dict(
-            line.split("=", 1) for line in bundle.read("gateway.env").decode().splitlines()
+            line.split("=", 1)
+            for line in bundle.read("gateway.env").decode().splitlines()
+            if line and not line.startswith("#")
         )
         assert "PRIVATE KEY" in bundle.read("gateway.ovpn").decode()
         assert config["GATEWAY_API_KEY"] != config["GATEWAY_SMS_KEY"]
         assert config["MAC_ADDRESS"] == (body["mac_address"] or "")
     headers = {"X-Gateway-Key": config["GATEWAY_API_KEY"]}
-    machine = {k: v for k, v in body.items() if k not in {"display_name", "group_id"}}
+    machine = {k: v for k, v in body.items() if k not in {"display_name", "group_id", *inventory}}
     assert (
         await access.client.post("/api/v1/gateways/register", headers=headers, json=machine)
     ).status_code == 401
@@ -105,7 +109,7 @@ async def test_gateway_full_flow_is_staged_idempotent_and_secret_free(access, br
         await access.client.post(
             "/api/v1/gateways/register",
             headers=headers,
-            json={**machine, "lan_cidr": "192.168.0.0/16"},
+            json={**machine, "mac_address": "AA:00:00:00:00:99"},
         )
     ).status_code == 409
     registered = await access.client.post(
@@ -113,6 +117,7 @@ async def test_gateway_full_flow_is_staged_idempotent_and_secret_free(access, br
     )
     assert registered.status_code == 200, registered.text
     assert registered.json()["group_id"] == body["group_id"]
+    assert all(registered.json()[field] == value for field, value in inventory.items())
     state = (await browser.get(f'/api/v1/provisioning/peers/gateway/{body["gateway_id"]}')).json()
     assert state["registered_at"] and state["certificate"]["state"] == "active"
     async with access.db() as db:
@@ -166,6 +171,22 @@ async def test_logout_expires_pending_material_and_never_activates_it(access, br
 
 
 async def test_personal_profile_replacement_requires_own_identity_and_cleanup(access, browser, pki):
+    # Use a real certificate from this ceremony for the CRL assertion.
+    from scripts.provisioning_worker import sync_issuers
+    from factoryvpn_common.pki import issue_profile, certificate_issuer
+    from factoryvpn_common.certificates import PEM
+
+    cert, _ = issue_profile(pki, "technician", access.users["tech_a"].id, "vpn.example.test", 1194)
+    async with access.db() as db:
+        await sync_issuers(db, pki)
+        row = await db.scalar(
+            select(VPNCertificate).where(VPNCertificate.peer_id == access.users["tech_a"].id)
+        )
+        row.issuer_id = certificate_issuer(pki, cert)
+        row.serial = str(cert.serial_number)
+        row.certificate_pem = cert.public_bytes(PEM).decode()
+        row.not_before, row.not_after = cert.not_valid_before_utc, cert.not_valid_after_utc
+        await db.commit()
     await login(browser, "tech_a")
     peer = access.users["tech_a"].id
     path = f"/api/v1/provisioning/peers/technician/{peer}"
@@ -197,7 +218,11 @@ async def test_personal_profile_replacement_requires_own_identity_and_cleanup(ac
     assert current["certificate"]["id"] != old["id"] and current["revocation_pending"]
     await cycle(access.db, pki)
     assert not (await browser.get(path)).json()["revocation_pending"]
-    crl = x509.load_pem_x509_crl((pki / "server/crl.pem").read_bytes())
+    crl = next(
+        crl
+        for crl in validate_crls(pki)
+        if crl.get_revoked_certificate_by_serial_number(int(old["serial"]))
+    )
     assert crl.get_revoked_certificate_by_serial_number(int(old["serial"]))
     await login(browser, "root")
     assert (

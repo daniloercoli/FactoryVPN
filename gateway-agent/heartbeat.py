@@ -5,14 +5,15 @@ from datetime import datetime, timezone
 
 
 class HeartbeatService:
-    def __init__(self, server_url, api_key):
+    def __init__(self, server_url, api_key, timeout=10):
         if not api_key:
             raise ValueError("GATEWAY_API_KEY must be configured")
         self.url = server_url.rstrip("/") + "/api/v1/gateways/heartbeat"
         self.headers = {"X-Gateway-Key": api_key}
+        self.timeout = timeout
 
     async def send(self, vpn_ip=None, ready_session_id=None, activation_token=None):
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.post(
                 self.url,
                 headers=self.headers,

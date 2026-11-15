@@ -6,13 +6,15 @@ Every created session is closed in finally. No host process or route is changed.
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+import argparse
 import json
+from pathlib import Path
 
 from scripts.local_lab import Lab, ROOT, command, save, wait_for
 
 
-def main():
-    lab = Lab(ROOT / ".factoryvpn-simulator")
+def main(root=ROOT / ".factoryvpn-simulator"):
+    lab = Lab(root)
     if not lab.state.get("simulator"):
         raise RuntimeError("Client checks require the dedicated gateway simulator")
     credentials = json.loads((lab.root / "credentials.json").read_text())
@@ -26,10 +28,12 @@ def main():
         return lab.docker("exec", "-T", "peers", "python", "-c", code, *args).decode().strip()
 
     def traffic(number, expected):
-        for protocol in ("tcp", "udp"):
+        for protocol in ("tcp", "https"):
             observed = lab.peer("query", number, protocol)
             if observed != expected:
                 raise RuntimeError(f"Site {number} {protocol}: expected {expected}, got {observed}")
+
+        assert lab.peer("query", number, "udp") == "blocked", "Direct LAN access"
 
     def vpn_pids(namespace):
         return json.loads(
@@ -135,4 +139,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--directory", type=Path, default=ROOT / ".factoryvpn-simulator")
+    main(parser.parse_args().directory.resolve())

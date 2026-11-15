@@ -137,10 +137,49 @@ async def test_late_sms_outcome_cannot_undo_browser_logout(
     async with access.db() as db:
         vpn = await db.get(Session, identifier)
         assert vpn.error_reason == "Portal session signed out"
-        assert vpn.cleaned_at is None and vpn.network_slot is not None
+        assert vpn.cleaned_at is None
     # A terminal row remains reserved until the worker confirms actual cleanup.
     retry = await open_vpn(access, uuid4(), actor="admin_a")
     assert retry.status_code == 409
+
+
+@pytest.mark.parametrize("hours", [3, 4])
+async def test_configured_vpn_with_twelve_hour_login_keeps_five_minute_network_leases(
+    access, browser, monkeypatch, hours
+):
+    monkeypatch.setattr(lifecycle.settings, "VPN_SESSION_MINUTES", hours * 60)
+    # Avanziamo il tempo delle API senza attendere ore o alterare le scadenze salvate.
+    started = utc_now()
+    clock = [started]
+    for service in (lifecycle, session_service, web_session_service):
+        monkeypatch.setattr(service, "utc_now", lambda: clock[0])
+    await login(browser, "tech_a")
+    async with access.db() as db:
+        web = await db.scalar(select(WebSession))
+        assert web.expires_at == started + timedelta(hours=12)
+    result = await browser.post(
+        "/api/v1/sessions/", json={"gateway_id": str(access.gateways["A"].id)}
+    )
+    assert result.status_code == 200, result.text
+    identifier = UUID(result.json()["session_id"])
+    async with access.db() as db:
+        assert (await db.get(Session, identifier)).expires_at == started + timedelta(hours=hours)
+
+    clock[0] = started + timedelta(hours=1)
+    work = await access.client.get("/api/v1/internal/sessions/work", headers=access.worker)
+    assert work.status_code == 200 and work.json()[0]["status"] == "REQUESTED"
+    assert work.json()[0]["lease_seconds"] == 300
+    assert (await browser.get("/api/v1/web/session")).status_code == 200
+
+    clock[0] = started + timedelta(hours=hours, seconds=1)
+    work = await access.client.get("/api/v1/internal/sessions/work", headers=access.worker)
+    assert work.status_code == 200 and work.json()[0]["status"] == "EXPIRED"
+    assert work.json()[0]["lease_seconds"] == 0
+    # La fine dell'intervento non termina il login, che ha una durata separata.
+    assert (await browser.get("/api/v1/web/session")).status_code == 200
+    await machine_cannot_resume(access, identifier)
+    clock[0] = started + timedelta(hours=12, seconds=1)
+    assert (await browser.get("/api/v1/web/session")).status_code == 401
 
 
 @pytest.mark.parametrize("mode", ["local", "sso"])
@@ -229,3 +268,24 @@ async def test_only_global_browser_logout_closes_an_independent_bearer_vpn(
         assert vpn.status == ("FAILED" if global_logout else "REQUESTED")
     identity = await access.call("GET", "/auth/me", "tech_a")
     assert identity.status_code == (401 if global_logout else 200)
+
+
+async def test_ready_gateway_and_worker_survive_two_minutes_without_heartbeat(access, monkeypatch):
+    from test_access_control_postgres import stale_active_session
+
+    # Prepara una sessione attiva e poi simula una pausa nelle sole API.
+    identifier = await stale_active_session(access)
+    now = utc_now()
+    async with access.db() as db:
+        row = await db.get(Session, identifier)
+        row.worker_seen_at = row.gateway_ready_at = now
+        await db.commit()
+    monkeypatch.setattr(lifecycle, "utc_now", lambda: now + timedelta(seconds=120))
+    response = await access.client.get("/api/v1/internal/sessions/work", headers=access.worker)
+    item = response.json()[0]
+    assert item["status"] == "ACTIVE" and item["gateway_ready"]
+    assert item["lease_seconds"] == 300
+    monkeypatch.setattr(lifecycle, "utc_now", lambda: now + timedelta(seconds=301))
+    response = await access.client.get("/api/v1/internal/sessions/work", headers=access.worker)
+    item = response.json()[0]
+    assert item["status"] == "REQUESTED" and not item["gateway_ready"]

@@ -4,6 +4,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import struct
 import tarfile
@@ -17,18 +18,40 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 MAGIC = b"FVPNBK01"
 CHUNK = 1024 * 1024
 PKI_FILES = (
-    "ca/ca.key",
-    "ca/ca.crt",
+    "pki-public/authority.json",
     "server/ca.crt",
     "server/server.crt",
     "server/server.key",
-    "server/tls-crypt.key",
-    "server/crl.pem",
+    "server/chain.pem",
+    "transport/tls-crypt.key",
+    "crls/bundle.pem",
     "https/cert.pem",
     "https/key.pem",
 )
 PAYLOAD_FILES = ("database.dump", "configuration.json", *["runtime/" + p for p in PKI_FILES])
 ARCHIVE_FILES = ("manifest.json", *PAYLOAD_FILES)
+
+
+def pki_files(root):
+    from factoryvpn_common.certificates import load_authority
+
+    data, _, _ = load_authority(root)
+    return (*PKI_FILES, *("issuers/" + key + ".key" for key in sorted(data["issuers"])))
+
+
+def payload_files(directory):
+    return (
+        "database.dump",
+        "configuration.json",
+        *("runtime/" + p for p in pki_files(Path(directory) / "runtime")),
+    )
+
+
+def allowed_file(name):
+    return (
+        name in ARCHIVE_FILES
+        or re.fullmatch(r"runtime/issuers/[0-9a-f]{64}\.key", name) is not None
+    )
 
 
 class BackupError(Exception):
@@ -132,11 +155,12 @@ def decrypt(source, destination, key, maximum):
 
 def pack(directory, output, key, manifest):
     directory = Path(directory)
+    files = payload_files(directory)
     manifest = {
         **manifest,
-        "format": 1,
+        "format": 2,
         "schema": schema_fingerprint(),
-        "files": {name: file_hash(directory / name) for name in PAYLOAD_FILES},
+        "files": {name: file_hash(directory / name) for name in files},
     }
     private_write(directory / "manifest.json", json.dumps(manifest).encode())
     # Temporary plaintext is confined to a private job directory and always removed by caller.
@@ -144,7 +168,7 @@ def pack(directory, output, key, manifest):
     with plain.open("xb") as stream:
         os.chmod(plain, 0o600)
         with tarfile.open(fileobj=stream, mode="w", format=tarfile.USTAR_FORMAT) as archive:
-            for name in ARCHIVE_FILES:
+            for name in ("manifest.json", *files):
                 path = directory / name
                 if path.is_symlink() or not path.is_file():
                     raise BackupError("invalid_file")
@@ -171,7 +195,7 @@ def unpack(path, directory, key, maximum):
         with tarfile.open(plain, "r:") as archive:
             for member in archive:
                 if (
-                    member.name not in ARCHIVE_FILES
+                    not allowed_file(member.name)
                     or member.name in seen
                     or not member.isfile()
                     or member.pax_headers
@@ -182,26 +206,29 @@ def unpack(path, directory, key, maximum):
                 if total > maximum or (member.name != "database.dump" and member.size > CHUNK):
                     raise BackupError("archive_too_large")
                 seen.add(member.name)
+                if len(seen) > len(ARCHIVE_FILES) + 32:
+                    raise BackupError("invalid_file")
                 target = directory / member.name
                 target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
                 with target.open("xb") as out, archive.extractfile(member) as source:
                     os.chmod(target, 0o600)
                     while data := source.read(CHUNK):
                         out.write(data)
-        if seen != set(ARCHIVE_FILES):
+        files = payload_files(directory)
+        if seen != {"manifest.json", *files}:
             raise BackupError("missing_file")
         manifest = json.loads((directory / "manifest.json").read_bytes())
         UUID(manifest["installation_id"])
         if datetime.fromisoformat(manifest["created_at"]).tzinfo is None:
             raise BackupError("invalid_archive")
-        if manifest.get("format") != 1 or manifest.get("schema") != schema_fingerprint():
+        if manifest.get("format") != 2 or manifest.get("schema") != schema_fingerprint():
             raise BackupError("incompatible_schema")
         if manifest.get("postgres_major") != 15:
             raise BackupError("incompatible_database")
-        if manifest.get("files") != {name: file_hash(directory / name) for name in PAYLOAD_FILES}:
+        if manifest.get("files") != {name: file_hash(directory / name) for name in files}:
             raise BackupError("checksum_failed")
         return manifest
-    except (tarfile.TarError, ValueError, TypeError, KeyError):
+    except (tarfile.TarError, ValueError, TypeError, KeyError, FileNotFoundError):
         raise BackupError("invalid_archive") from None
 
 

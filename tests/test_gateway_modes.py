@@ -49,10 +49,8 @@ async def control(monkeypatch):
         status="REQUESTED",
         activation_mode="sms",
         expires_at=utc_now() + timedelta(minutes=5),
-        network_slot=1,
         gateway_vpn_ip=gateway.vpn_ip,
         technician_vpn_ip="10.100.128.2",
-        lan_cidr="192.168.1.0/24",
         sms_sent_at=utc_now(),
     )
     db = Mock(spec=AsyncSession)
@@ -120,7 +118,9 @@ async def test_gateway_can_activate_each_channel_without_provider_timestamp(cont
     assert response.json()["network"]["session_id"] == str(session.id)
     assert session.activation_received_at is not None
     assert session.sms_sent_at is None
-    assert session.gateway_ready_at is None  # receipt alone does not claim a configured LAN
+    assert (
+        session.gateway_ready_at is None
+    )  # receipt alone does not claim an authorized gateway firewall
 
 
 @pytest.mark.parametrize("invalid", ["different_session", "expired", "different_key"])
@@ -212,7 +212,6 @@ def agent_fixture(load_script, mode, sms=None):
         GATEWAY_API_KEY=KEY,
         GATEWAY_SMS_KEY=KEY,
         VPN_INTERFACE="tun0",
-        LAN_INTERFACE="eth0",
         POLL_INTERVAL=5,
         WIFI_CHECK_INTERVAL=30,
     )
@@ -229,7 +228,7 @@ async def test_sms_idle_and_invalid_messages_do_not_access_https(load_script):
 
 async def test_wifi_agent_connects_without_modem_and_changes_poll_interval(load_script):
     agent = agent_fixture(load_script, "wifi")
-    spec = SessionNetwork(str(uuid4()), 1, "10.100.128.2", "10.100.0.2", "192.168.1.0/24")
+    spec = SessionNetwork(str(uuid4()), "10.100.128.2", "10.100.0.2")
     agent.heartbeat.send.return_value = {
         "connect": True,
         "network": spec.to_dict(),
@@ -255,7 +254,7 @@ async def test_wifi_never_initializes_serial_modem(load_script, monkeypatch):
 
 
 async def test_sms_is_preserved_across_https_failure_and_deleted_only_after_ready(load_script):
-    spec = SessionNetwork(str(uuid4()), 1, "10.100.128.2", "10.100.0.2", "192.168.1.0/24")
+    spec = SessionNetwork(str(uuid4()), "10.100.128.2", "10.100.0.2")
     sms = SimpleNamespace(id=3, body=activation_message(spec.session_id, time.time() + 300, KEY))
     agent = agent_fixture(load_script, "sms", sms)
     agent.heartbeat.send.side_effect = ConnectError("offline")
@@ -285,7 +284,7 @@ async def test_sms_is_preserved_across_https_failure_and_deleted_only_after_read
 async def test_sms_gateway_refuses_server_assignment_for_another_session(load_script):
     sms = SimpleNamespace(id=1, body=activation_message(uuid4(), time.time() + 300, KEY))
     agent = agent_fixture(load_script, "sms", sms)
-    spec = SessionNetwork(str(uuid4()), 1, "10.100.128.2", "10.100.0.2", "192.168.1.0/24")
+    spec = SessionNetwork(str(uuid4()), "10.100.128.2", "10.100.0.2")
     agent.heartbeat.send.return_value = {
         "connect": True,
         "network": spec.to_dict(),
@@ -310,9 +309,6 @@ def test_wifi_configuration_needs_no_phone_and_sms_is_default():
     payload = dict(
         gateway_id=uuid4(),
         mac_address="AA:BB:CC:DD:EE:FF",
-        lan_interface="eth0",
-        lan_address="192.168.1.1",
-        lan_cidr="192.168.1.0/24",
     )
     assert GatewayRegisterRequest(**payload, activation_mode="wifi").phone_number is None
     assert GatewayRegisterRequest(**payload, phone_number="+393331234567").activation_mode == "sms"
@@ -381,9 +377,6 @@ async def test_registration_requires_preprovisioned_gateway(control):
             "gateway_id": str(gateway.id),
             "activation_mode": "wifi",
             "mac_address": "AA:BB:CC:DD:EE:FF",
-            "lan_interface": "eth0",
-            "lan_address": "192.168.1.1",
-            "lan_cidr": "192.168.1.0/24",
         },
     )
     assert response.status_code == 404

@@ -12,12 +12,13 @@ import shutil
 import socket
 import subprocess
 import tempfile
+import time
 from uuid import uuid4
 
 import httpx
 from dotenv import set_key
 
-from scripts.bootstrap import initialize
+from scripts.lab_pki import initialize
 from scripts.backup_coordinator import Coordinator
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -232,8 +233,15 @@ asyncio.run(main())
                 coordinator.cycle()
                 job = coordinator.catalog.jobs()[0]
                 assert job["state"] == "succeeded", job["error"]
-                status = client.get("/api/v1/web/session").status_code
-                assert status == 401, status
+                assert coordinator.catalog.meta("maintenance") == ""
+                # Docker Desktop's host-directory mount can briefly retain the
+                # removed maintenance marker. Bound that propagation delay.
+                deadline = time.monotonic() + 10
+                response = client.get("/api/v1/web/session")
+                while response.status_code == 503 and time.monotonic() < deadline:
+                    time.sleep(0.2)
+                    response = client.get("/api/v1/web/session")
+                assert response.status_code == 401, (response.status_code, response.text)
                 assert (
                     client.get(
                         "/api/v1/auth/me", headers={"Authorization": "Bearer " + old_bearer}

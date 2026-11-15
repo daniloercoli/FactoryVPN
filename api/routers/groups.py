@@ -144,6 +144,13 @@ async def delete_group(
                 raise HTTPException(
                     403, "Group contains accounts outside your administration scope"
                 )
+    from api.models.enrollment import GatewayEnrollment
+    from api.services.enrollment import invalidate
+
+    for identifier in (
+        await db.scalars(select(GatewayEnrollment.id).where(GatewayEnrollment.group_id == group.id))
+    ).all():
+        await invalidate(db, identifier, "group_deleted", actor_id=actor.id)
     await db.execute(delete(Group).where(Group.id == group.id))
     record_event(db, "group_deleted", actor.id, group_id=group.id)
     await db.commit()

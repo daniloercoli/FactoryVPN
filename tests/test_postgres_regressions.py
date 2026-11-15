@@ -71,7 +71,6 @@ async def test_gateway_registration_session_permissions_and_expiry_in_postgres(m
                 activation_mode="sms",
                 phone_number=phone,
                 mac_address="AA:BB:CC:DD:EE:FF",
-                vpn_subnet="192.168.1.0/24",
             )
             db.add(gateway)
             await seed_gateway(db, gateway, gateway_key, registered=False)
@@ -91,9 +90,6 @@ async def test_gateway_registration_session_permissions_and_expiry_in_postgres(m
                     "gateway_id": str(provisioned_id),
                     "phone_number": phone,
                     "mac_address": "AA:BB:CC:DD:EE:FF",
-                    "lan_interface": "eth0",
-                    "lan_address": "192.168.1.1",
-                    "lan_cidr": "192.168.1.0/24",
                 },
             )
             assert response.status_code == 200, response.text
@@ -124,9 +120,11 @@ async def test_gateway_registration_session_permissions_and_expiry_in_postgres(m
                 assert closed.sms_sent_at is None
                 assert abs((closed.requested_at - datetime.now(timezone.utc)).total_seconds()) < 60
                 assert abs((closed.ended_at - datetime.now(timezone.utc)).total_seconds()) < 60
-                assert 29 * 60 < (closed.expires_at - closed.requested_at).total_seconds() < 31 * 60
+                # Tre ore di durata anche quando il processo usa un fuso diverso da UTC.
+                duration = closed.expires_at - closed.requested_at
+                assert abs(duration - timedelta(hours=3)) < timedelta(minutes=1)
                 gateway = await db.get(Gateway, gateway_id)
-                assert gateway.vpn_subnet == "192.168.1.0/24"
+                assert gateway.vpn_ip
                 expired = Session(
                     id=uuid4(),
                     technician_id=owner.id,
@@ -156,12 +154,6 @@ async def test_gateway_registration_session_permissions_and_expiry_in_postgres(m
             )
             assert response.status_code == 200, response.text
             assert response.json() == {"expired": 1}
-            response = await client.get(
-                "/api/v1/internal/sessions/namespace-states", headers={"X-Worker-Key": worker_key}
-            )
-            assert response.status_code == 200, response.text
-            assert f"factoryvpn_{str(fresh.id)[:8]}" in response.json()["protected"]
-            assert f"factoryvpn_{str(expired.id)[:8]}" in response.json()["terminal"]
             response = await client.delete(
                 f"/api/v1/admin/gateways/{uuid4()}/devices/{device.id}",
                 headers={

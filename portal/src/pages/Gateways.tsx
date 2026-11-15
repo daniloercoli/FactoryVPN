@@ -5,6 +5,7 @@ import { api, page, type Gateway } from "../api/client";
 import { useAuth } from "../auth";
 import { useGroups } from "../hooks";
 import { availabilityNames } from "./VPN";
+import { GatewayIdentifiers } from "./GatewayIdentifiers";
 import {
   Badge,
   Confirm,
@@ -103,7 +104,7 @@ export default function Gateways() {
             <input
               value={q}
               maxLength={100}
-              placeholder="Nome, MAC, telefono o UUID"
+              placeholder="Nome, matricola, MAC, IMEI, ICCID, telefono o UUID"
               onChange={(e) => {
                 setQ(e.target.value);
                 setOffset(0);
@@ -184,7 +185,7 @@ export default function Gateways() {
                   <table>
                     <thead>
                       <tr>
-                        <th>Gateway / MAC</th>
+                        <th>Gateway / identificativi</th>
                         <th>Gruppo</th>
                         <th>Disponibilità</th>
                         <th>Ultimo contatto</th>
@@ -205,6 +206,7 @@ export default function Gateways() {
                                 {g.mac_address || "MAC non registrato"}
                               </small>
                             )}
+                            <GatewayIdentifiers value={g} />
                             <small className="cell-sub">
                               {g.activation_mode === "wifi" ? "Wi-Fi" : "SMS"}
                             </small>

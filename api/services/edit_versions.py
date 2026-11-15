@@ -79,9 +79,11 @@ def gateway_revision(gateway):
                     "display_name",
                     "group_id",
                     "mac_address",
+                    "serial_number",
+                    "imei",
+                    "iccid",
                     "phone_number",
                     "activation_mode",
-                    "vpn_subnet",
                 )
             },
         }

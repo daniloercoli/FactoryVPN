@@ -382,7 +382,7 @@ async def test_cognito_revocation_closes_vpn_and_invalidates_api_token(access, p
     async with access.db() as db:
         row = await db.get(Session, identifier)
         assert row.status == "FAILED" and row.cleaned_at is None
-        assert row.network_slot is not None
+        assert row.cleaned_at is None
         session = await db.scalar(select(SSOSession))
         assert session.revoked_at and session.tokens_encrypted is None
     assert provider.revoke_count == 1

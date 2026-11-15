@@ -1,6 +1,7 @@
 """Scoped VPN discovery without reserving peers or exposing other sessions."""
 
 from uuid import UUID
+import re
 from datetime import datetime, timedelta
 from api.services.credentials import configured_gateway, active_certificate
 
@@ -27,9 +28,21 @@ def identifier_filter(column, value):
 
 
 def gateway_search(value):
+    value = value.strip()
+    # Accetta MAC con due punti, trattini, punti o senza separatori, anche parziali.
+    compact_mac = re.sub(r"[:.\s-]", "", value)
+    mac = func.replace(Gateway.mac_address, ":", "")
     return or_(
         Gateway.display_name.icontains(value, autoescape=True),
         Gateway.mac_address.icontains(value, autoescape=True),
+        (
+            mac.icontains(compact_mac, autoescape=True)
+            if re.fullmatch(r"[0-9a-fA-F]{2,12}", compact_mac)
+            else False
+        ),
+        Gateway.serial_number.icontains(value, autoescape=True),
+        Gateway.imei.icontains(value, autoescape=True),
+        Gateway.iccid.icontains(value, autoescape=True),
         Gateway.phone_number.icontains(value, autoescape=True),
         identifier_filter(Gateway.id, value),
     )
@@ -42,7 +55,6 @@ def gateway_query(
     configured = and_(
         Gateway.group_id.is_not(None),
         configured_gateway(Gateway.id),
-        func.nullif(func.trim(Gateway.vpn_subnet), "").is_not(None),
         or_(
             Gateway.activation_mode == "wifi",
             func.nullif(func.trim(Gateway.phone_number), "").is_not(None),
@@ -146,7 +158,6 @@ async def gateway_detail(db, actor, identifier, *, administrative=False):
         payload["metadata"] = gateway.extra_metadata
     else:
         # Explicit public projection: never return arbitrary machine metadata.
-        metadata = gateway.extra_metadata or {}
         query = select(Session).where(
             Session.gateway_id == gateway.id, occupied(), scope(Session.group_id, actor)
         )
@@ -156,9 +167,6 @@ async def gateway_detail(db, actor, identifier, *, administrative=False):
         payload.update(
             revision=gateway_revision(gateway),
             serial_number=gateway.serial_number,
-            lan_cidr=gateway.vpn_subnet,
-            lan_interface=metadata.get("lan_interface"),
-            lan_address=metadata.get("lan_address"),
             created_at=gateway.created_at,
             current_session=(
                 {
@@ -179,7 +187,6 @@ async def gateway_detail(db, actor, identifier, *, administrative=False):
 def cleanup_pending():
     return and_(
         Session.status.in_(TERMINAL),
-        Session.network_slot.is_not(None),
         Session.cleaned_at.is_(None),
     )
 
@@ -277,11 +284,7 @@ async def session_list(
         session, name, mac = row[:3]
         payload = {
             **{field: getattr(session, field) for field in SessionSummaryResponse.model_fields},
-            "cleanup_pending": (
-                session.status in TERMINAL
-                and session.network_slot is not None
-                and session.cleaned_at is None
-            ),
+            "cleanup_pending": (session.status in TERMINAL and session.cleaned_at is None),
             "gateway_display_name": name,
             "gateway_mac_address": mac,
         }

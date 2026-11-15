@@ -3,7 +3,7 @@ FROM alpine:3.24
 WORKDIR /app
 ENV PYTHONPATH=/app PYTHONUNBUFFERED=1
 RUN apk upgrade --no-cache && apk add --no-cache \
-    python3 py3-httpx py3-pydantic py3-dotenv py3-pyserial \
+    python3 py3-httpx py3-pydantic py3-dotenv py3-pyserial py3-cryptography \
     openvpn openssl ca-certificates iproute2 nftables \
     && ln -s /usr/bin/python3 /usr/local/bin/python
 COPY pyproject.toml ./
@@ -12,4 +12,5 @@ COPY gateway-agent/ ./gateway-agent/
 COPY api/__init__.py ./api/__init__.py
 COPY api/schemas/ ./api/schemas/
 COPY scripts/__init__.py scripts/local_lab_peers.py scripts/simulator_sms.py ./scripts/
+RUN python -c "import importlib; importlib.import_module('gateway-agent.main')"
 CMD ["python", "-m", "scripts.local_lab_peers", "serve"]

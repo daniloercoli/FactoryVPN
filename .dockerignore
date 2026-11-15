@@ -14,6 +14,7 @@ venv
 .runtime
 .factoryvpn-lab
 .factoryvpn-simulator
+.factoryvpn-factory
 docker/ssl
 .aws
 *.local
@@ -28,6 +29,9 @@ project-notes
 AGENTS.md
 .agents
 .codex
+
+# Temporary private reference material
+*.da.cancellare.dopo.analisi
 
 # Host-only backup state and credentials
 .backup-control

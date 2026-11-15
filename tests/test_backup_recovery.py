@@ -8,7 +8,6 @@ import pytest
 from scripts.backup_coordinator import Coordinator, Docker
 from factoryvpn_common.backup_archive import (
     BackupError,
-    PAYLOAD_FILES,
     load_key,
     pack,
     private_write,
@@ -124,7 +123,10 @@ def test_import_rejects_incompatible_backup_before_publishing(
     coordinator.initialize()
     job = coordinator.catalog.enqueue("import", {"user_id": str(uuid4())}, uuid4())
     source = tmp_path / "source"
-    for name in PAYLOAD_FILES:
+    from scripts.lab_pki import initialize
+
+    initialize(source / "runtime", "vpn.example.test")
+    for name in ("database.dump", "configuration.json"):
         private_write(source / name, b"{}")
     upload = coordinator.catalog.root / "imports" / (job["id"] + ".upload")
     pack(

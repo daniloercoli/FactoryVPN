@@ -166,6 +166,37 @@ export async function allGroups(signal?: AbortSignal): Promise<Group[]> {
 export function errorMessage(error: unknown): string {
   if (!(error instanceof ApiError))
     return "Impossibile raggiungere il servizio. Controlla la connessione e riprova.";
+  const enrollmentErrors: Record<string, string> = {
+    "Gateway identity is already reserved":
+      "Questo UUID appartiene già a un dispositivo. Apri la sua scheda per continuare.",
+    "Serial number is already reserved":
+      "La matricola è già assegnata a un gateway o a un dispositivo in arruolamento.",
+    "Enrollment is blocked or completed":
+      "L’arruolamento è bloccato oppure è già concluso. Ricarica la scheda per verificarne lo stato.",
+    "Enrollment is managed manually":
+      "La consegna automatica è sospesa: il dispositivo è gestito manualmente.",
+    "Enrollment approval is required":
+      "Approva il dispositivo e assegnalo a un gruppo prima di preparare il pacchetto.",
+    "Enrollment group is no longer available":
+      "Il gruppo assegnato non è più disponibile. Scegli un gruppo valido.",
+    "Complete the activation configuration first":
+      "Completa la modalità di attivazione e il relativo numero SMS o MAC prima di preparare il pacchetto.",
+    "Enrollment configuration changed":
+      "La configurazione è cambiata. Ricarica l’arruolamento prima di continuare.",
+    "Automatic enrollment cannot be resumed":
+      "La consegna automatica non può essere ripresa. Continua con il pacchetto manuale dalla scheda gateway.",
+    "Use the gateway provisioning page for completed enrollment":
+      "Il dispositivo ha già completato l’arruolamento. Prepara il nuovo pacchetto dalla scheda gateway.",
+    "Another delivery is pending":
+      "È già in corso la preparazione di un pacchetto. Ricarica la scheda per seguirla o annullarla.",
+    "Wait before requesting another package":
+      "Attendi almeno un minuto prima di richiedere un altro pacchetto.",
+    "Invalid gateway activation configuration":
+      "Verifica modalità, numero telefonico SMS e MAC Wi-Fi prima di salvare.",
+    "Serial number is required for an enrolled gateway":
+      "Un dispositivo arruolato in fabbrica deve conservare una matricola.",
+  };
+  if (enrollmentErrors[error.detail]) return enrollmentErrors[error.detail];
   if (error.detail === "Recent email verification required")
     return "Conferma la tua identità con un codice email nella pagina Il mio profilo, poi ripeti l’operazione.";
   if (
@@ -232,7 +263,7 @@ export function errorMessage(error: unknown): string {
   if (error.status === 429)
     return "È già stato richiesto un SMS. Attendi almeno un minuto dall’ultimo tentativo e aggiorna lo stato.";
   if (error.detail.includes("invalid or overlapping LAN"))
-    return "La rete LAN del gateway non è compatibile. Contatta l’amministratore.";
+    return "L’indirizzo VPN del gateway non è valido. Contatta l’amministratore.";
   if (error.detail.includes("credentials are not provisioned"))
     return "Il gateway deve essere configurato dall’amministratore prima dell’avvio.";
   if (

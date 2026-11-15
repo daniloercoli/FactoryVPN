@@ -136,7 +136,7 @@ async def test_worker_reports_control_api_failure_even_when_diagnostics_are_not_
     async with httpx.AsyncClient(
         base_url="http://test", transport=httpx.MockTransport(handler)
     ) as client:
-        worker = module.SessionWorker(client, Mock(), Mock(), vpn)
+        worker = module.SessionWorker(client, Mock(), vpn)
         await worker.reconcile()
         assert worker.telemetry_services() == {"worker": "error", "openvpn": "ok"}
 
@@ -150,7 +150,7 @@ async def test_gateway_service_failure_is_attributed_to_the_correct_component(lo
     agent = agent_fixture(load_script, "wifi")
     agent.last_cycle = time.monotonic()
     agent.cycle_state = "ok"
-    spec = SessionNetwork(str(uuid4()), 1, "10.100.128.2", "10.100.0.2", "192.168.1.0/24")
+    spec = SessionNetwork(str(uuid4()), "10.100.128.2", "10.100.0.2")
     agent.heartbeat.send.return_value = {
         "connect": True,
         "network": spec.to_dict(),
@@ -185,7 +185,7 @@ async def test_network_cleanup_failure_is_not_reported_as_ready(load_script):
     agent.last_cycle, agent.cycle_state = time.monotonic(), "ok"
     agent.spec = Mock()
     agent.network_state = "ok"
-    agent.network.disable_nat.side_effect = RuntimeError("Cleanup failed")
+    agent.network.disable.side_effect = RuntimeError("Cleanup failed")
     with pytest.raises(RuntimeError):
         await agent.stop_session()
     assert agent.spec is not None  # Still needed by the next cleanup attempt.
@@ -200,7 +200,7 @@ async def test_network_is_unknown_while_configuration_is_in_progress(load_script
 
     agent = agent_fixture(load_script, "wifi")
     agent.last_cycle, agent.cycle_state = time.monotonic(), "ok"
-    spec = SessionNetwork(str(uuid4()), 1, "10.100.128.2", "10.100.0.2", "192.168.1.0/24")
+    spec = SessionNetwork(str(uuid4()), "10.100.128.2", "10.100.0.2")
     agent.heartbeat.send.return_value = {
         "connect": True,
         "network": spec.to_dict(),

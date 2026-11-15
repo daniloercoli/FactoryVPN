@@ -36,6 +36,13 @@ async def record_system(db, gateway, report):
     else:
         components = {}
     for name, value in report.components.items():
+        # L'ultima lettura valida alimenta anche l'anagrafica ricercabile.
+        # Dati assenti o letture fallite non cancellano gli identificativi noti.
+        if name == "modem" and value.state == "reported":
+            for field in ("imei", "iccid"):
+                detected = getattr(value, field)
+                if detected:
+                    setattr(gateway, field, detected)
         previous = components.get(name, {})
         components[name] = {
             "latest": value.model_dump(mode="json", exclude_none=True),

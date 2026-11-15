@@ -63,7 +63,6 @@ async def test_complete_session_lifecycle_and_concurrent_reservations(monkeypatc
                 activation_mode=mode,
                 phone_number=phone if mode == "sms" else None,
                 mac_address="AA:00:00:00:00:01",
-                vpn_subnet="192.168.1.0/24",
             )
             db.add(gateway)
             await seed_gateway(db, gateway, key, registered=False)
@@ -76,9 +75,6 @@ async def test_complete_session_lifecycle_and_concurrent_reservations(monkeypatc
                 activation_mode=mode,
                 phone_number=phone if mode == "sms" else None,
                 mac_address="AA:00:00:00:00:01",
-                lan_interface="eth0",
-                lan_address="192.168.1.1",
-                lan_cidr="192.168.1.0/24",
             )
             response = await client.post("/api/v1/gateways/register", headers=gh, json=registration)
             assert response.status_code == 200, response.text
@@ -130,7 +126,7 @@ async def test_complete_session_lifecycle_and_concurrent_reservations(monkeypatc
             response = await client.post(
                 "/api/v1/gateways/register",
                 headers=gh,
-                json={**registration, "lan_cidr": "192.168.0.0/16"},
+                json={**registration, "mac_address": "AA:00:00:00:00:99"},
             )
             assert response.status_code == 409
             cn = peer_name("technician", user.id)
@@ -140,7 +136,8 @@ async def test_complete_session_lifecycle_and_concurrent_reservations(monkeypatc
                 json={"common_name": cn, "certificate_serial": str(UUID(cn.split("-", 1)[1]).int)},
             )
             assert response.status_code == 200, response.text
-            assert "192.168.1.0 255.255.255.0" in response.json()["config"]
+            assert 'push "route 10.100.0.2 255.255.255.255"' in response.json()["config"]
+            assert "192.168." not in response.json()["config"]
             response = await client.post(
                 "/api/v1/internal/vpn/learn",
                 headers=wh,
@@ -178,7 +175,7 @@ async def test_complete_session_lifecycle_and_concurrent_reservations(monkeypatc
             second = response.json()["session_id"]
             async with factory() as db:
                 session = await db.get(Session, UUID(second))
-                assert session.network_slot == 1
+                assert session.cleaned_at is None
                 session.expires_at = utc_now() - timedelta(seconds=1)
                 await db.commit()
             assert (await client.post("/api/v1/gateways/heartbeat", headers=gh, json={})).json()[

@@ -24,7 +24,7 @@ from dotenv import dotenv_values, set_key
 
 from factoryvpn_common.backup_archive import (
     BackupError,
-    PKI_FILES,
+    pki_files,
     CHUNK,
     file_hash,
     load_key,
@@ -36,6 +36,7 @@ from factoryvpn_common.backup_archive import (
     decrypt,
 )
 from factoryvpn_common.backup_catalog import Catalog, identifier, now
+from factoryvpn_common.certificates import pki_lock, read_bounded
 
 SERVICES = ("api", "provisioning-worker", "session-worker", "openvpn")
 
@@ -555,13 +556,12 @@ class Coordinator:
         target = self.archive(backup_id)
         with self.temporary() as work:
             with self.docker.snapshot(actor) as (process, snapshot):
-                for name in PKI_FILES:
-                    path = self.runtime / name
-                    if any(p.is_symlink() for p in (path, *path.parents)) or not path.is_file():
-                        raise BackupError("invalid_runtime")
-                    if path.stat().st_size > CHUNK:
-                        raise BackupError("invalid_runtime")
-                    private_write(work / "runtime" / name, path.read_bytes())
+                with pki_lock(self.runtime):
+                    for name in pki_files(self.runtime):
+                        path = self.runtime / name
+                        if any(p.is_symlink() for p in (path, *path.parents)) or not path.is_file():
+                            raise BackupError("invalid_runtime")
+                        private_write(work / "runtime" / name, read_bounded(path))
                 private_write(
                     work / "configuration.json", json.dumps(snapshot["configuration"]).encode()
                 )
@@ -606,27 +606,56 @@ class Coordinator:
     def validate_runtime(self, work):
         from cryptography import x509
         from cryptography.hazmat.primitives import serialization
-        from scripts.bootstrap import load_ca
+        from factoryvpn_common.certificates import (
+            load_authority,
+            public_bytes,
+            verify_crl,
+            parse_crls,
+        )
+        from factoryvpn_common.pki import certificate_issuer
 
         root = work / "runtime"
-        _, ca = load_ca(root)
-        crl = x509.load_pem_x509_crl((root / "server/crl.pem").read_bytes())
-        if not crl.is_signature_valid(ca.public_key()):
+        data, roots, issuers = load_authority(root)
+        for issuer_id, ca in issuers.items():
+            key = serialization.load_pem_private_key(
+                read_bounded(root / "issuers" / (issuer_id + ".key")), None
+            )
+            if public_bytes(key.public_key()) != public_bytes(ca.public_key()):
+                raise BackupError("invalid_runtime")
+        crls = parse_crls(read_bounded(root / "crls/bundle.pem"))
+        seen = set()
+        for crl in crls:
+            matches = [
+                key
+                for key, ca in {**roots, **issuers}.items()
+                if crl.issuer == ca.subject and crl.is_signature_valid(ca.public_key())
+            ]
+            if len(matches) != 1 or matches[0] in seen:
+                raise BackupError("invalid_runtime")
+            seen.add(matches[0])
+            verify_crl(crl, {**roots, **issuers}[matches[0]], fresh=False)
+        required = {
+            key
+            for key, cert in {**roots, **issuers}.items()
+            if cert.not_valid_after_utc > datetime.now(timezone.utc)
+        }
+        if not required.issubset(seen):
             raise BackupError("invalid_runtime")
         for cert_path, key_path in (
-            ("ca/ca.crt", "ca/ca.key"),
             ("server/server.crt", "server/server.key"),
             ("https/cert.pem", "https/key.pem"),
         ):
             cert = x509.load_pem_x509_certificate((root / cert_path).read_bytes())
             key = serialization.load_pem_private_key((root / key_path).read_bytes(), password=None)
-            if cert.public_key() != key.public_key():
+            if public_bytes(cert.public_key()) != public_bytes(key.public_key()):
                 raise BackupError("invalid_runtime")
-            if cert.not_valid_after_utc <= datetime.now(timezone.utc):
-                raise BackupError("certificate_expired")
-            if cert_path in ("ca/ca.crt", "server/server.crt"):
-                cert.verify_directly_issued_by(ca)
-        if (root / "ca/ca.crt").read_bytes() != (root / "server/ca.crt").read_bytes():
+            if cert_path == "server/server.crt":
+                issuer_id = certificate_issuer(root, cert)
+                chain = x509.load_pem_x509_certificate(read_bounded(root / "server/chain.pem"))
+                if chain != issuers[issuer_id]:
+                    raise BackupError("invalid_runtime")
+        trusted = x509.load_pem_x509_certificates(read_bounded(root / "server/ca.crt"))
+        if not trusted or any(cert not in roots.values() for cert in trusted):
             raise BackupError("invalid_runtime")
 
     @contextmanager
@@ -697,15 +726,7 @@ class Coordinator:
         for key in ("JWT_SECRET", "WORKER_API_KEY"):
             set_key(str(env_target), key, secrets.token_urlsafe(48), quote_mode="always")
         self.docker.restore_database(work / "database.dump")
-        for name in PKI_FILES:
-            target = self.runtime / name
-            if any(p.is_symlink() for p in (target, *target.parents)):
-                raise BackupError("invalid_runtime")
-            temporary = target.with_name(target.name + ".restore-pending")
-            temporary.unlink(missing_ok=True)
-            private_write(temporary, (work / "runtime" / name).read_bytes())
-            os.replace(temporary, target)
-            sync_directory(target.parent)
+        self.restore_pki(work / "runtime")
         with env_target.open("rb") as persisted:
             os.fsync(persisted.fileno())
         os.replace(env_target, self.env_file)
@@ -724,6 +745,30 @@ class Coordinator:
             "-m",
             "scripts.backup_publish_crl",
         )
+
+    def restore_pki(self, archived):
+        from factoryvpn_common.certificates import load_authority, write_private
+        from scripts.bootstrap import renew_server
+        from cryptography import x509
+
+        with pki_lock(self.runtime):
+            saved = load_authority(archived)[0]
+            current_path = self.runtime / "pki-public/authority.json"
+            current = load_authority(self.runtime)[0] if current_path.exists() else None
+            # Never roll back root trust, CRL counters or issuer keys on this installation.
+            preserve = current is not None and current["generation"] >= saved["generation"]
+            if preserve and not set(saved["issuers"]).issubset(current["issuers"]):
+                raise BackupError("pki_history_missing")
+            for name in pki_files(archived):
+                if preserve and not name.startswith("https/"):
+                    continue
+                target = self.runtime / name
+                if any(p.is_symlink() for p in (target, *target.parents)):
+                    raise BackupError("invalid_runtime")
+                write_private(target, read_bounded(archived / name), replace=target.exists())
+        server = x509.load_pem_x509_certificate(read_bounded(self.runtime / "server/server.crt"))
+        if server.not_valid_after_utc <= datetime.now(timezone.utc):
+            renew_server(self.runtime, replace=True)
 
     def start(self):
         self.docker.compose(

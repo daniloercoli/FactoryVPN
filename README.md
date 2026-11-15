@@ -4,7 +4,7 @@
 [Guida amministratore](documentation/ADMINISTRATOR_GUIDE.md) ·
 [Guida tecnico](documentation/TECHNICIAN_GUIDE.md)
 
-FactoryVPN permette l'assistenza remota alle LAN industriali, con accessi autorizzati
+FactoryVPN permette l'assistenza remota ai gateway industriali, con accessi autorizzati
 su richiesta e limitati nel tempo. La base software comprende API FastAPI/PostgreSQL,
 server OpenVPN, worker di rete e agente Linux con attivazione SMS o controllo Wi-Fi.
 
@@ -34,26 +34,39 @@ consentono amministrazione delegata entro gli stessi gruppi. Un gateway non
 assegnato non consente sessioni. La gestione comprende profilo, cambio password,
 logout globale, revoca dei token e degli accessi VPN. Vedere i
 [permessi amministrativi](documentation/ADMINISTRATOR_GUIDE.md#assegnare-i-permessi).
-Il tecnico richiede una sessione fino a 30 minuti selezionando il gateway.
+Il tecnico richiede una sessione fino a 3 ore per default selezionando il gateway;
+il login al portale dura 12 ore per default. Le due scadenze non si rinnovano con l'uso.
 Per le nuove sessioni dal portale, logout e scadenza dell'accesso chiudono anche
-le VPN aperte da quell'accesso. L'API riserva
-indirizzi e rete. Sono disponibili due modalità, configurate per dispositivo:
+le VPN aperte da quell'accesso. L'API prenota la coppia tecnico/gateway per tutta
+la sessione e la successiva pulizia. Sono disponibili due modalità, configurate per dispositivo:
 
 - **SMS, principale:** il gateway attende un SMS firmato e comunica il comando
   ricevuto al server via HTTPS. In attesa non esegue heartbeat periodici.
-- **Wi-Fi:** il gateway controlla il server via HTTPS ogni 30 secondi, senza SIM
-  né modem. L'apertura della VPN dipende dalla richiesta autorizzata sul server.
+- **Wi-Fi:** il gateway controlla il server via HTTPS ogni 30 secondi per default,
+  senza SIM né modem. L'apertura della VPN dipende dalla richiesta autorizzata sul server.
 
-Durante la sessione entrambi usano heartbeat ogni 5 secondi. Il tecnico avvia
-il proprio profilo OpenVPN quando il gateway è pronto. La sessione diventa `ACTIVE`
+Durante la sessione entrambi usano heartbeat normalmente ogni 5 secondi, configurabili.
+Il tecnico avvia il proprio profilo OpenVPN quando il gateway è pronto. La sessione diventa `ACTIVE`
 solo dopo la verifica di entrambi i client e la configurazione della rete.
 
-Ogni sessione usa un namespace e un tunnel IPIP trasportato dentro OpenVPN.
-Questo consente a siti diversi di usare la stessa LAN, per esempio `192.168.1.0/24`.
-Il NAT sul gateway limita l'accesso al tecnico assegnato. L'implementazione prevede
-che le autorizzazioni nel firewall scadano entro 30 secondi senza rinnovo, anche
-se API, worker o agente si fermano. Verificare questo comportamento nell'installazione.
-Sono supportate reti IPv4; `10.100.0.0/16` e `10.250.0.0/16` sono riservate al trasporto.
+Il modello **Gateway Only** permette al tecnico assegnato di raggiungere il solo
+IP VPN fisso del gateway, sulle porte TCP **22 (SSH), 80 (HTTP), 443 (HTTPS)**.
+La LAN non viene instradata: niente IPIP, namespace di sessione o NAT nel gateway.
+Le autorizzazioni nel firewall scadono entro 5 minuti senza rinnovo per default,
+anche se API, worker o agente si fermano. Durate e timeout sono configurabili nel
+`.env`: vedere [reti instabili](documentation/DOCKER_GUIDE.md#durate-timeout-e-reti-instabili).
+Gli errori API temporanei conservano il lease residuo senza prolungarlo. Logout e
+revoca bloccano appena ricevuti; durante un guasto possono attendere quel termine.
+Le scadenze VPN, browser e SSO possono ridurre ulteriormente il tempo disponibile.
+Sono supportate reti IPv4; `10.100.0.0/16` è riservato alla VPN.
+
+Il tecnico usa uno **split tunnel verso il gateway**: Internet, DNS e IPv6
+restano configurati sul suo computer. Per operare sulle reti raggiungibili
+dal gateway, entra in [SSH sul suo IP VPN fisso](documentation/TECHNICIAN_GUIDE.md#entrare-in-ssh-sul-gateway)
+con un account Linux del dispositivo. La shell usa le rotte correnti del gateway,
+comprese quelle aggiunte durante l'intervento.
+I servizi SSH e web, gli account Linux e i certificati HTTPS del servizio web
+devono essere predisposti sul dispositivo.
 
 Una sessione chiusa/scaduta mantiene le proprie risorse riservate fino alla
 conferma di pulizia del worker. Un secondo accesso sullo stesso utente o gateway
@@ -65,6 +78,15 @@ Seguire la [guida di installazione](documentation/DOCKER_GUIDE.md) per server,
 HTTPS, SMTP, primo amministratore e gateway. Prima dell'uso operativo predisporre
 [backup e recupero](documentation/BACKUP_RESTORE.md) e completare i
 [controlli nell'ambiente di destinazione](documentation/DOCKER_GUIDE.md#verifica-prima-delluso-operativo).
+
+Il gateway può essere registrato a fine linea e completare l'inizializzazione via
+HTTPS dopo approvazione e assegnazione al gruppo. Il percorso manuale HQ resta
+disponibile anche per il laboratorio: creazione, download e attivazione dello ZIP
+dal portale, poi copia di `gateway.env` e `gateway.ovpn` sul dispositivo.
+Entrambi sono descritti nella [prima inizializzazione](documentation/gateway/INITIAL_SETUP.md).
+L'autoarruolamento senza passaggio a fine linea resta un'evoluzione futura.
+Anche il tecnico deve preparare, scaricare e attivare il proprio profilo OpenVPN
+prima di richiedere una sessione.
 
 Il repository include un simulatore gateway su Alpine Linux, con un gateway
 SMS/IMEI e uno Wi-Fi/MAC, agente e connessioni OpenVPN reali. Richiede Docker e
@@ -104,8 +126,10 @@ docker build -f docker/Dockerfile.network --target test -t factoryvpn-network-te
 docker run --rm --privileged --network none -e FACTORYVPN_NETWORK_TEST=1 factoryvpn-network-test
 ```
 
-Il test esercita due LAN sovrapposte, raggiungibilità, rinnovo delle regole,
-chiusura indipendente e scadenza delle autorizzazioni nel kernel.
+Il test esercita SSH, HTTP e HTTPS reali, LAN diretta negata, split tunnel,
+Internet locale simulato, chiusura indipendente e scadenza delle autorizzazioni
+nel kernel anche sull'output SSH. Verifica inoltre che i guasti API temporanei
+non prolunghino il lease già installato.
 Il simulatore consente inoltre di provare portale, provisioning, agenti e OpenVPN
 insieme, con due gateway e LAN simulate. I test locali non sostituiscono i
 [controlli nell'ambiente di destinazione](documentation/DOCKER_GUIDE.md#verifica-prima-delluso-operativo).
@@ -114,6 +138,8 @@ insieme, con due gateway e LAN simulate. I test locali non sostituiscono i
 
 - [Guide operative essenziali](documentation/README.md): installazione, amministratore,
   tecnico, backup e risoluzione dei problemi.
+- Per gli sviluppatori gateway: [prima inizializzazione](documentation/gateway/INITIAL_SETUP.md)
+  e [rinnovo remoto dei certificati](documentation/gateway/CERTIFICATE_RENEWAL.md).
 - [Sito statico e pubblicazione](website/README.md), [OpenAPI](website/dist/api/openapi.json).
 
 ## Licenza

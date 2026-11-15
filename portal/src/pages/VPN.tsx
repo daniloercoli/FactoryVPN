@@ -13,6 +13,7 @@ import {
 import { useAuth } from "../auth";
 import { DiagnosticPanel, SessionHistory, useDiagnostics } from "./Diagnostics";
 import { useGroups } from "../hooks";
+import { GatewayIdentifiers } from "./GatewayIdentifiers";
 import {
   Badge,
   Confirm,
@@ -50,7 +51,7 @@ export const blockNames = {
 };
 const live = (status: string) => status === "REQUESTED" || status === "ACTIVE";
 const pending = (session: Detail) =>
-  !live(session.status) && session.network_slot != null && !session.cleaned_at;
+  !live(session.status) && !session.cleaned_at;
 function useNow() {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -164,7 +165,7 @@ export default function VPN() {
             <input
               value={q}
               maxLength={100}
-              placeholder="Nome, MAC, telefono o UUID"
+              placeholder="Nome, matricola, MAC, IMEI, ICCID, telefono o UUID"
               onChange={(e) => {
                 setQ(e.target.value);
                 setOffset(0);
@@ -254,6 +255,7 @@ export default function VPN() {
                             <small className="cell-sub mono">
                               {g.display_name ? g.mac_address || g.id : g.id}
                             </small>
+                            <GatewayIdentifiers value={g} />
                           </td>
                           <td>
                             {groups.data?.find((item) => item.id === g.group_id)
@@ -372,9 +374,9 @@ export function VPNStartDialog({
           : "Il gateway prenderà in carico la richiesta al prossimo controllo Wi-Fi."}
       </p>
       <p>
-        La sessione dura al massimo 30 minuti e termina anche al logout o alla
-        scadenza di questo accesso. Quando il gateway è pronto, avvia
-        manualmente il client OpenVPN.
+        La scadenza della sessione è indicata nel dettaglio. La VPN termina
+        anche al logout o alla scadenza di questo accesso. Quando il gateway è
+        pronto, avvia manualmente il client OpenVPN.
       </p>
       {open.error && (
         <p>
@@ -828,8 +830,8 @@ function VPNDetailView({ id }: { id: string }) {
             <dd>{s.cleaned_at ? date(s.cleaned_at) : "Non completata"}</dd>
           </div>
           <div>
-            <dt>Rete LAN</dt>
-            <dd>{s.lan_cidr || "Non disponibile"}</dd>
+            <dt>Indirizzo VPN del gateway</dt>
+            <dd>{s.gateway_vpn_ip || "Non disponibile"}</dd>
           </div>
         </dl>
         <p className="muted">

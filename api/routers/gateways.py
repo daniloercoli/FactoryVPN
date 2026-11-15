@@ -95,9 +95,7 @@ async def register_gateway(
         await db.commit()
     except IntegrityError as exc:
         await db.rollback()
-        raise HTTPException(
-            409, "Gateway identity, MAC or phone number is already registered"
-        ) from exc
+        raise HTTPException(409, "Gateway identity or phone number is already registered") from exc
     await db.refresh(gateway)
 
     return GatewayResponse(
@@ -107,6 +105,9 @@ async def register_gateway(
         phone_number=gateway.phone_number,
         activation_mode=gateway.activation_mode,
         mac_address=gateway.mac_address,
+        serial_number=gateway.serial_number,
+        imei=gateway.imei,
+        iccid=gateway.iccid,
         status=gateway.status,
         vpn_ip=gateway.vpn_ip,
         last_seen=str(gateway.last_seen) if gateway.last_seen else None,
@@ -126,7 +127,7 @@ async def list_gateways(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Search scoped gateways by label, MAC, phone or exact UUID.
+    """Search scoped gateways by label, inventory identifiers, phone or exact UUID.
 
     X-Total-Count covers the same filtered scope before pagination. Availability
     and can_start are advisory; they neither reserve a peer nor prove it is online.
@@ -198,7 +199,7 @@ async def heartbeat(
         session.activation_received_at = session.activation_received_at or utc_now()
     if desired and session.activation_received_at and not received_before:
         event(db, session, "gateway_acknowledged", source="gateway")
-    if desired and session.network_slot is not None:
+    if desired:
         if request.ready_session_id == session.id and request.vpn_ip == session.gateway_vpn_ip:
             session.gateway_ready_at = utc_now()
             session.gateway_connected_at = session.gateway_connected_at or utc_now()

@@ -7,7 +7,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy import select
 
-from api.models.provisioning import GatewayCredential
+from api.models.provisioning import GatewayCredential, VPNCertificate
 from api.config import settings
 from api.models.audit_log import AuditLog
 from api.models.gateway import Gateway
@@ -55,9 +55,6 @@ async def test_gateway_label_is_scoped_audited_and_survives_machine_registration
             "activation_mode": "wifi",
             "phone_number": gateway.phone_number,
             "mac_address": gateway.mac_address,
-            "lan_interface": "eth0",
-            "lan_address": "192.168.1.1",
-            "lan_cidr": "192.168.1.0/24",
         },
     )
     assert registered.status_code == 200, registered.text
@@ -120,7 +117,7 @@ async def test_gateway_label_can_be_cleared_without_changing_live_session(access
         {},
         {"display_name": "x" * 101},
         {"display_name": "Name", "group_id": None},
-        {"display_name": "Name", "vpn_subnet": "10.0.0.0/8"},
+        {"display_name": "Name", "vpn_subnet": "192.168.1.0/24"},
     ],
 )
 async def test_gateway_label_rejects_invalid_or_unrelated_fields(access, body):
@@ -198,7 +195,7 @@ async def test_gateway_availability_does_not_claim_online_and_checks_start_permi
     assert (await access.call("GET", unassigned)).json()["availability"] == "unconfigured"
 
 
-@pytest.mark.parametrize("missing", ["credentials", "lan"])
+@pytest.mark.parametrize("missing", ["credentials", "certificate"])
 async def test_gateway_availability_reports_incomplete_provisioning(access, monkeypatch, missing):
     if missing == "credentials":
         async with access.db() as db:
@@ -207,7 +204,13 @@ async def test_gateway_availability_reports_incomplete_provisioning(access, monk
             await db.commit()
     else:
         async with access.db() as db:
-            (await db.get(Gateway, access.gateways["A"].id)).vpn_subnet = None
+            certificate = await db.scalar(
+                select(VPNCertificate).where(
+                    VPNCertificate.peer_id == access.gateways["A"].id,
+                    VPNCertificate.kind == "gateway",
+                )
+            )
+            certificate.state = "revoked"
             await db.commit()
     result = await access.call(
         "GET", "/gateways/", "tech_a", params={"availability": "unconfigured"}
@@ -392,7 +395,7 @@ async def test_historical_session_search_cannot_reveal_moved_gateway_metadata(ac
     assert global_rows.headers["x-total-count"] == "1"
 
 
-async def test_legacy_terminal_session_without_allocation_is_not_pending_cleanup(access):
+async def test_terminal_session_without_cleanup_remains_reserved(access):
     async with access.db() as db:
         db.add(
             Session(
@@ -402,16 +405,15 @@ async def test_legacy_terminal_session_without_allocation_is_not_pending_cleanup
                 group_id=access.groups["A"].id,
                 status="CLOSED",
                 activation_mode="wifi",
-                network_slot=None,
                 cleaned_at=None,
             )
         )
         await db.commit()
     result = await access.call(
-        "GET", "/sessions/", "tech_a", params={"reserved": False, "cleanup_pending": False}
+        "GET", "/sessions/", "tech_a", params={"reserved": True, "cleanup_pending": True}
     )
     assert result.headers["x-total-count"] == "1"
-    assert not result.json()[0]["cleanup_pending"]
+    assert result.json()[0]["cleanup_pending"]
 
 
 @pytest.mark.parametrize("path", ["/gateways/", "/admin/gateways", "/sessions/", "/admin/sessions"])

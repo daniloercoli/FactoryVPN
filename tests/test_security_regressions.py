@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -26,9 +26,6 @@ REGISTRATION = {
     "gateway_id": str(GATEWAY_ID),
     "phone_number": PHONE,
     "mac_address": "AA:BB:CC:DD:EE:FF",
-    "lan_interface": "eth0",
-    "lan_address": "192.168.1.1",
-    "lan_cidr": "192.168.1.0/24",
 }
 
 
@@ -136,8 +133,7 @@ async def test_gateway_cannot_change_provisioned_configuration(client, db):
         activation_mode="sms",
         phone_number=PHONE,
         mac_address="00:00:00:00:00:01",
-        vpn_subnet="192.168.1.0/24",
-        extra_metadata={"lan_interface": "eth0", "lan_address": "192.168.1.1"},
+        extra_metadata={},
         vpn_ip="10.100.0.2",
     )
     db.execute.return_value.first.return_value = None
@@ -165,7 +161,6 @@ async def test_unconfigured_machine_auth_fails_closed(client, db, monkeypatch, s
     "path,method",
     [
         ("expire-stale", "post"),
-        ("namespace-states", "get"),
     ],
 )
 @pytest.mark.parametrize("headers", [{}, {"X-Worker-Key": "wrong"}, {"X-Gateway-Key": GATEWAY_KEY}])
@@ -194,26 +189,6 @@ async def test_technician_cannot_expire_everyones_sessions(client, db):
     response = await client.post("/api/v1/sessions/expire-stale")
     assert response.status_code == 403
     db.execute.assert_not_awaited()
-
-
-async def test_namespace_snapshot_protects_live_and_unknown_states_and_prefix_collisions(
-    client, db
-):
-    db.execute.return_value.all.return_value = [
-        (UUID("aaaaaaaa-0000-0000-0000-000000000001"), "ACTIVE"),
-        (UUID("aaaaaaaa-0000-0000-0000-000000000002"), "CLOSED"),
-        (UUID("bbbbbbbb-0000-0000-0000-000000000001"), "EXPIRED"),
-        (UUID("cccccccc-0000-0000-0000-000000000001"), "REQUESTED"),
-        (UUID("dddddddd-0000-0000-0000-000000000001"), "UNRECOGNIZED"),
-    ]
-    response = await client.get(
-        "/api/v1/internal/sessions/namespace-states", headers={"X-Worker-Key": WORKER_KEY}
-    )
-    assert response.status_code == 200
-    assert response.json() == {
-        "protected": ["factoryvpn_aaaaaaaa", "factoryvpn_cccccccc", "factoryvpn_dddddddd"],
-        "terminal": ["factoryvpn_bbbbbbbb"],
-    }
 
 
 async def test_admin_device_delete_filters_by_gateway(client, db):
@@ -278,7 +253,7 @@ async def test_session_no_longer_reports_active_after_worker_lease_expires(clien
         status="ACTIVE",
         activation_mode="sms",
         expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
-        worker_seen_at=datetime.now(timezone.utc) - timedelta(seconds=31),
+        worker_seen_at=datetime.now(timezone.utc) - timedelta(seconds=301),
     )
     db.execute.return_value.scalar_one_or_none.return_value = session
     authenticate(owner_id)

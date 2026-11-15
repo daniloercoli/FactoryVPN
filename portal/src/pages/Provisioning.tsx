@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
 import {
@@ -9,6 +9,7 @@ import {
 } from "../api/client";
 import { useAuth } from "../auth";
 import { useGroups } from "../hooks";
+import { GatewayIdentifierFields } from "./GatewayIdentifiers";
 import {
   Badge,
   Confirm,
@@ -54,6 +55,9 @@ export function VPNProfile({
     refetchOnWindowFocus: true,
   });
   const data = query.data;
+  useEffect(() => {
+    if (data?.enrollment_pending) setConfirmation(null);
+  }, [data?.enrollment_pending]);
   const pending = data?.pending_job;
   const own = kind === "technician" && peerId === auth.user!.id;
   const canPrepare = kind === "gateway" || (own && auth.can("connect"));
@@ -74,6 +78,16 @@ export function VPNProfile({
     onSuccess: async () => {
       setRequestKey(crypto.randomUUID());
       setNotice("");
+      await refresh();
+    },
+  });
+  const renewCertificate = useMutation({
+    mutationFn: () =>
+      api<ProvisioningState>(path + "/renew-certificate", { method: "POST" }),
+    onSuccess: async () => {
+      setNotice(
+        "Rinnovo richiesto. L’agente lo rileverà al prossimo controllo HTTPS; un gateway SMS inattivo lo rileva al successivo risveglio.",
+      );
       await refresh();
     },
   });
@@ -111,7 +125,8 @@ export function VPNProfile({
     },
   });
   const busy = prepare.isPending || download.isPending || change.isPending;
-  const error = query.error || prepare.error || download.error;
+  const error =
+    query.error || prepare.error || download.error || renewCertificate.error;
   const cert = data?.certificate;
   function confirm(action: ProfileAction) {
     change.reset();
@@ -121,6 +136,30 @@ export function VPNProfile({
       certificateId: cert?.id || null,
       jobId: pending?.id,
     });
+  }
+  if (!query.isPending && !query.error && data?.enrollment_pending) {
+    return (
+      <section
+        className="card padded stack"
+        aria-label="Credenziali del gateway"
+      >
+        <h2>Arruolamento del gateway</h2>
+        <Notice>
+          La prima consegna del pacchetto è gestita dall’arruolamento. Per
+          sostituirla con uno ZIP da installare in loco, un amministratore
+          globale deve prendere in carico il dispositivo manualmente.
+        </Notice>
+        {auth.user?.is_admin && (
+          <Link className="button secondary" to={`/enrollments/${peerId}`}>
+            Gestisci arruolamento
+          </Link>
+        )}
+        <p className="muted">
+          L’attivazione del pacchetto e la registrazione del gateway precedono
+          l’apertura di una sessione VPN.
+        </p>
+      </section>
+    );
   }
   return (
     <section
@@ -191,6 +230,40 @@ export function VPNProfile({
               <Notice>
                 Revoca registrata. Aggiornamento della lista di revoca in corso.
               </Notice>
+            )}
+            {kind === "gateway" && cert && data.registered_at && (
+              <div className="stack">
+                <p>
+                  Rinnovo remoto del solo certificato:{" "}
+                  {data.remote_renewal_state
+                    ? {
+                        challenge: "verifica del dispositivo",
+                        queued: "emissione in coda",
+                        ready: "in attesa di attivazione",
+                        active: "attesa conferma del gateway",
+                      }[data.remote_renewal_state] || "in corso"
+                    : data.remote_renewal_requested
+                      ? "richiesto"
+                      : "nessuna richiesta in corso"}
+                  .
+                </p>
+                <button
+                  className="button secondary"
+                  disabled={
+                    busy ||
+                    renewCertificate.isPending ||
+                    !!data.remote_renewal_state ||
+                    data.remote_renewal_requested
+                  }
+                  onClick={() => renewCertificate.mutate()}
+                >
+                  Richiedi rinnovo remoto
+                </button>
+                <small>
+                  Conserva API key e segreto SMS. Richiede un agente compatibile
+                  e attende la fine delle sessioni VPN.
+                </small>
+              </div>
             )}
             {data.cleanup_pending && (
               <Notice>
@@ -338,13 +411,13 @@ export default function ProvisionGateway() {
   const client = useQueryClient();
   const [form, setForm] = useState({
     display_name: "",
+    serial_number: "",
+    imei: "",
+    iccid: "",
     group_id: "",
     mac_address: "",
     activation_mode: "sms",
     phone_number: "",
-    lan_interface: "eth0",
-    lan_address: "192.168.1.1",
-    lan_cidr: "192.168.1.0/24",
   });
   const [operation, setOperation] = useState<{
     key: string;
@@ -432,6 +505,12 @@ export default function ProvisionGateway() {
                   }
                 />
               </label>
+              <GatewayIdentifierFields
+                value={form}
+                onChange={(field, value) =>
+                  setForm({ ...form, [field]: value })
+                }
+              />
               <label>
                 Attivazione
                 <select
@@ -458,37 +537,6 @@ export default function ProvisionGateway() {
                   />
                 </label>
               )}
-              <label>
-                Interfaccia LAN
-                <input
-                  required
-                  maxLength={15}
-                  value={form.lan_interface}
-                  onChange={(e) =>
-                    setForm({ ...form, lan_interface: e.target.value })
-                  }
-                />
-              </label>
-              <label>
-                Indirizzo LAN del gateway
-                <input
-                  required
-                  value={form.lan_address}
-                  onChange={(e) =>
-                    setForm({ ...form, lan_address: e.target.value })
-                  }
-                />
-              </label>
-              <label>
-                Rete LAN (CIDR)
-                <input
-                  required
-                  value={form.lan_cidr}
-                  onChange={(e) =>
-                    setForm({ ...form, lan_cidr: e.target.value })
-                  }
-                />
-              </label>
             </div>
           </fieldset>
           <ErrorBox error={groups.error || create.error} />

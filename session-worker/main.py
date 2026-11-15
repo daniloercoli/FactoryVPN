@@ -1,10 +1,8 @@
-"""Authenticated session maintenance and conservative namespace cleanup."""
+"""Sessioni Gateway Only con autorizzazioni temporanee nel firewall."""
 
 import asyncio
 import logging
 import os
-import re
-import subprocess
 import signal
 import time
 from contextlib import suppress
@@ -12,15 +10,16 @@ from factoryvpn_common.telemetry import telemetry_loop
 from factoryvpn_common.technical_logs import LogQueue
 from factoryvpn_common.runtime_info import local_runtime
 from datetime import datetime, timezone
-from importlib import import_module
 from typing import Literal
 from pydantic import Field, TypeAdapter, model_validator
 from factoryvpn_common.network import SessionNetwork
+from factoryvpn_common.timing import MAX_LEASE_SECONDS, env_seconds
+from factoryvpn_common.api_errors import temporary_api_error
 from factoryvpn_common.openvpn import ManagementClient
 from factoryvpn_common.protocol import parse_peer_name
 
 import httpx
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel
 
 logging.basicConfig(
     level=logging.INFO,
@@ -29,20 +28,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 API_URL = os.getenv("API_URL", "http://api:8000").rstrip("/")
-POLL_INTERVAL = int(os.getenv("WORKER_POLL_INTERVAL", "5"))
+POLL_INTERVAL = env_seconds("WORKER_POLL_INTERVAL", 5, 1, 10)
+API_TIMEOUT = env_seconds("CONTROL_API_TIMEOUT_SECONDS", 10, 1, 60)
 WORKER_API_KEY = os.getenv("WORKER_API_KEY", "")
-
-
-class NamespaceStates(BaseModel):
-    protected: list[str]
-    terminal: list[str]
-
-    @field_validator("protected", "terminal")
-    @classmethod
-    def validate_names(cls, names: list[str]) -> list[str]:
-        if any(not re.fullmatch(r"factoryvpn_[0-9a-f]{8}", name) for name in names):
-            raise ValueError("Invalid namespace name in API response")
-        return names
 
 
 def worker_headers() -> dict[str, str]:
@@ -54,7 +42,7 @@ def worker_headers() -> dict[str, str]:
 async def expire_stale_sessions():
     """Expire sessions through the dedicated worker endpoint."""
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
             response = await client.post(
                 f"{API_URL}/api/v1/internal/sessions/expire-stale",
                 headers=worker_headers(),
@@ -67,46 +55,6 @@ async def expire_stale_sessions():
         logger.exception("Failed to expire stale sessions")
 
 
-async def cleanup_namespaces():
-    """Delete only namespaces confirmed terminal by a valid API snapshot.
-
-    Unknown namespaces and those of live sessions are preserved. API failures
-    or malformed responses abort cleanup before any network command runs.
-    """
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(
-                f"{API_URL}/api/v1/internal/sessions/namespace-states",
-                headers=worker_headers(),
-            )
-            response.raise_for_status()
-            states = NamespaceStates.model_validate(response.json())
-
-        removable = set(states.terminal) - set(states.protected)
-        if not removable:
-            return
-        result = subprocess.run(
-            ["ip", "netns", "list"],
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        for line in result.stdout.splitlines():
-            name = line.split()[0] if line.strip() else ""
-            if name in removable:
-                subprocess.run(
-                    ["ip", "netns", "delete", name],
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                    timeout=5,
-                )
-                logger.info("Deleted namespace for terminal session: %s", name)
-    except Exception:
-        logger.exception("Namespace cleanup failed; remaining resources preserved")
-
-
 class WorkItem(BaseModel):
     session_id: str
     status: Literal["REQUESTED", "ACTIVE", "CLOSED", "EXPIRED", "FAILED"]
@@ -114,7 +62,7 @@ class WorkItem(BaseModel):
     technician_cn: str
     gateway_cn: str
     gateway_ready: bool
-    lease_seconds: int = Field(ge=0, le=30)
+    lease_seconds: int = Field(ge=0, le=MAX_LEASE_SECONDS)
     activation_confirmed: bool
 
     @model_validator(mode="after")
@@ -130,8 +78,8 @@ class WorkItem(BaseModel):
 
 
 class SessionWorker:
-    def __init__(self, client, namespaces, firewall, vpn):
-        self.client, self.namespaces, self.firewall, self.vpn = client, namespaces, firewall, vpn
+    def __init__(self, client, firewall, vpn):
+        self.client, self.firewall, self.vpn = client, firewall, vpn
         self.last_cycle = self.last_vpn_probe = 0
         self.cycle_state = self.vpn_state = "unknown"
         self.logs = LogQueue("worker")
@@ -204,11 +152,22 @@ class SessionWorker:
             logger.warning("Diagnostic batch timed out; lifecycle processing takes priority")
 
     async def reconcile(self):
-        response = await self.client.get("/api/v1/internal/sessions/work")
-        response.raise_for_status()
-        items = TypeAdapter(list[WorkItem]).validate_python(response.json())
-        if len({item.network.slot for item in items}) != len(items):
-            raise ValueError("API returned colliding network slots")
+        requested_at = time.monotonic()
+        try:
+            response = await self.client.get("/api/v1/internal/sessions/work")
+            response.raise_for_status()
+            items = TypeAdapter(list[WorkItem]).validate_python(response.json())
+            if any(
+                len({getattr(item.network, field) for item in items}) != len(items)
+                for field in ("session_id", "technician_ip", "gateway_ip")
+            ):
+                raise ValueError("API returned colliding session endpoints")
+        except Exception as exc:
+            # Un guasto temporaneo lascia scadere i lease esistenti. Un rifiuto
+            # esplicito o una risposta invalida ritira subito l'accesso VPN.
+            if not temporary_api_error(exc):
+                await asyncio.to_thread(self.firewall.apply, [])
+            raise
         try:
             clients = await asyncio.to_thread(self.vpn.clients)
         except Exception:
@@ -240,7 +199,7 @@ class SessionWorker:
             try:
                 if item.status in ("CLOSED", "EXPIRED", "FAILED"):
                     failure_code = "cleanup_failed"
-                    await asyncio.to_thread(self.namespaces.delete, item.network)
+                    await asyncio.to_thread(self.firewall.delete, item.network)
                     for name in (item.technician_cn, item.gateway_cn):
                         if name in clients:
                             await asyncio.to_thread(self.vpn.kill, name)
@@ -250,20 +209,27 @@ class SessionWorker:
                         raise RuntimeError("VPN peers have not disconnected; retaining reservation")
                     await self.post(item, "cleaned")
                 elif item in ready:
-                    await asyncio.to_thread(
-                        self.namespaces.ensure, item.network, item.lease_seconds
-                    )
                     try:
+                        await asyncio.to_thread(self.firewall.ensure, item.network, renew=False)
                         await self.post(
                             item,
                             "ready",
                             self.observation(item, clients, "ready", observed_at=observed_at),
                         )
-                    except Exception:
-                        await asyncio.to_thread(self.namespaces.delete, item.network)
+                        # L'attesa dell'API e delle altre sessioni consuma il lease:
+                        # una risposta tardiva non deve aggiungere altri secondi.
+                        remaining = int(requested_at + item.lease_seconds - time.monotonic())
+                        if remaining <= 0:
+                            raise RuntimeError("Authorization lease expired before renewal")
+                        await asyncio.to_thread(self.firewall.ensure, item.network, remaining)
+                    except Exception as exc:
+                        # In caso di guasto temporaneo non tocchiamo le regole,
+                        # quindi il timeout precedente continua a decorrere.
+                        if not temporary_api_error(exc):
+                            await asyncio.to_thread(self.firewall.delete, item.network)
                         raise
                 else:
-                    await asyncio.to_thread(self.namespaces.delete, item.network)
+                    await asyncio.to_thread(self.firewall.delete, item.network)
                     await self.post(
                         item,
                         "waiting",
@@ -287,9 +253,8 @@ class SessionWorker:
 
 async def main():
     headers = worker_headers()
-    if not 1 <= POLL_INTERVAL <= 10:
-        raise ValueError("WORKER_POLL_INTERVAL must be between 1 and 10 seconds")
-    namespaces = import_module("session-worker.namespace_manager").NamespaceManager()
+    from importlib import import_module
+
     firewall = import_module("session-worker.firewall_manager").FirewallManager()
     vpn = ManagementClient(os.getenv("OPENVPN_MANAGEMENT_SOCKET", "/run/openvpn/management.sock"))
     task = asyncio.current_task()
@@ -297,8 +262,10 @@ async def main():
         asyncio.get_running_loop().add_signal_handler(signum, task.cancel)
     await asyncio.to_thread(firewall.create_table)
     try:
-        async with httpx.AsyncClient(base_url=API_URL, headers=headers, timeout=10) as client:
-            worker = SessionWorker(client, namespaces, firewall, vpn)
+        async with httpx.AsyncClient(
+            base_url=API_URL, headers=headers, timeout=API_TIMEOUT
+        ) as client:
+            worker = SessionWorker(client, firewall, vpn)
             logs = asyncio.create_task(
                 worker.logs.run(
                     API_URL, headers, "/api/v1/internal/gateways/{route}/technical-logs"
@@ -317,7 +284,6 @@ async def main():
                 while True:
                     try:
                         await worker.reconcile()
-                        await cleanup_namespaces()  # Conservative cleanup of legacy eight-character names.
                     except Exception:
                         worker.last_cycle, worker.cycle_state = time.monotonic(), "error"
                         logger.exception("Worker reconciliation failed; kernel leases will expire")

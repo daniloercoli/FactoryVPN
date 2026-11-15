@@ -490,7 +490,7 @@ test("an external account change removes VPN details and pending confirmations",
   await expect(page.locator(".sidebar-profile")).toContainText("southern");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByText(id, { exact: true })).toHaveCount(0);
-  await expect(page.getByText("192.168.1.0/24", { exact: true })).toHaveCount(
+  await expect(page.getByText("10.100.0.2", { exact: true })).toHaveCount(
     0,
   );
   await expect(page.getByRole("alert")).toContainText(

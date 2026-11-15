@@ -18,12 +18,25 @@ from api.db.session import Base
 from api.time_utils import utc_now
 
 
+class PKIIssuer(Base):
+    __tablename__ = "pki_issuers"
+    id = Column(String(64), primary_key=True)
+    root_id = Column(String(64), nullable=False)
+    certificate_pem = Column(Text, nullable=False)
+    not_after = Column(DateTime(timezone=True), nullable=False)
+    state = Column(String(12), nullable=False)
+    __table_args__ = (CheckConstraint("state IN ('issuing','retiring')", name="pki_issuer_state"),)
+
+
 class VPNCertificate(Base):
     __tablename__ = "vpn_certificates"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     kind = Column(String(12), nullable=False)
     # Retained after peer deletion so the issuer can still publish its revocation.
     peer_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    issuer_id = Column(
+        String(64), ForeignKey("pki_issuers.id", ondelete="RESTRICT"), nullable=False
+    )
     serial = Column(String(50), nullable=False, unique=True)
     certificate_pem = Column(Text, nullable=False)
     not_before = Column(DateTime(timezone=True), nullable=False)
@@ -71,10 +84,15 @@ class GatewayCredential(Base):
 class ProvisioningJob(Base):
     __tablename__ = "provisioning_jobs"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    actor_id = Column(UUID(as_uuid=True), nullable=False)
-    actor_version = Column(Integer, nullable=False)
-    access_hash = Column(String(64), nullable=False)
-    access_expires_at = Column(DateTime(timezone=True), nullable=False)
+    actor_id = Column(UUID(as_uuid=True))
+    actor_version = Column(Integer)
+    access_hash = Column(String(64))
+    access_expires_at = Column(DateTime(timezone=True))
+    delivery_mode = Column(String(12), nullable=False, default="manual", server_default="manual")
+    enrollment_id = Column(
+        UUID(as_uuid=True), ForeignKey("gateway_enrollments.id", ondelete="RESTRICT")
+    )
+    configuration_version = Column(Integer)
     web_session_id = Column(UUID(as_uuid=True))
     sso_session_id = Column(UUID(as_uuid=True))
     request_key = Column(UUID(as_uuid=True), nullable=False)
@@ -96,6 +114,14 @@ class ProvisioningJob(Base):
     downloaded_at = Column(DateTime(timezone=True))
     error_code = Column(String(40))
     __table_args__ = (
+        CheckConstraint(
+            "(delivery_mode = 'manual' AND actor_id IS NOT NULL AND actor_version IS NOT NULL "
+            "AND access_hash IS NOT NULL AND access_expires_at IS NOT NULL) OR "
+            "(delivery_mode = 'enrollment' AND kind = 'gateway' AND enrollment_id IS NOT NULL "
+            "AND configuration_version IS NOT NULL AND actor_id IS NULL AND actor_version IS NULL "
+            "AND access_hash IS NULL AND access_expires_at IS NULL AND web_session_id IS NULL AND sso_session_id IS NULL)",
+            name="provisioning_delivery_context",
+        ),
         CheckConstraint("kind IN ('gateway','technician')", name="provisioning_job_kind"),
         CheckConstraint(
             "state IN ('queued','ready','active','cancelled','failed','expired')",

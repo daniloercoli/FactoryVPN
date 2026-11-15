@@ -168,10 +168,34 @@
             ],
             "title": "Group Id"
           },
+          "iccid": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{18,22}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iccid"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "imei": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{15}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imei"
           },
           "last_seen": {
             "anyOf": [
@@ -211,6 +235,18 @@
             "default": "",
             "title": "Revision",
             "type": "string"
+          },
+          "serial_number": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serial Number"
           },
           "start_block_reason": {
             "anyOf": [
@@ -323,10 +359,34 @@
             ],
             "title": "Group Id"
           },
+          "iccid": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{18,22}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iccid"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "imei": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{15}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imei"
           },
           "last_seen": {
             "anyOf": [
@@ -377,6 +437,18 @@
             "default": "",
             "title": "Revision",
             "type": "string"
+          },
+          "serial_number": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serial Number"
           },
           "start_block_reason": {
             "anyOf": [
@@ -476,10 +548,34 @@
             ],
             "title": "Group Id"
           },
+          "iccid": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{18,22}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iccid"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "imei": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{15}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imei"
           },
           "last_seen": {
             "anyOf": [
@@ -519,6 +615,18 @@
             "default": "",
             "title": "Revision",
             "type": "string"
+          },
+          "serial_number": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serial Number"
           },
           "status": {
             "title": "Status",
@@ -1165,6 +1273,70 @@
           "auth_mode"
         ],
         "title": "AuthenticationModeRequest",
+        "type": "object"
+      },
+      "AuthorityStatus": {
+        "properties": {
+          "can_issue_clients": {
+            "default": false,
+            "title": "Can Issue Clients",
+            "type": "boolean"
+          },
+          "crl_next_update": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crl Next Update"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "issuance_deadline": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issuance Deadline"
+          },
+          "renewal_due": {
+            "default": false,
+            "title": "Renewal Due",
+            "type": "boolean"
+          },
+          "role": {
+            "enum": [
+              "root",
+              "issuing",
+              "retiring"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "expires_at",
+          "crl_next_update"
+        ],
+        "title": "AuthorityStatus",
         "type": "object"
       },
       "BackupCommand": {
@@ -1891,6 +2063,18 @@
               }
             ],
             "title": "Build"
+          },
+          "iccid": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{18,22}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iccid"
           },
           "imei": {
             "anyOf": [
@@ -2625,6 +2809,473 @@
         "title": "EmailStatus",
         "type": "object"
       },
+      "EnrollmentApproval": {
+        "additionalProperties": false,
+        "properties": {
+          "group_id": {
+            "format": "uuid",
+            "title": "Group Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "group_id"
+        ],
+        "title": "EnrollmentApproval",
+        "type": "object"
+      },
+      "EnrollmentBlock": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "EnrollmentBlock",
+        "type": "object"
+      },
+      "EnrollmentJob": {
+        "properties": {
+          "can_download": {
+            "title": "Can Download",
+            "type": "boolean"
+          },
+          "configuration_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Configuration Version"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "state",
+          "expires_at",
+          "configuration_version",
+          "can_download",
+          "error_code"
+        ],
+        "title": "EnrollmentJob",
+        "type": "object"
+      },
+      "EnrollmentManualRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_certificate_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Certificate Id"
+          },
+          "group_id": {
+            "format": "uuid",
+            "title": "Group Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "group_id"
+        ],
+        "title": "EnrollmentManualRequest",
+        "type": "object"
+      },
+      "EnrollmentResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "activation_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "sms",
+                  "wifi"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activation Mode"
+          },
+          "approved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          },
+          "blocked_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocked Reason"
+          },
+          "can_resume": {
+            "title": "Can Resume",
+            "type": "boolean"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "configuration_version": {
+            "title": "Configuration Version",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "delivery_mode": {
+            "enum": [
+              "automatic",
+              "manual"
+            ],
+            "title": "Delivery Mode",
+            "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "external_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Reference"
+          },
+          "gateway_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gateway Id"
+          },
+          "group_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Id"
+          },
+          "iccid": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{18,22}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iccid"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "imei": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{15}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imei"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnrollmentJob"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mac_address": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9A-Fa-f]{2}([:-][0-9A-Fa-f]{2}){5}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mac Address"
+          },
+          "missing_fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Fields",
+            "type": "array"
+          },
+          "phone_number": {
+            "anyOf": [
+              {
+                "pattern": "^\\+[1-9]\\d{9,14}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone Number"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          },
+          "serial_number": {
+            "title": "Serial Number",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "prepared",
+              "awaiting_approval",
+              "awaiting_data",
+              "approved",
+              "preparing",
+              "ready",
+              "completed",
+              "blocked",
+              "manual"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "vpn_ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vpn Ip"
+          }
+        },
+        "required": [
+          "id",
+          "gateway_id",
+          "vpn_ip",
+          "serial_number",
+          "external_reference",
+          "group_id",
+          "state",
+          "delivery_mode",
+          "configuration_version",
+          "revision",
+          "created_at",
+          "approved_at",
+          "completed_at",
+          "blocked_reason",
+          "can_resume",
+          "missing_fields",
+          "job"
+        ],
+        "title": "EnrollmentResponse",
+        "type": "object"
+      },
+      "EnrollmentUpdateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "activation_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "sms",
+                  "wifi"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activation Mode"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "external_reference": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Reference"
+          },
+          "iccid": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{18,22}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iccid"
+          },
+          "imei": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{15}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imei"
+          },
+          "mac_address": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9A-Fa-f]{2}([:-][0-9A-Fa-f]{2}){5}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mac Address"
+          },
+          "phone_number": {
+            "anyOf": [
+              {
+                "pattern": "^\\+[1-9]\\d{9,14}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone Number"
+          },
+          "serial_number": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serial Number"
+          }
+        },
+        "title": "EnrollmentUpdateRequest",
+        "type": "object"
+      },
       "ExpirationResponse": {
         "properties": {
           "expired": {
@@ -2685,9 +3336,33 @@
             ],
             "title": "Group Id"
           },
+          "iccid": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{18,22}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iccid"
+          },
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "imei": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{15}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imei"
           },
           "last_seen": {
             "anyOf": [
@@ -2721,6 +3396,18 @@
               }
             ],
             "title": "Phone Number"
+          },
+          "serial_number": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serial Number"
           },
           "start_block_reason": {
             "anyOf": [
@@ -2908,42 +3595,33 @@
             ],
             "title": "Group Id"
           },
+          "iccid": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{18,22}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iccid"
+          },
           "id": {
             "title": "Id",
             "type": "string"
           },
-          "lan_address": {
+          "imei": {
             "anyOf": [
               {
+                "pattern": "^[0-9]{15}$",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Lan Address"
-          },
-          "lan_cidr": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Lan Cidr"
-          },
-          "lan_interface": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Lan Interface"
+            "title": "Imei"
           },
           "last_seen": {
             "anyOf": [
@@ -3033,6 +3711,7 @@
           "availability",
           "can_start",
           "start_block_reason",
+          "serial_number",
           "id",
           "phone_number",
           "activation_mode",
@@ -3041,10 +3720,6 @@
           "vpn_ip",
           "last_seen",
           "revision",
-          "serial_number",
-          "lan_cidr",
-          "lan_interface",
-          "lan_address",
           "created_at",
           "current_session"
         ],
@@ -3102,18 +3777,29 @@
             "title": "Group Id",
             "type": "string"
           },
-          "lan_address": {
-            "title": "Lan Address",
-            "type": "string"
+          "iccid": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{18,22}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iccid"
           },
-          "lan_cidr": {
-            "title": "Lan Cidr",
-            "type": "string"
-          },
-          "lan_interface": {
-            "pattern": "^[a-zA-Z0-9_.-]{1,15}$",
-            "title": "Lan Interface",
-            "type": "string"
+          "imei": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{15}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imei"
           },
           "mac_address": {
             "anyOf": [
@@ -3138,13 +3824,22 @@
               }
             ],
             "title": "Phone Number"
+          },
+          "serial_number": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serial Number"
           }
         },
         "required": [
           "gateway_id",
-          "lan_interface",
-          "lan_address",
-          "lan_cidr",
           "group_id",
           "display_name"
         ],
@@ -3153,8 +3848,24 @@
       },
       "GatewayUpdateRequest": {
         "additionalProperties": false,
-        "description": "Human-managed label, separate from machine registration and network settings.",
+        "description": "Inventario delegabile; configurazione operativa riservata a HQ.",
+        "minProperties": 1,
         "properties": {
+          "activation_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "sms",
+                  "wifi"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activation Mode"
+          },
           "display_name": {
             "anyOf": [
               {
@@ -3166,11 +3877,68 @@
               }
             ],
             "title": "Display Name"
+          },
+          "iccid": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{18,22}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iccid"
+          },
+          "imei": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{15}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imei"
+          },
+          "mac_address": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9A-Fa-f]{2}([:-][0-9A-Fa-f]{2}){5}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mac Address"
+          },
+          "phone_number": {
+            "anyOf": [
+              {
+                "pattern": "^\\+[1-9]\\d{9,14}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone Number"
+          },
+          "serial_number": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serial Number"
           }
         },
-        "required": [
-          "display_name"
-        ],
         "title": "GatewayUpdateRequest",
         "type": "object"
       },
@@ -3663,6 +4431,48 @@
         "title": "MetricAggregate",
         "type": "object"
       },
+      "PKIStatus": {
+        "properties": {
+          "authorities": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/AuthorityStatus"
+            },
+            "title": "Authorities",
+            "type": "array"
+          },
+          "crl_valid": {
+            "default": false,
+            "title": "Crl Valid",
+            "type": "boolean"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "not_configured",
+              "ok",
+              "error"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "valid_for_seconds": {
+            "default": 30,
+            "title": "Valid For Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "state",
+          "observed_at"
+        ],
+        "title": "PKIStatus",
+        "type": "object"
+      },
       "PasswordChangeRequest": {
         "additionalProperties": false,
         "properties": {
@@ -3774,6 +4584,11 @@
             "title": "Enabled",
             "type": "boolean"
           },
+          "enrollment_pending": {
+            "default": false,
+            "title": "Enrollment Pending",
+            "type": "boolean"
+          },
           "issuer_status": {
             "enum": [
               "ok",
@@ -3827,6 +4642,22 @@
               }
             ],
             "title": "Registered At"
+          },
+          "remote_renewal_requested": {
+            "default": false,
+            "title": "Remote Renewal Requested",
+            "type": "boolean"
+          },
+          "remote_renewal_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remote Renewal State"
           },
           "revocation_pending": {
             "title": "Revocation Pending",
@@ -4182,6 +5013,9 @@
             "title": "Observed At",
             "type": "string"
           },
+          "pki": {
+            "$ref": "#/components/schemas/PKIStatus"
+          },
           "smtp": {
             "$ref": "#/components/schemas/SmtpStatus"
           }
@@ -4192,7 +5026,8 @@
           "api_runtime",
           "smtp",
           "certificates",
-          "backup"
+          "backup",
+          "pki"
         ],
         "title": "ServerStatus",
         "type": "object"
@@ -4421,17 +5256,6 @@
             "title": "Id",
             "type": "string"
           },
-          "lan_cidr": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Lan Cidr"
-          },
           "network_ready_at": {
             "anyOf": [
               {
@@ -4443,17 +5267,6 @@
               }
             ],
             "title": "Network Ready At"
-          },
-          "network_slot": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Network Slot"
           },
           "requested_at": {
             "anyOf": [
@@ -4602,11 +5415,9 @@
           "error_reason",
           "technician_vpn_ip",
           "gateway_vpn_ip",
-          "lan_cidr",
           "sms_sent_at",
           "sms_last_attempt_at",
           "gateway_connected_at",
-          "network_slot",
           "network_ready_at",
           "worker_seen_at"
         ],
@@ -5802,8 +6613,15 @@
         "type": "http"
       },
       "PortalCookie": {
+        "description": "Portal session cookie. Local HTTP development uses factoryvpn_portal.",
         "in": "cookie",
         "name": "__Host-factoryvpn_portal",
+        "type": "apiKey"
+      },
+      "VerificationCookie": {
+        "description": "Browser binding issued by /web/login for email verification, before a session exists. Local HTTP development uses factoryvpn_verification.",
+        "in": "cookie",
+        "name": "__Host-factoryvpn_verification",
         "type": "apiKey"
       }
     }
@@ -5973,7 +6791,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -5983,7 +6801,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "422": {
             "content": {
@@ -6139,7 +6957,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -6149,7 +6967,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "422": {
             "content": {
@@ -6175,6 +6993,825 @@
           "Admin"
         ],
         "x-required-permission": "audit.read"
+      }
+    },
+    "/api/v1/admin/enrollments": {
+      "get": {
+        "description": "\n\nRequires an administrator account.",
+        "operationId": "list_enrollments_api_v1_admin_enrollments_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "prepared",
+                    "awaiting_approval",
+                    "awaiting_data",
+                    "approved",
+                    "preparing",
+                    "ready",
+                    "completed",
+                    "blocked",
+                    "manual"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EnrollmentResponse"
+                  },
+                  "title": "Response List Enrollments Api V1 Admin Enrollments Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Total-Count": {
+                "description": "Total rows after authorization and filters, before pagination.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "PortalCookie": []
+          }
+        ],
+        "summary": "List Enrollments",
+        "tags": [
+          "Enrollment"
+        ],
+        "x-required-role": "admin"
+      }
+    },
+    "/api/v1/admin/enrollments/{identifier}": {
+      "get": {
+        "description": "\n\nRequires an administrator account.",
+        "operationId": "detail_api_v1_admin_enrollments__identifier__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Resource not found or session not visible to this user."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "PortalCookie": []
+          }
+        ],
+        "summary": "Detail",
+        "tags": [
+          "Enrollment"
+        ],
+        "x-required-role": "admin"
+      },
+      "patch": {
+        "description": "\n\nRequires an administrator account.",
+        "operationId": "update_api_v1_admin_enrollments__identifier__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "if-match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrollmentUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Resource not found or session not visible to this user."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Resource conflict, occupied peers, pending cleanup or incompatible operation."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "PortalCookie": []
+          }
+        ],
+        "summary": "Update",
+        "tags": [
+          "Enrollment"
+        ],
+        "x-required-role": "admin"
+      }
+    },
+    "/api/v1/admin/enrollments/{identifier}/approve": {
+      "post": {
+        "description": "\n\nRequires an administrator account.",
+        "operationId": "approve_api_v1_admin_enrollments__identifier__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "if-match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrollmentApproval"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Resource not found or session not visible to this user."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Resource conflict, occupied peers, pending cleanup or incompatible operation."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "PortalCookie": []
+          }
+        ],
+        "summary": "Approve",
+        "tags": [
+          "Enrollment"
+        ],
+        "x-required-role": "admin"
+      }
+    },
+    "/api/v1/admin/enrollments/{identifier}/block": {
+      "post": {
+        "description": "\n\nRequires an administrator account.",
+        "operationId": "block_api_v1_admin_enrollments__identifier__block_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "if-match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrollmentBlock"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Resource not found or session not visible to this user."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Resource conflict, occupied peers, pending cleanup or incompatible operation."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "PortalCookie": []
+          }
+        ],
+        "summary": "Block",
+        "tags": [
+          "Enrollment"
+        ],
+        "x-required-role": "admin"
+      }
+    },
+    "/api/v1/admin/enrollments/{identifier}/manual": {
+      "post": {
+        "description": "\n\nRequires an administrator account.",
+        "operationId": "manual_api_v1_admin_enrollments__identifier__manual_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "idempotency-key",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "if-match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrollmentManualRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Resource not found or session not visible to this user."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Resource conflict, occupied peers, pending cleanup or incompatible operation."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "PortalCookie": []
+          }
+        ],
+        "summary": "Manual",
+        "tags": [
+          "Enrollment"
+        ],
+        "x-required-role": "admin"
+      }
+    },
+    "/api/v1/admin/enrollments/{identifier}/resume": {
+      "post": {
+        "description": "\n\nRequires an administrator account.",
+        "operationId": "resume_api_v1_admin_enrollments__identifier__resume_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "if-match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Resource not found or session not visible to this user."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Resource conflict, occupied peers, pending cleanup or incompatible operation."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "PortalCookie": []
+          }
+        ],
+        "summary": "Resume",
+        "tags": [
+          "Enrollment"
+        ],
+        "x-required-role": "admin"
       }
     },
     "/api/v1/admin/gateways": {
@@ -6335,7 +7972,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -6345,7 +7982,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "422": {
             "content": {
@@ -6417,7 +8054,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -6427,7 +8064,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -6508,7 +8145,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -6518,7 +8155,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -6556,7 +8193,7 @@
         "x-required-permission": "gateways.manage"
       },
       "patch": {
-        "description": "Set or clear a display name; machine registration never overwrites it.\n\nRequires gateways.manage within the caller's assigned groups, or global administration.",
+        "description": "Aggiorna inventario e configurazione operativa.\n\nMAC, modalità e telefono richiedono un amministratore globale, assenza di\nsessioni/pulizie pendenti e nuovo provisioning dopo la revoca dei materiali.\nLe correzioni di solo inventario mantengono i permessi delegati esistenti.\n\nRequires gateways.manage within the caller's assigned groups, or global administration.",
         "operationId": "update_gateway_api_v1_admin_gateways__gateway_id__patch",
         "parameters": [
           {
@@ -6615,7 +8252,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -6625,7 +8262,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -6783,7 +8420,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -6793,7 +8430,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -6890,7 +8527,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -6900,7 +8537,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -7002,7 +8639,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -7012,7 +8649,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -7129,7 +8766,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -7139,7 +8776,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -7248,7 +8885,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -7258,7 +8895,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -7375,7 +9012,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -7385,7 +9022,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "422": {
             "content": {
@@ -7444,7 +9081,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -7454,7 +9091,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -7536,7 +9173,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -7546,7 +9183,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -7627,7 +9264,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -7637,7 +9274,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -7734,7 +9371,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -7744,7 +9381,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -7818,7 +9455,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -7828,7 +9465,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           }
         },
         "security": [
@@ -7868,7 +9505,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -7878,7 +9515,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           }
         },
         "security": [
@@ -7929,7 +9566,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -7939,7 +9576,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -8181,7 +9818,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -8191,7 +9828,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "422": {
             "content": {
@@ -8254,7 +9891,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -8264,7 +9901,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -8345,7 +9982,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -8355,7 +9992,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -8416,7 +10053,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -8426,7 +10063,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           }
         },
         "security": [
@@ -8566,7 +10203,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -8576,7 +10213,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "422": {
             "content": {
@@ -8645,7 +10282,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -8655,7 +10292,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -8747,7 +10384,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -8757,7 +10394,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -8838,7 +10475,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -8848,7 +10485,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -8945,7 +10582,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -8955,7 +10592,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -9064,7 +10701,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -9074,7 +10711,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -9193,7 +10830,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -9203,7 +10840,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -9290,7 +10927,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -9300,7 +10937,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -9407,7 +11044,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -9417,7 +11054,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -9529,7 +11166,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -9539,7 +11176,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -9680,6 +11317,16 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Invalid or expired challenge, code or browser binding."
+          },
           "401": {
             "content": {
               "application/json": {
@@ -9709,6 +11356,26 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Email verification locked, resend cooldown or sending limit reached."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Email verification or mail delivery is unavailable."
           }
         },
         "summary": "Resend Login",
@@ -9741,6 +11408,16 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Invalid or expired challenge, code or browser binding."
+          },
           "401": {
             "content": {
               "application/json": {
@@ -9770,6 +11447,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Email verification locked, resend cooldown or sending limit reached."
           }
         },
         "summary": "Verify Login",
@@ -9801,7 +11488,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -9811,7 +11498,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -9860,7 +11547,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -9870,7 +11557,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           }
         },
         "security": [
@@ -9935,7 +11622,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -9945,7 +11632,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -10014,7 +11701,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -10024,7 +11711,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -10102,7 +11789,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -10112,7 +11799,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -10327,7 +12014,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -10337,7 +12024,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           }
         },
         "security": [
@@ -10384,7 +12071,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -10394,7 +12081,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -10474,7 +12161,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -10484,7 +12171,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -10551,7 +12238,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -10561,7 +12248,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -10621,7 +12308,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -10631,7 +12318,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -10720,7 +12407,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -10730,7 +12417,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -10810,7 +12497,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -10820,7 +12507,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -10915,7 +12602,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -10925,7 +12612,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -11082,7 +12769,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -11092,7 +12779,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -11131,7 +12818,7 @@
     },
     "/api/v1/gateways/": {
       "get": {
-        "description": "Search scoped gateways by label, MAC, phone or exact UUID.\n\nX-Total-Count covers the same filtered scope before pagination. Availability\nand can_start are advisory; they neither reserve a peer nor prove it is online.\nNo session identifiers or identities of other technicians are returned.",
+        "description": "Search scoped gateways by label, inventory identifiers, phone or exact UUID.\n\nX-Total-Count covers the same filtered scope before pagination. Availability\nand can_start are advisory; they neither reserve a peer nor prove it is online.\nNo session identifiers or identities of other technicians are returned.",
         "operationId": "list_gateways_api_v1_gateways__get",
         "parameters": [
           {
@@ -11287,7 +12974,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -11297,7 +12984,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "422": {
             "content": {
@@ -11359,7 +13046,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -11369,7 +13056,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -11440,7 +13127,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -11450,7 +13137,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -11702,7 +13389,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -11712,7 +13399,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -11930,7 +13617,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -11940,7 +13627,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -12046,7 +13733,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -12056,7 +13743,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "422": {
             "content": {
@@ -12127,7 +13814,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -12137,7 +13824,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -12208,7 +13895,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -12218,7 +13905,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -12289,7 +13976,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -12299,7 +13986,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -12380,7 +14067,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -12390,7 +14077,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -12472,7 +14159,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -12482,7 +14169,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -12524,6 +14211,97 @@
           }
         ],
         "summary": "Download",
+        "tags": [
+          "Provisioning"
+        ]
+      }
+    },
+    "/api/v1/provisioning/peers/gateway/{peer_id}/renew-certificate": {
+      "post": {
+        "operationId": "request_remote_renewal_api_v1_provisioning_peers_gateway__peer_id__renew_certificate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "peer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Peer Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProvisioningState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Resource not found or session not visible to this user."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Resource conflict, occupied peers, pending cleanup or incompatible operation."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "PortalCookie": []
+          }
+        ],
+        "summary": "Request Remote Renewal",
         "tags": [
           "Provisioning"
         ]
@@ -12576,7 +14354,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -12586,7 +14364,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -12690,7 +14468,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -12700,7 +14478,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -12804,7 +14582,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -12814,7 +14592,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -13023,7 +14801,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -13033,7 +14811,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "422": {
             "content": {
@@ -13187,7 +14965,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -13197,7 +14975,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "422": {
             "content": {
@@ -13411,7 +15189,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -13421,7 +15199,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "422": {
             "content": {
@@ -13448,7 +15226,7 @@
         ]
       },
       "post": {
-        "description": "Request assistance using the gateway's configured activation mode.\n\nProvide exactly one of gateway_id or phone_number. HTTP 200 does not imply an\nactive VPN: inspect status, which may be REQUESTED or FAILED. Poll the detail\nuntil gateway_ready_at is set, connect the technician VPN, then wait for ACTIVE.\nSessions last at most 30 minutes, bounded by the opening browser/SSO lifetime;\neach peer has one reserved session. Browser logout closes its associated VPNs.\nOptional Idempotency-Key (UUID) recovers the same request for this account,\nincluding terminal outcomes, without resending SMS. Changed input returns 409.",
+        "description": "Request assistance using the gateway's configured activation mode.\n\nProvide exactly one of gateway_id or phone_number. HTTP 200 does not imply an\nactive VPN: inspect status, which may be REQUESTED or FAILED. Poll the detail\nuntil gateway_ready_at is set, connect the technician VPN, then wait for ACTIVE.\nSessions use the configured maximum (3 hours by default), bounded by the opening browser/SSO lifetime;\neach peer has one reserved session. Browser logout closes its associated VPNs.\nOptional Idempotency-Key (UUID) recovers the same request for this account,\nincluding terminal outcomes, without resending SMS. Changed input returns 409.",
         "operationId": "create_assistance_session_api_v1_sessions__post",
         "parameters": [
           {
@@ -13498,7 +15276,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -13508,7 +15286,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -13548,7 +15326,7 @@
                 }
               }
             },
-            "description": "Session network pool exhausted or no VPN addresses available."
+            "description": "No VPN addresses available."
           }
         },
         "security": [
@@ -13588,7 +15366,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -13598,7 +15376,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -13661,7 +15439,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -13671,7 +15449,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -13751,7 +15529,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -13761,7 +15539,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -13832,7 +15610,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -13842,7 +15620,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -13914,7 +15692,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -13924,7 +15702,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -14077,7 +15855,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -14087,7 +15865,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "422": {
             "content": {
@@ -14150,7 +15928,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -14160,7 +15938,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -14249,7 +16027,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -14259,7 +16037,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "404": {
             "content": {
@@ -14320,7 +16098,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -14330,7 +16108,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           }
         },
         "security": [
@@ -14389,7 +16167,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -14399,7 +16177,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "422": {
             "content": {
@@ -14429,7 +16207,7 @@
     },
     "/api/v1/web/email": {
       "get": {
-        "description": "\n\nSame-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.",
+        "description": "\n\nSame-origin portal endpoint. No Bearer tokens are returned. Requires an authenticated portal session. Mutations require Origin and X-CSRF-Token.",
         "operationId": "status_api_v1_web_email_get",
         "responses": {
           "200": {
@@ -14450,7 +16228,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -14460,7 +16238,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           }
         },
         "security": [
@@ -14476,7 +16254,7 @@
     },
     "/api/v1/web/email/confirm": {
       "post": {
-        "description": "\n\nSame-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.",
+        "description": "\n\nSame-origin portal endpoint. No Bearer tokens are returned. Requires an authenticated portal session. Mutations require Origin and X-CSRF-Token.",
         "operationId": "confirm_api_v1_web_email_confirm_post",
         "requestBody": {
           "content": {
@@ -14507,7 +16285,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -14517,7 +16295,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -14553,7 +16331,7 @@
     },
     "/api/v1/web/email/resend": {
       "post": {
-        "description": "\n\nSame-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.",
+        "description": "\n\nSame-origin portal endpoint. No Bearer tokens are returned. Requires an authenticated portal session. Mutations require Origin and X-CSRF-Token.",
         "operationId": "resend_api_v1_web_email_resend_post",
         "requestBody": {
           "content": {
@@ -14584,7 +16362,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -14594,7 +16372,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -14630,7 +16408,7 @@
     },
     "/api/v1/web/email/start": {
       "post": {
-        "description": "\n\nSame-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.",
+        "description": "\n\nSame-origin portal endpoint. No Bearer tokens are returned. Requires an authenticated portal session. Mutations require Origin and X-CSRF-Token.",
         "operationId": "start_api_v1_web_email_start_post",
         "requestBody": {
           "content": {
@@ -14661,7 +16439,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -14671,7 +16449,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -14707,7 +16485,7 @@
     },
     "/api/v1/web/email/verify": {
       "post": {
-        "description": "\n\nSame-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.",
+        "description": "\n\nSame-origin portal endpoint. No Bearer tokens are returned. Requires an authenticated portal session. Mutations require Origin and X-CSRF-Token.",
         "operationId": "verify_api_v1_web_email_verify_post",
         "requestBody": {
           "content": {
@@ -14749,7 +16527,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -14759,7 +16537,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -14795,7 +16573,7 @@
     },
     "/api/v1/web/login": {
       "post": {
-        "description": "\n\nSame-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.",
+        "description": "\n\nSame-origin portal endpoint. No Bearer tokens are returned. Requires Origin and X-FactoryVPN-Portal: 1.",
         "operationId": "login_api_v1_web_login_post",
         "requestBody": {
           "content": {
@@ -14834,7 +16612,17 @@
                 }
               }
             },
-            "description": "Invalid username or password, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -14857,6 +16645,7 @@
             "description": "Validation Error"
           }
         },
+        "security": [],
         "summary": "Login",
         "tags": [
           "Portal authentication"
@@ -14865,7 +16654,7 @@
     },
     "/api/v1/web/login/resend": {
       "post": {
-        "description": "\n\nSame-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.",
+        "description": "\n\nSame-origin portal endpoint. No Bearer tokens are returned. Requires the verification cookie issued by /web/login and the challenge_token in the request body, plus Origin and X-FactoryVPN-Portal: 1. No authenticated portal session or CSRF token is required.",
         "operationId": "resend_login_api_v1_web_login_resend_post",
         "requestBody": {
           "content": {
@@ -14888,6 +16677,16 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Invalid or expired challenge, code or browser binding."
+          },
           "401": {
             "content": {
               "application/json": {
@@ -14896,7 +16695,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -14906,7 +16705,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -14927,11 +16726,31 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Email verification locked, resend cooldown or sending limit reached."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Email verification or mail delivery is unavailable."
           }
         },
         "security": [
           {
-            "PortalCookie": []
+            "VerificationCookie": []
           }
         ],
         "summary": "Resend Login",
@@ -14942,7 +16761,7 @@
     },
     "/api/v1/web/login/verify": {
       "post": {
-        "description": "\n\nSame-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.",
+        "description": "\n\nSame-origin portal endpoint. No Bearer tokens are returned. Requires the verification cookie issued by /web/login and the challenge_token in the request body, plus Origin and X-FactoryVPN-Portal: 1. No authenticated portal session or CSRF token is required.",
         "operationId": "verify_login_api_v1_web_login_verify_post",
         "requestBody": {
           "content": {
@@ -14965,6 +16784,16 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Invalid or expired challenge, code or browser binding."
+          },
           "401": {
             "content": {
               "application/json": {
@@ -14973,7 +16802,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -14983,7 +16812,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -15004,11 +16833,21 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Email verification locked, resend cooldown or sending limit reached."
           }
         },
         "security": [
           {
-            "PortalCookie": []
+            "VerificationCookie": []
           }
         ],
         "summary": "Verify Login",
@@ -15019,7 +16858,7 @@
     },
     "/api/v1/web/logout": {
       "post": {
-        "description": "\n\nSame-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.",
+        "description": "\n\nSame-origin portal endpoint. No Bearer tokens are returned. Requires Origin. With a portal cookie, even expired or revoked, X-CSRF-Token is required. Without that cookie, X-FactoryVPN-Portal: 1 is required instead.",
         "operationId": "logout_api_v1_web_logout_post",
         "responses": {
           "200": {
@@ -15040,7 +16879,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -15050,7 +16889,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -15064,6 +16903,7 @@
           }
         },
         "security": [
+          {},
           {
             "PortalCookie": []
           }
@@ -15076,7 +16916,7 @@
     },
     "/api/v1/web/logout-all": {
       "post": {
-        "description": "\n\nSame-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.",
+        "description": "\n\nSame-origin portal endpoint. No Bearer tokens are returned. Requires an authenticated portal session. Mutations require Origin and X-CSRF-Token.",
         "operationId": "global_logout_api_v1_web_logout_all_post",
         "responses": {
           "200": {
@@ -15097,7 +16937,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -15107,7 +16947,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -15133,7 +16973,7 @@
     },
     "/api/v1/web/password": {
       "post": {
-        "description": "\n\nSame-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.",
+        "description": "\n\nSame-origin portal endpoint. No Bearer tokens are returned. Requires an authenticated portal session. Mutations require Origin and X-CSRF-Token.",
         "operationId": "password_api_v1_web_password_post",
         "requestBody": {
           "content": {
@@ -15164,7 +17004,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -15174,7 +17014,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -15210,7 +17050,7 @@
     },
     "/api/v1/web/session": {
       "get": {
-        "description": "\n\nSame-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.",
+        "description": "\n\nSame-origin portal endpoint. No Bearer tokens are returned. Requires an authenticated portal session. Mutations require Origin and X-CSRF-Token.",
         "operationId": "session_api_v1_web_session_get",
         "responses": {
           "200": {
@@ -15231,7 +17071,7 @@
                 }
               }
             },
-            "description": "Invalid or expired bearer token, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
           },
           "403": {
             "content": {
@@ -15241,7 +17081,7 @@
                 }
               }
             },
-            "description": "Missing or malformed bearer authorization, or insufficient role."
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           }
         },
         "security": [
@@ -15257,7 +17097,7 @@
     },
     "/api/v1/web/sso/start": {
       "post": {
-        "description": "\n\nSame-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.",
+        "description": "\n\nSame-origin portal endpoint. No Bearer tokens are returned. Requires Origin and X-FactoryVPN-Portal: 1. Initial login needs no session. When reauthenticate=true, an authenticated global SSO administrator's portal session and X-CSRF-Token are also required.",
         "operationId": "sso_start_api_v1_web_sso_start_post",
         "requestBody": {
           "content": {
@@ -15288,7 +17128,17 @@
                 }
               }
             },
-            "description": "Invalid username or password, or an inactive account."
+            "description": "Invalid, expired or revoked credentials, or an inactive account."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check."
           },
           "409": {
             "content": {
@@ -15311,6 +17161,12 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {},
+          {
+            "PortalCookie": []
+          }
+        ],
         "summary": "Sso Start",
         "tags": [
           "Portal authentication"

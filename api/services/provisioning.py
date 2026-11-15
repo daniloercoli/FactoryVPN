@@ -58,6 +58,10 @@ async def authorize_peer(db, actor, kind, peer_id, *, issue=False):
 
 
 async def valid_job_actor(db, job):
+    if job.delivery_mode == "enrollment":
+        from api.services.enrollment import valid_delivery
+
+        return await valid_delivery(db, job)
     actor = await db.get(User, job.actor_id, populate_existing=True)
     if (
         not actor
@@ -90,9 +94,6 @@ def gateway_parameters(gateway):
         activation_mode=gateway.activation_mode,
         phone_number=gateway.phone_number,
         mac_address=gateway.mac_address,
-        lan_cidr=gateway.vpn_subnet,
-        lan_address=(gateway.extra_metadata or {}).get("lan_address"),
-        lan_interface=(gateway.extra_metadata or {}).get("lan_interface"),
     ).model_dump(mode="json")
 
 
@@ -154,6 +155,7 @@ async def state(db, actor, kind, peer_id):
             .where(
                 ProvisioningJob.kind == kind,
                 ProvisioningJob.peer_id == peer_id,
+                ProvisioningJob.delivery_mode == "manual",
                 # Historical requests belong to the group in which they were
                 # created, just like direct access through authorized_job().
                 ProvisioningJob.group_id == peer.group_id if kind == "gateway" else True,
@@ -170,7 +172,21 @@ async def state(db, actor, kind, peer_id):
         if health is None
         else ("stale" if health.updated_at < utc_now() - timedelta(seconds=30) else health.value)
     )
+    from api.services import certificate_renewal
+
+    renewal = await certificate_renewal.pending(db, peer_id) if kind == "gateway" else None
+    requested = (
+        await db.get(Config, "certificate-renewal:" + str(peer_id)) if kind == "gateway" else None
+    )
+    from api.models.enrollment import GatewayEnrollment
+
+    enrollment = await db.get(GatewayEnrollment, peer_id) if kind == "gateway" else None
     return {
+        "enrollment_pending": bool(
+            enrollment and not enrollment.completed_at and enrollment.delivery_mode == "automatic"
+        ),
+        "remote_renewal_state": renewal.state if renewal else None,
+        "remote_renewal_requested": bool(requested),
         "certificate": certificate_response(cert),
         "pending_job": job_response(pending, actor) if pending else None,
         "recent_job": job_response(jobs[0], actor) if jobs else None,
@@ -268,6 +284,17 @@ async def create_job(db, actor, kind, peer_id, key, request, *, new_gateway=None
                 409, "Provisioning request belongs to a different operation or access"
             )
         return previous
+    if kind == "gateway":
+        from api.models.enrollment import GatewayEnrollment
+
+        enrollment = await db.get(GatewayEnrollment, peer_id)
+        if enrollment and not enrollment.completed_at and enrollment.delivery_mode == "automatic":
+            raise HTTPException(409, "Take over the enrollment before preparing a manual package")
+        from api.services.certificate_renewal import reconcile, pending
+
+        await reconcile(db)
+        if await pending(db, peer_id):
+            raise HTTPException(409, "A device certificate renewal is pending")
     recent = await db.scalar(
         select(func.count())
         .select_from(ProvisioningJob)
@@ -281,6 +308,9 @@ async def create_job(db, actor, kind, peer_id, key, request, *, new_gateway=None
             429, "Provisioning request limit reached; retry later", headers={"Retry-After": "3600"}
         )
     if new_gateway:
+        from api.services.enrollment import available_identity
+
+        await available_identity(db, peer_id, new_gateway.serial_number)
         check_permission(actor, Permission.GATEWAYS_PROVISION)
         await validate_group_ids(db, actor, [new_gateway.group_id])
         db.add(
@@ -288,15 +318,13 @@ async def create_job(db, actor, kind, peer_id, key, request, *, new_gateway=None
                 id=peer_id,
                 group_id=new_gateway.group_id,
                 display_name=new_gateway.display_name.strip(),
+                serial_number=new_gateway.serial_number,
+                imei=new_gateway.imei,
+                iccid=new_gateway.iccid,
                 mac_address=new_gateway.mac_address,
                 phone_number=new_gateway.phone_number,
                 activation_mode=new_gateway.activation_mode,
-                vpn_subnet=new_gateway.lan_cidr,
                 status="PENDING",
-                extra_metadata={
-                    "lan_interface": new_gateway.lan_interface,
-                    "lan_address": new_gateway.lan_address,
-                },
             )
         )
         await db.flush()
@@ -342,7 +370,7 @@ async def create_job(db, actor, kind, peer_id, key, request, *, new_gateway=None
 
 async def authorized_job(db, actor, job_id, *, delivery=False):
     job = await db.get(ProvisioningJob, job_id, populate_existing=True)
-    if not job:
+    if not job or job.delivery_mode == "enrollment":
         raise HTTPException(404, "Provisioning request not found")
     peer = await authorize_peer(db, actor, job.kind, job.peer_id)
     if job.kind == "gateway" and peer.group_id != job.group_id:
@@ -357,13 +385,18 @@ async def download(db, actor, job):
         raise HTTPException(409, "Provisioning download expired or unavailable")
     data = decrypt(job.artifact_encrypted)
     job.downloaded_at = utc_now()
-    audit(db, job, "provisioning_downloaded", actor.id)
+    audit(db, job, "provisioning_downloaded", actor.id if actor else None)
     return data
 
 
 async def activate(db, actor, job):
     if job.state == "active":
         return
+    if job.delivery_mode == "enrollment":
+        from api.services.enrollment import valid_delivery
+
+        if actor is not None or not await valid_delivery(db, job):
+            raise HTTPException(409, "Enrollment delivery is no longer authorized")
     if job.state != "ready" or job.expires_at <= utc_now() or not job.downloaded_at:
         raise HTTPException(409, "Download the prepared profile before activation")
     if await db.scalar(
@@ -398,7 +431,11 @@ async def activate(db, actor, job):
         gateway = await db.get(Gateway, job.peer_id)
         gateway.status, gateway.last_seen = "PENDING", None
     job.state, job.artifact_encrypted = "active", None
-    audit(db, job, "provisioning_activated", actor.id)
+    if job.kind == "gateway":
+        from api.services.enrollment import complete
+
+        await complete(db, job.peer_id)
+    audit(db, job, "provisioning_activated", actor.id if actor else None)
 
 
 async def revoke_peer(db, actor, kind, peer_id, expected_id):
@@ -425,6 +462,9 @@ async def invalidate_peer(db, actor, kind, peer):
         await cancel_job(db, job, actor_id=actor.id)
     mark_revoked(cert)
     if kind == "gateway":
+        from api.services.enrollment import invalidate
+
+        await invalidate(db, peer_id, actor_id=actor.id)
         credential = await current_credential(db, peer_id)
         if credential:
             credential.active, credential.revoked_at, credential.sms_secret_encrypted = (
@@ -446,6 +486,10 @@ async def invalidate_peer(db, actor, kind, peer):
         session.status, session.ended_at = "CLOSED", utc_now()
         session.error_reason = "VPN credential revoked"
         terminal_event(db, session, actor_id=actor.id)
+    from api.services.certificate_renewal import reconcile
+
+    await db.flush()
+    await reconcile(db)
     record_event(
         db,
         "vpn_credentials_revoked",

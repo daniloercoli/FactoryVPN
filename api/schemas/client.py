@@ -5,7 +5,7 @@ from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel
-from api.schemas.gateway import GatewayAvailabilityResponse
+from api.schemas.gateway import GatewayAvailabilityResponse, GatewayInventoryFields
 from api.schemas.diagnostics import DiagnosticsResponse
 
 SessionStatus = Literal["REQUESTED", "ACTIVE", "CLOSED", "EXPIRED", "FAILED"]
@@ -89,11 +89,9 @@ class SessionDetailResponse(AdminSessionResponse):
     web_session_id: UUID | None = None
     technician_vpn_ip: str | None
     gateway_vpn_ip: str | None
-    lan_cidr: str | None
     sms_sent_at: datetime | None
     sms_last_attempt_at: datetime | None
     gateway_connected_at: datetime | None
-    network_slot: int | None
     network_ready_at: datetime | None
     worker_seen_at: datetime | None
 
@@ -104,7 +102,7 @@ class AdminSessionCloseResponse(BaseModel):
     ended_at: datetime | None
 
 
-class AdminGatewaySummaryResponse(BaseModel):
+class AdminGatewaySummaryResponse(GatewayInventoryFields):
     revision: str = ""
     id: UUID
     display_name: str | None = None

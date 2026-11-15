@@ -28,7 +28,7 @@ ROOT = Path("/lab")
 
 
 def run(command, **kwargs):
-    return subprocess.run(command, check=True, text=True, timeout=15, **kwargs)
+    return subprocess.run(command, check=kwargs.pop("check", True), text=True, timeout=15, **kwargs)
 
 
 def inside(name, command, **kwargs):
@@ -131,6 +131,10 @@ def serve():
                     f"site{number}",
                     [sys.executable, "-m", "scripts.local_lab_peers", "target", str(number)],
                 ),
+                (
+                    f"gw{number}",
+                    [sys.executable, "-m", "scripts.local_lab_peers", "web", str(number)],
+                ),
                 (f"gw{number}", [sys.executable, "-m", "gateway-agent.main"]),
             ):
                 log = (folder / f"{name}.log").open("a")
@@ -141,7 +145,7 @@ def serve():
                     )
                 )
         (ROOT / "ready").touch()
-        print("FactoryVPN lab: two gateways, technicians and overlapping LANs ready.", flush=True)
+        print("FactoryVPN lab: two Gateway Only peers and local LANs ready.", flush=True)
         while not stop.wait(1):
             if any(child.poll() is not None for child in children):
                 raise RuntimeError("A lab peer exited; inspect the per-peer logs.")
@@ -186,6 +190,51 @@ def target(number):
         while True:
             _, address = sock.recvfrom(1024)
             sock.sendto(label, address)
+
+
+def gateway_web(number):
+    # Servizi fittizi del gateway: il firmware reale deve predisporre i propri.
+    folder = ROOT / f"site{number}"
+    cert, key = folder / "web.crt", folder / "web.key"
+    if not cert.exists():
+        run(
+            [
+                "openssl",
+                "req",
+                "-x509",
+                "-newkey",
+                "rsa:2048",
+                "-nodes",
+                "-subj",
+                "/CN=factoryvpn-lab",
+                "-days",
+                "2",
+                "-keyout",
+                str(key),
+                "-out",
+                str(cert),
+            ],
+            capture_output=True,
+        )
+    label = f"site{number}".encode()
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(label)))
+            self.end_headers()
+            self.wfile.write(label)
+
+        def log_message(self, *_):
+            pass
+
+    http = HTTPServer(("0.0.0.0", 80), Handler)
+    threading.Thread(target=http.serve_forever, daemon=True).start()
+    https = HTTPServer(("0.0.0.0", 443), Handler)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(cert, key)
+    https.socket = context.wrap_socket(https.socket, server_side=True)
+    https.serve_forever()
 
 
 @contextmanager
@@ -275,12 +324,17 @@ def client_start(number):
             raise
 
 
-def query(protocol):
+def query(protocol, address):
     try:
-        if protocol == "tcp":
+        if protocol in ("tcp", "https"):
             import urllib.request
 
-            with urllib.request.urlopen("http://192.168.1.10:8080/", timeout=2) as response:
+            scheme = "https" if protocol == "https" else "http"
+            # Certificato autofirmato limitato al laboratorio.
+            context = ssl._create_unverified_context() if protocol == "https" else None
+            with urllib.request.urlopen(
+                f"{scheme}://{address}/", timeout=2, context=context
+            ) as response:
                 return response.read().decode()
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             sock.settimeout(2)
@@ -302,6 +356,7 @@ def main():
         choices=[
             "serve",
             "target",
+            "web",
             "client-start",
             "client-stop",
             "query",
@@ -312,10 +367,13 @@ def main():
         ],
     )
     parser.add_argument("site", nargs="?", type=int, choices=[1, 2], default=1)
-    parser.add_argument("--protocol", choices=["tcp", "udp"], default="tcp")
+    parser.add_argument("--protocol", choices=["tcp", "https", "udp"], default="tcp")
+    parser.add_argument("--address", default="10.100.0.2")
     args = parser.parse_args()
     if args.action == "serve":
         serve()
+    elif args.action == "web":
+        gateway_web(args.site)
     elif args.action == "target":
         target(args.site)
     elif args.action == "client-start":
@@ -323,7 +381,7 @@ def main():
     elif args.action == "client-stop":
         client_stop(args.site)
     elif args.action == "query-inner":
-        print(query(args.protocol))
+        print(query(args.protocol, args.address))
     elif args.action in ("sms", "sms-status"):
         config = dotenv_values(ROOT / f"site{args.site}" / "gateway.env")
         if config.get("GATEWAY_ACTIVATION_MODE") != "sms":
@@ -347,6 +405,19 @@ def main():
             )
         )
     else:
+        result = inside(
+            f"gw{args.site}",
+            ["ip", "-j", "-4", "addr", "show", "dev", "tun0"],
+            check=False,
+            capture_output=True,
+        )
+        if result.returncode:
+            print("blocked")
+            return
+        addresses = [a["local"] for link in json.loads(result.stdout) for a in link["addr_info"]]
+        if not addresses:
+            print("blocked")
+            return
         inside(
             f"tech{args.site}",
             [
@@ -356,6 +427,8 @@ def main():
                 "query-inner",
                 "--protocol",
                 args.protocol,
+                "--address",
+                addresses[0],
             ],
         )
 

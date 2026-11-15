@@ -103,10 +103,11 @@ def test_portal_and_sso_share_origin():
         )
 
 
-@pytest.mark.parametrize("minutes", [0, 481])
-def test_portal_lifetime_is_bounded(minutes):
+@pytest.mark.parametrize("field", ["PORTAL_SESSION_MINUTES", "SSO_SESSION_MINUTES"])
+@pytest.mark.parametrize("minutes", [0, 721])
+def test_login_lifetime_is_bounded(field, minutes):
     with pytest.raises(ValidationError):
-        Settings(_env_file=None, PORTAL_SESSION_MINUTES=minutes)
+        Settings(_env_file=None, **{field: minutes})
 
 
 def test_loopback_portal_allowed_only_in_development():

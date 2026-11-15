@@ -3,6 +3,16 @@
 from importlib import import_module
 import os
 from pathlib import Path
+from factoryvpn_common.certificates import validate_crls
+from factoryvpn_common.timing import env_seconds
+
+# Il keepalive rileva l'assenza del peer; non rinnova il lease del firewall.
+ping = env_seconds("OPENVPN_PING_SECONDS", 10, 1, 60)
+restart = env_seconds("OPENVPN_RESTART_SECONDS", 300, 30, 900)
+if restart < ping * 2:
+    raise ValueError("OPENVPN_RESTART_SECONDS deve essere almeno il doppio di OPENVPN_PING_SECONDS")
+
+validate_crls(Path("/pki"))
 
 key = os.environ.get("WORKER_API_KEY", "")
 if len(key) < 32:
@@ -22,6 +32,9 @@ os.execvp(
         "openvpn",
         "--config",
         "/etc/openvpn/server.conf",
+        "--keepalive",
+        str(ping),
+        str(restart),
         "--setenv",
         "API_URL",
         os.environ.get("API_URL", "http://api:8000"),

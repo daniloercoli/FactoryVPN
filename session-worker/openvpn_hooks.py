@@ -3,7 +3,12 @@
 import os
 from pathlib import Path
 import sys
-import httpx
+
+# OpenVPN strips PYTHONPATH when invoking file-based hooks.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+import httpx  # noqa: E402
+from factoryvpn_common.certificates import validate_crls  # noqa: E402
 
 
 def api_call(action, common_name, address=None, certificate_serial=None):
@@ -29,6 +34,7 @@ def api_call(action, common_name, address=None, certificate_serial=None):
 def main(argv=None):
     args = sys.argv[1:] if argv is None else argv
     if args[0] == "connect" and len(args) == 2:
+        validate_crls(Path(os.environ.get("FACTORYVPN_PKI_ROOT", "/pki")))
         result = api_call(
             "authorize",
             os.environ.get("common_name", ""),

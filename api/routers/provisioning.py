@@ -86,6 +86,34 @@ async def prepare(
     return service.job_response(job, actor)
 
 
+@router.post(
+    "/provisioning/peers/gateway/{peer_id}/renew-certificate", response_model=ProvisioningState
+)
+async def request_remote_renewal(peer_id: UUID, db=Depends(get_db), actor=Depends(actor_context)):
+    from api.models.config import Config
+    from api.services.credentials import current_credential
+    from api.services.access_service import record_event
+
+    gateway = await service.authorize_peer(db, actor, "gateway", peer_id, issue=True)
+    cert = await service.current_certificate(db, "gateway", peer_id)
+    credential = await current_credential(db, peer_id)
+    if not cert or not credential or not credential.registered_at:
+        raise HTTPException(409, "A registered gateway with active credentials is required")
+    key = "certificate-renewal:" + str(peer_id)
+    if await db.get(Config, key) is None:
+        db.add(Config(key=key, value="requested"))
+        record_event(
+            db,
+            "certificate_renewal_scheduled",
+            actor.id,
+            group_id=gateway.group_id,
+            gateway_id=peer_id,
+        )
+    result = await service.state(db, actor, "gateway", peer_id)
+    await db.commit()
+    return result
+
+
 @router.post("/provisioning/peers/{kind}/{peer_id}/revoke", response_model=ProvisioningState)
 async def revoke(
     kind: PeerKind,

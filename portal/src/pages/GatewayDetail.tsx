@@ -26,6 +26,8 @@ import { availabilityNames, blockNames, VPNStartDialog } from "./VPN";
 import { VPNProfile } from "./Provisioning";
 import { GatewayTelemetry } from "./Telemetry";
 import { GatewayComponents, GatewayLogs } from "./GatewayObservability";
+import { GatewayIdentifierFields } from "./GatewayIdentifiers";
+import GatewayConnection from "./GatewayConnection";
 
 async function refreshGateway(client: ReturnType<typeof useQueryClient>) {
   await Promise.all(
@@ -94,12 +96,12 @@ function GatewayCard({ id }: { id: string }) {
     ],
     ["Modalità di attivazione", g.activation_mode === "sms" ? "SMS" : "Wi-Fi"],
     ["MAC registrato", g.mac_address || "Non registrato"],
-    ["Numero di serie", g.serial_number || "Non registrato"],
+    ["Matricola", g.serial_number || "Non registrata"],
+    ["IMEI modem", g.imei || "Non registrato"],
+    ["ICCID SIM", g.iccid || "Non registrato"],
     ["Telefono", g.phone_number || "Non configurato"],
-    ["Rete LAN", g.lan_cidr || "Non configurata"],
-    ["Indirizzo LAN del gateway", g.lan_address || "Non registrato"],
-    ["Interfaccia LAN", g.lan_interface || "Non registrata"],
-    ["Indirizzo VPN", g.vpn_ip || "Non assegnato"],
+    ["Indirizzo VPN fisso", g.vpn_ip || "Non assegnato"],
+    ["Servizi VPN", "SSH (22), HTTP (80), HTTPS (443)"],
     [
       "Stato dichiarato",
       (
@@ -117,7 +119,7 @@ function GatewayCard({ id }: { id: string }) {
     <>
       <PageTitle
         title={g.display_name || g.mac_address || g.id}
-        description="Scheda gateway · rete, assistenza e inventario dell’impianto"
+        description="Scheda gateway · accesso SSH e web, assistenza e inventario"
         back="/vpn"
         action={
           <button
@@ -160,6 +162,7 @@ function GatewayCard({ id }: { id: string }) {
         </dl>
         <p className="page-note mono">ID: {g.id}</p>
         {auth.can("gateways.manage") && <GatewaySettings gateway={g} />}
+        {auth.user?.is_admin && <GatewayConnection gateway={g} />}
       </section>
       <section
         className="card padded gateway-section"
@@ -236,9 +239,10 @@ function GatewaySettings({ gateway }: { gateway: Detail }) {
   const groups = useGroups();
   const client = useQueryClient();
   const [draft, setDraft] = useState<{
-    kind: "name" | "group";
+    kind: "name" | "group" | "inventory";
     snapshot: Detail;
     value: string;
+    inventory: { serial_number: string; imei: string; iccid: string };
   } | null>(null);
   const mutation = useMutation({
     mutationFn: (data: NonNullable<typeof draft>) =>
@@ -250,7 +254,9 @@ function GatewaySettings({ gateway }: { gateway: Detail }) {
           body:
             data.kind === "group"
               ? { group_id: data.value || null }
-              : { display_name: data.value || null },
+              : data.kind === "inventory"
+                ? data.inventory
+                : { display_name: data.value || null },
         },
       ),
     onSuccess: async () => {
@@ -258,12 +264,17 @@ function GatewaySettings({ gateway }: { gateway: Detail }) {
       await refreshGateway(client);
     },
   });
-  const edit = (kind: "name" | "group") => {
+  const edit = (kind: "name" | "group" | "inventory") => {
     mutation.reset();
     setDraft({
       kind,
       snapshot: gateway,
       value: (kind === "name" ? gateway.display_name : gateway.group_id) || "",
+      inventory: {
+        serial_number: gateway.serial_number || "",
+        imei: gateway.imei || "",
+        iccid: gateway.iccid || "",
+      },
     });
   };
   return (
@@ -271,6 +282,12 @@ function GatewaySettings({ gateway }: { gateway: Detail }) {
       <div className="vpn-actions">
         <button className="button secondary small" onClick={() => edit("name")}>
           Modifica nome
+        </button>
+        <button
+          className="button secondary small"
+          onClick={() => edit("inventory")}
+        >
+          Modifica identificativi
         </button>
         <button
           className="button secondary small"
@@ -286,14 +303,16 @@ function GatewaySettings({ gateway }: { gateway: Detail }) {
           title={
             draft.kind === "name"
               ? "Nome del gateway"
-              : "Cambiare gruppo al gateway?"
+              : draft.kind === "inventory"
+                ? "Identificativi del gateway"
+                : "Cambiare gruppo al gateway?"
           }
           label="Salva modifiche"
           onCancel={() => setDraft(null)}
           busy={mutation.isPending}
           error={mutation.error}
           onConfirm={() => {
-            if (draft.kind === "name" || draft.value || auth.user?.is_admin)
+            if (draft.kind !== "group" || draft.value || auth.user?.is_admin)
               mutation.mutate(draft);
           }}
         >
@@ -306,6 +325,25 @@ function GatewaySettings({ gateway }: { gateway: Detail }) {
                 onChange={(e) => setDraft({ ...draft, value: e.target.value })}
               />
             </label>
+          ) : draft.kind === "inventory" ? (
+            <>
+              <div className="form-grid">
+                <GatewayIdentifierFields
+                  value={draft.inventory}
+                  onChange={(field, value) =>
+                    setDraft({
+                      ...draft,
+                      inventory: { ...draft.inventory, [field]: value },
+                    })
+                  }
+                />
+              </div>
+              <p>
+                La matricola è univoca. IMEI e ICCID possono essere condivisi e
+                vengono aggiornati quando il gateway ne invia una lettura
+                valida. Una lettura mancante conserva l’ultimo valore noto.
+              </p>
+            </>
           ) : (
             <>
               <label>

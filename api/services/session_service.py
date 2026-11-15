@@ -10,6 +10,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlalchemy import select
 from api.time_utils import utc_now
+from api.config import settings
 from api.models.session import Session
 from api.models.session_request import SessionRequest
 from api.models.gateway import Gateway
@@ -78,6 +79,10 @@ async def create_session(
             raise HTTPException(401, "Portal session no longer authorized")
     if not await can_connect(db, user, gateway):
         raise HTTPException(404, "Gateway not found or not authorized for connection")
+    from api.services.certificate_renewal import blocks_sessions
+
+    if await blocks_sessions(db, gateway.id):
+        raise HTTPException(409, "Gateway certificate installation is completing")
     if not await gateway_configured(db, gateway.id):
         raise HTTPException(409, "Gateway credentials are not provisioned")
     if not await active_certificate(db, "technician", user.id):
@@ -92,14 +97,6 @@ async def create_session(
     ).first()
     if busy:
         raise HTTPException(409, "Peer already has a session or cleanup is pending")
-    slots = set(
-        (await db.execute(select(Session.network_slot).where(Session.cleaned_at.is_(None))))
-        .scalars()
-        .all()
-    )
-    slot = next((n for n in range(1, 16384) if n not in slots), None)
-    if slot is None:
-        raise HTTPException(503, "Session network pool exhausted")
     session = Session(
         id=uuid4(),
         technician_id=technician_id,
@@ -109,21 +106,20 @@ async def create_session(
         web_session_id=web_session_id,
         status="REQUESTED",
         activation_mode=gateway.activation_mode,
+        # Durata configurata, sempre entro la validità dell'accesso che l'ha aperta.
         expires_at=min(
-            [utc_now() + timedelta(minutes=30)]
+            [utc_now() + timedelta(minutes=settings.VPN_SESSION_MINUTES)]
             + ([auth_session.expires_at] if auth_session else [])
             + ([web_session.expires_at] if web_session else [])
         ),
         diagnostics_started_at=utc_now(),
-        network_slot=slot,
         technician_vpn_ip=await assign_ip(db, user),
         gateway_vpn_ip=await assign_ip(db, gateway),
-        lan_cidr=gateway.vpn_subnet,
     )
     try:
         network_for(session)
     except (ValueError, TypeError) as exc:
-        raise HTTPException(409, "Gateway has an invalid or overlapping LAN configuration") from exc
+        raise HTTPException(409, "Gateway has an invalid VPN address") from exc
     db.add(session)
     await db.flush()
     event(db, session, "session_requested", actor_id=user.id)
@@ -174,7 +170,7 @@ async def get_session_status(db, session_id):
         session
         and session.status == "ACTIVE"
         and session.worker_seen_at
-        and session.worker_seen_at < utc_now() - timedelta(seconds=30)
+        and session.worker_seen_at < utc_now() - timedelta(seconds=settings.VPN_LEASE_SECONDS)
     ):
         session.status = "REQUESTED"
         session.network_ready_at = None

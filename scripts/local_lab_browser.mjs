@@ -1,22 +1,30 @@
-// Real portal -> gateway -> OpenVPN -> LAN smoke test against the local lab.
+// Real portal -> gateway -> OpenVPN -> gateway web smoke test against the local lab.
 // Requires the portal's Playwright dependency and its Chromium installation.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { resolve, sep } from "node:path";
+import { parseArgs } from "node:util";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const simulator = process.argv.includes("--simulator");
-const labDir = new URL(
-  simulator ? "../.factoryvpn-simulator/" : "../.factoryvpn-lab/",
-  import.meta.url,
-);
+const { values } = parseArgs({
+  options: { simulator: { type: "boolean" }, directory: { type: "string" } },
+});
+const simulator = Boolean(values.simulator);
+const labDir = values.directory
+  ? pathToFileURL(resolve(values.directory) + sep)
+  : new URL(
+      simulator ? "../.factoryvpn-simulator/" : "../.factoryvpn-lab/",
+      import.meta.url,
+    );
 const labSetup =
   "import sys; from pathlib import Path; from scripts.local_lab import Lab; " +
   "lab=Lab(Path(sys.argv[1])); ";
 const state = JSON.parse(readFileSync(new URL("lab.json", labDir), "utf8"));
 assert.equal(state.purpose, "factoryvpn-local-lab");
+assert.equal(Boolean(state.simulator), simulator);
 assert.match(state.origin, /^https:\/\/localhost:\d+$/);
 const credentials = JSON.parse(
   readFileSync(new URL("credentials.json", labDir), "utf8"),
@@ -45,6 +53,8 @@ const disconnect = () =>
       "-m",
       simulator ? "scripts.gateway_simulator" : "scripts.local_lab",
       "disconnect",
+      "--directory",
+      fileURLToPath(labDir),
       "--site",
       "1",
     ],
@@ -104,7 +114,7 @@ try {
       sessionId,
     );
     console.log(
-      "PASS: SMS remains queued and LAN blocked until simulated serial delivery",
+      "PASS: SMS remains queued and VPN access blocked until simulated serial delivery",
     );
   }
   await expect(
@@ -114,14 +124,15 @@ try {
   await expect(
     page.getByRole("heading", { name: "VPN attiva", exact: true }),
   ).toBeVisible({ timeout: 60_000 });
-  for (const protocol of ["tcp", "udp"])
+  for (const protocol of ["tcp", "https"])
     assert.equal(peer("query", protocol), "site1");
+  assert.equal(peer("query", "udp"), "blocked");
   await page.screenshot({
     path: fileURLToPath(new URL("portal-active.png", labDir)),
     fullPage: true,
   });
   console.log(
-    "PASS: browser opens a real VPN; actual TCP and UDP LAN traffic returns site1",
+    "PASS: browser opens a real VPN; actual HTTP and HTTPS gateway traffic returns site1",
   );
   await page
     .getByRole("button", { name: "Chiudi sessione", exact: true })
@@ -132,10 +143,10 @@ try {
   await expect(
     page.getByText("Risorse rilasciate.", { exact: false }),
   ).toBeVisible({ timeout: 60_000 });
-  for (const protocol of ["tcp", "udp"])
+  for (const protocol of ["tcp", "https"])
     assert.equal(peer("query", protocol), "blocked");
   console.log(
-    "PASS: browser closes the VPN; real TCP and UDP traffic is blocked after cleanup",
+    "PASS: browser closes the VPN; real HTTP and HTTPS traffic is blocked after cleanup",
   );
   writeFileSync(
     new URL("browser-report.json", labDir),
@@ -150,7 +161,7 @@ try {
             : []),
           "gateway ready",
           "real VPN ACTIVE",
-          "TCP/UDP site1",
+          "HTTP/HTTPS site1",
           "portal close",
           "traffic blocked",
         ],

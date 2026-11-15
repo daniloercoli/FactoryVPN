@@ -38,6 +38,7 @@ const fields: Record<string, string> = {
   kernel: "Kernel",
   architecture: "Architettura",
   imei: "IMEI modem",
+  iccid: "ICCID SIM",
   interface: "Interfaccia",
   mac_address: "MAC Wi-Fi",
 };

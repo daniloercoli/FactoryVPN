@@ -115,7 +115,6 @@ async def seed():
                 Gateway(
                     id=identifier(20),
                     display_name="Pressa Nord",
-                    vpn_subnet="192.168.1.0/24",
                     group_id=identifier(1),
                     mac_address="02:00:00:00:00:01",
                     activation_mode="wifi",
@@ -124,7 +123,6 @@ async def seed():
                 Gateway(
                     id=identifier(21),
                     display_name="Pressa Sud",
-                    vpn_subnet="192.168.1.0/24",
                     group_id=identifier(2),
                     mac_address="02:00:00:00:00:02",
                     activation_mode="wifi",
@@ -144,7 +142,6 @@ async def seed():
                     phone_number="+393331234567",
                     activation_mode="sms",
                     display_name="Gateway SMS Nord",
-                    vpn_subnet="192.168.1.0/24",
                     status="INACTIVE",
                 ),
             ]

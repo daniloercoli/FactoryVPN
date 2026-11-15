@@ -2,12 +2,10 @@
 Gateway schemas with input validation
 """
 
-import ipaddress
 from datetime import datetime
 from typing import Literal
 from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 from uuid import UUID
-from factoryvpn_common.network import VPN_NETWORK, TRANSIT_NETWORK
 
 GatewayStatus = Literal["PENDING", "ACTIVE", "INACTIVE"]
 ActivationMode = Literal["sms", "wifi"]
@@ -28,43 +26,21 @@ class GatewayRegisterRequest(BaseModel):
     gateway_id: UUID
     activation_mode: Literal["sms", "wifi"] = "sms"
     phone_number: str | None = Field(default=None, pattern=r"^\+[1-9]\d{9,14}$")
-    mac_address: str | None = Field(default=None, pattern=r"^[0-9A-Fa-f]{2}([:-][0-9A-Fa-f]{2}){5}$")
-    lan_interface: str = Field(..., pattern=r"^[a-zA-Z0-9_.-]{1,15}$")
-    lan_address: str
-    lan_cidr: str
+    mac_address: str | None = Field(
+        default=None, pattern=r"^[0-9A-Fa-f]{2}([:-][0-9A-Fa-f]{2}){5}$"
+    )
 
     @field_validator("mac_address")
     @classmethod
     def normalize_mac(cls, value):
         return value.upper().replace("-", ":") if value else None
 
-    @field_validator("lan_address")
-    @classmethod
-    def validate_lan_address(cls, v: str) -> str:
-        try:
-            return str(ipaddress.IPv4Address(v))
-        except ValueError:
-            raise ValueError("Invalid IPv4 address")
-
-    @field_validator("lan_cidr")
-    @classmethod
-    def validate_lan_cidr(cls, v: str) -> str:
-        try:
-            network = ipaddress.IPv4Network(v, strict=False)
-            if network.overlaps(VPN_NETWORK) or network.overlaps(TRANSIT_NETWORK):
-                raise ValueError("LAN overlaps reserved VPN networks")
-            return str(network)
-        except ValueError:
-            raise ValueError("Invalid CIDR notation")
-
     @model_validator(mode="after")
-    def validate_lan(self):
+    def validate_activation(self):
         if self.activation_mode == "wifi" and not self.mac_address:
             raise ValueError("Wi-Fi activation requires a MAC address")
         if self.activation_mode == "sms" and not self.phone_number:
             raise ValueError("SMS activation requires a phone number")
-        if ipaddress.IPv4Address(self.lan_address) not in ipaddress.IPv4Network(self.lan_cidr):
-            raise ValueError("LAN address is outside the LAN network")
         return self
 
 
@@ -74,11 +50,38 @@ class HeartbeatRequest(BaseModel):
     activation_token: str | None = Field(default=None, max_length=160)
 
 
-class GatewayUpdateRequest(BaseModel):
-    """Human-managed label, separate from machine registration and network settings."""
+class GatewayInventoryFields(BaseModel):
+    """Identificativi di inventario, separati dalle credenziali del gateway."""
 
-    model_config = ConfigDict(extra="forbid")
-    display_name: str | None = Field(max_length=100)
+    serial_number: str | None = Field(default=None, max_length=100)
+    imei: str | None = Field(default=None, pattern=r"^[0-9]{15}$")
+    iccid: str | None = Field(default=None, pattern=r"^[0-9]{18,22}$")
+
+    @field_validator("serial_number", "imei", "iccid", mode="before")
+    @classmethod
+    def normalize_inventory(cls, value):
+        return value.strip() or None if isinstance(value, str) else value
+
+
+class GatewayUpdateRequest(GatewayInventoryFields):
+    """Inventario delegabile; configurazione operativa riservata a HQ."""
+
+    model_config = ConfigDict(extra="forbid", json_schema_extra={"minProperties": 1})
+    display_name: str | None = Field(default=None, max_length=100)
+    activation_mode: ActivationMode | None = None
+    phone_number: str | None = Field(None, pattern=r"^\+[1-9]\d{9,14}$")
+    mac_address: str | None = Field(None, pattern=r"^[0-9A-Fa-f]{2}([:-][0-9A-Fa-f]{2}){5}$")
+
+    @field_validator("mac_address")
+    @classmethod
+    def normalize_mac(cls, value):
+        return value.upper().replace("-", ":") if value else None
+
+    @model_validator(mode="after")
+    def require_changes(self):
+        if not self.model_fields_set:
+            raise ValueError("Provide at least one inventory field or display name")
+        return self
 
     @field_validator("display_name")
     @classmethod
@@ -86,7 +89,7 @@ class GatewayUpdateRequest(BaseModel):
         return value.strip() or None if value is not None else None
 
 
-class GatewayResponse(BaseModel):
+class GatewayResponse(GatewayInventoryFields):
     id: str
     display_name: str | None = None
     group_id: UUID | None = None
@@ -122,8 +125,5 @@ class GatewayCurrentSession(BaseModel):
 class GatewayDetailResponse(GatewayCatalogResponse):
     revision: str
     serial_number: str | None
-    lan_cidr: str | None
-    lan_interface: str | None
-    lan_address: str | None
     created_at: datetime | None
     current_session: GatewayCurrentSession | None

@@ -1,6 +1,6 @@
 """Read public certificates and recovery metadata; never expose paths or secrets."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import math
 import os
 from pathlib import Path
@@ -162,6 +162,14 @@ def backup_summary(control_dir, archive_dir, now):
 
 def collect(settings, now):
     return dict(
+        pki=pki_status(
+            getattr(settings, "STATUS_PKI_ROOT", ""),
+            now,
+            max(
+                getattr(settings, "VPN_GATEWAY_CERTIFICATE_DAYS", 3650),
+                getattr(settings, "VPN_TECHNICIAN_CERTIFICATE_DAYS", 3650),
+            ),
+        ),
         certificates=[
             certificate_status(name, path, now)
             for name, path in (
@@ -172,3 +180,53 @@ def collect(settings, now):
         ],
         backup=backup_summary(settings.BACKUP_CONTROL_DIR, settings.BACKUP_ARCHIVE_DIR, now),
     )
+
+
+def pki_status(path, now, client_days=3650):
+    from api.schemas.server_status import PKIStatus, AuthorityStatus
+    from factoryvpn_common.certificates import load_authority, validate_crls, ISSUER_DAYS
+
+    result = PKIStatus(state="not_configured" if not path else "error", observed_at=now)
+    if not path:
+        return result
+    try:
+        data, roots, issuers = load_authority(Path(path))
+        try:
+            crls = validate_crls(Path(path), at=now)
+            result.crl_valid = True
+        except (OSError, ValueError):
+            crls = []
+        for key, cert in {**roots, **issuers}.items():
+            role = "root" if key in roots else data["issuers"][key]["state"]
+            crl = next((item for item in crls if item.issuer == cert.subject), None)
+            deadline = (
+                cert.not_valid_after_utc
+                - timedelta(days=(ISSUER_DAYS if role == "root" else client_days) + 1)
+                if role in ("issuing", "root")
+                else None
+            )
+            result.authorities.append(
+                AuthorityStatus(
+                    id=key,
+                    role=role,
+                    expires_at=cert.not_valid_after_utc,
+                    crl_next_update=crl.next_update_utc if crl is not None else None,
+                    issuance_deadline=deadline,
+                    can_issue_clients=bool(
+                        role == "issuing"
+                        and deadline
+                        and now >= cert.not_valid_before_utc
+                        and now < deadline
+                    ),
+                    renewal_due=bool(deadline and now >= deadline - timedelta(days=365))
+                    or cert.not_valid_after_utc <= now + timedelta(days=365),
+                )
+            )
+        result.state = (
+            "ok"
+            if result.crl_valid and any(item.can_issue_clients for item in result.authorities)
+            else "error"
+        )
+    except (OSError, ValueError, KeyError, x509.ExtensionNotFound):
+        pass
+    return result

@@ -102,7 +102,6 @@ async def access(monkeypatch, encoded_password):
                     activation_mode="wifi",
                     group_id=groups[name].id if name in groups else None,
                     vpn_ip=f"10.100.0.{index}",
-                    vpn_subnet="192.168.1.0/24",
                     status="ACTIVE",
                 )
             db.add_all(gateways.values())
@@ -394,7 +393,7 @@ async def test_access_revocation_terminates_live_vpn_and_invalidates_tokens(acce
     assert result.status_code == 403
     async with a.db() as db:
         session = await db.get(Session, UUID(identifier))
-        assert session.status == "FAILED" and session.cleaned_at is None and session.network_slot
+        assert session.status == "FAILED" and session.cleaned_at is None
         event = await db.scalar(
             select(AuditLog).where(
                 AuditLog.event_type == "session_revoked",
@@ -542,9 +541,6 @@ async def test_groups_and_machine_registration_cannot_escape_scope(access):
         "mac_address": gateway.mac_address,
         "activation_mode": "wifi",
         "phone_number": gateway.phone_number,
-        "lan_interface": "eth0",
-        "lan_address": "192.168.1.1",
-        "lan_cidr": gateway.vpn_subnet,
     }
     headers = {"X-Gateway-Key": a.keys[str(gateway.id)]}
     result = await a.client.post(
@@ -708,7 +704,7 @@ async def stale_active_session(a):
     assert result.status_code == 200 and result.json()["status"] == "ACTIVE", result.text
     async with a.db() as db:
         row = await db.get(Session, identifier)
-        row.worker_seen_at = utc_now() - timedelta(seconds=31)
+        row.worker_seen_at = utc_now() - timedelta(seconds=301)
         await db.commit()
     return identifier
 
@@ -772,7 +768,7 @@ async def test_revocation_survives_concurrent_status_reads(access, monkeypatch, 
                 ended_at,
                 reason,
             )
-            assert session.cleaned_at is None and session.network_slot is not None
+            assert session.cleaned_at is None
         authorized = await a.client.post(
             "/api/v1/internal/vpn/authorize",
             headers=a.worker,
@@ -889,4 +885,4 @@ async def test_status_maintenance_persists_even_when_operation_is_rejected(acces
     async with a.db() as db:
         session = await db.get(Session, identifier)
         assert session.status == "EXPIRED" and session.ended_at is not None
-        assert session.cleaned_at is None and session.network_slot is not None
+        assert session.cleaned_at is None

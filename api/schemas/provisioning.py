@@ -4,12 +4,12 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
-from api.schemas.gateway import GatewayRegisterRequest
+from api.schemas.gateway import GatewayRegisterRequest, GatewayInventoryFields
 
 PeerKind = Literal["gateway", "technician"]
 
 
-class GatewayProvisionRequest(GatewayRegisterRequest):
+class GatewayProvisionRequest(GatewayRegisterRequest, GatewayInventoryFields):
     group_id: UUID
     display_name: str = Field(min_length=1, max_length=100, pattern=r".*\S.*")
 
@@ -43,6 +43,9 @@ class JobResponse(BaseModel):
 
 
 class ProvisioningState(BaseModel):
+    enrollment_pending: bool = False
+    remote_renewal_state: str | None = None
+    remote_renewal_requested: bool = False
     certificate: CertificateResponse | None
     pending_job: JobResponse | None
     recent_job: JobResponse | None

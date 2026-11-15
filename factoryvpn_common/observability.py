@@ -26,6 +26,7 @@ class Component(StrictModel):
     kernel: Label | None = None
     architecture: Label | None = None
     imei: Annotated[str, Field(pattern=r"^[0-9]{15}$")] | None = None
+    iccid: Annotated[str, Field(pattern=r"^[0-9]{18,22}$")] | None = None
     interface: Annotated[str, Field(pattern=r"^[a-zA-Z0-9_.-]{1,15}$")] | None = None
     mac_address: Annotated[str, Field(pattern=r"^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$")] | None = None
 
@@ -42,7 +43,7 @@ COMPONENT_FIELDS = {
     "openvpn": {"version"},
     "system": {"model", "version", "kernel", "architecture"},
     "hardware": {"model", "revision"},
-    "modem": {"imei", "manufacturer", "model", "version"},
+    "modem": {"imei", "iccid", "manufacturer", "model", "version"},
     "wifi": {"interface", "mac_address"},
 }
 

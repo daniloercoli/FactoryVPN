@@ -10,11 +10,16 @@ from factoryvpn_common.pki import publish_crl
 
 
 async def main():
+    from scripts.provisioning_worker import sync_issuers
+
     async with async_session_maker() as db:
+        root = Path(os.environ["FACTORYVPN_PKI_ROOT"])
+        await sync_issuers(db, root)
         revoked = (
             await db.scalars(select(VPNCertificate).where(VPNCertificate.state == "revoked"))
         ).all()
-        publish_crl(Path(os.environ["FACTORYVPN_PKI_ROOT"]), revoked)
+        publish_crl(root, revoked)
+        await db.commit()
 
 
 if __name__ == "__main__":

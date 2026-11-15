@@ -11,12 +11,24 @@ riservata agli amministratori **globali**, anche tramite API. I delegati di grup
 non possono vedere metadati, richiedere copie o scaricare archivi.
 
 Il backup comprende PostgreSQL (utenti, gruppi, permessi, inventario, storico,
-audit, certificati e credenziali), configurazione applicativa effettiva, CA,
-certificati/chiavi OpenVPN e HTTPS, TLS-crypt e lista delle revoche. Non salva il
-sistema operativo del server, dei gateway, i programmi PLC o le chiavi private dei
-client che non sono conservate sul server. Il codice si reinstalla dalla **stessa
+audit, certificati, rinnovi e credenziali), i parametri applicativi previsti dall'archivio,
+registro pubblico root/Sub-CA, chiavi delle Sub-CA, certificati/chiavi server OpenVPN
+e HTTPS, TLS-crypt e CRL. **Non contiene la chiave privata root né la sua passphrase.**
+Non salva il sistema operativo del server, dei gateway o i programmi PLC. Le chiavi
+generate dal gateway durante i rinnovi restano sul gateway; possono invece essere
+presenti pacchetti iniziali cifrati ancora in attesa di consegna. Il codice si reinstalla dalla **stessa
 versione**. La firma dello schema è derivata dal DDL iniziale, non dal solo nome
 `factoryvpn_initial`.
+
+Tra i parametri salvati ci sono durata VPN, lease, durata portale/SSO e tempi
+usati per generare i pacchetti gateway, oltre alle durate dei certificati client.
+Il formato è la versione 2: non importa archivi della vecchia CA singola.
+L'archivio non è una copia completa del
+`.env`: `WORKER_POLL_INTERVAL`, `OPENVPN_PING_SECONDS` e `OPENVPN_RESTART_SECONDS`
+restano quelli del server di destinazione, come i parametri SMTP. Conservare la
+configurazione dell'installazione in modo protetto e ricontrollare
+[durate e timeout](DOCKER_GUIDE.md#durate-timeout-e-reti-instabili) dopo il recupero.
+I `gateway.env` già installati sui dispositivi non vengono aggiornati dal ripristino.
 
 Il primo rilascio usa un archivio locale e file scaricabili per una copia esterna.
 Pianificazione, destinazioni remote (ad esempio S3), notifiche e recupero a un
@@ -108,7 +120,9 @@ della copia originale. Conservare una copia cifrata fuori dalla macchina protegg
 anche dalla perdita del disco locale.
 
 Il backup non interrompe le VPN. Durante l'acquisizione non ruotare manualmente
-chiavi né modificare i file del runtime.
+chiavi né modificare i file del runtime. Gli strumenti PKI distribuiti condividono
+un lock sui file con il coordinatore; il backup acquisisce prima il lock database.
+Fare una copia dopo ogni modifica di CA/server e conservarla anche fuori dal server.
 
 ## Ripristino gestito
 
@@ -139,6 +153,15 @@ coordinatore prosegue indipendentemente. Al termine occorre accedere nuovamente.
 Non si riprendono le VPN o i pacchetti di provisioning pendenti. Telemetria e
 presenza gateway vengono aggiornate solo da nuove comunicazioni.
 
+Il registro di arruolamento viene recuperato, ma tutti i segreti iniziali
+provenienti dal backup sono invalidati e le pratiche incomplete sono bloccate,
+senza approvazioni o candidati riutilizzabili. HQ può prenderle in carico
+manualmente sulla stessa identità e consegnare un nuovo ZIP; non può riattivare
+il vecchio segreto. I gateway già completati seguono i controlli delle credenziali
+operative descritti sotto. `FACTORY_STATIONS` e `factory/allow.conf` non vengono
+reintrodotti dal backup: restano quelli dell'installazione corrente. Un nuovo
+`recovery-init` parte con postazioni disabilitate e allowlist chiusa.
+
 Gli account eliminati/disabilitati non tornano utilizzabili. Permessi e gruppi
 recuperati sono intersecati con quelli correnti; password e associazioni d'identità
 correnti prevalgono. Certificati e credenziali gateway devono risultare attivi sia
@@ -151,6 +174,17 @@ delegati del vecchio gruppo.
 L'amministratore che richiede il ripristino deve restare amministratore
 anche nei dati recuperati, altrimenti il ripristino fallisce e viene recuperata la
 copia di sicurezza.
+
+Le generazioni PKI più recenti presenti sul server e i loro contatori CRL non
+vengono sostituiti da quelli più vecchi dell'archivio. I candidati di rinnovo non
+attivati sono annullati; una conferma già attivata resta ripetibile solo se il
+certificato è tuttora autorizzato. Un rinnovo completato dopo la copia può richiedere
+nuovo provisioning: il restore non ricrea identità assenti dall'archivio.
+Una CRL online scaduta viene rigenerata prima del listener; un certificato server
+scaduto viene rinnovato se la catena ha vita sufficiente. Una CRL root scaduta
+richiede invece un nuovo file pubblico firmato offline. Prima del recupero
+aggiornare la CRL root nel runtime preparato seguendo la
+[procedura PKI](DOCKER_GUIDE.md#rinnovare-la-crl-root).
 
 Se un passaggio fallisce dopo la sostituzione, il coordinatore tenta il ripristino
 della copia di sicurezza. In caso di perdita del processo, il giornale viene
@@ -166,12 +200,19 @@ Per riprendere un recupero interrotto quando il portale è indisponibile:
 ```
 
 In caso di perdita dell'intero server, predisporre una nuova installazione della
-stessa versione, il suo `.env` e runtime, poi inizializzare con la chiave custodita
-separatamente. Avviare database e stack iniziale prima del comando di ripristino:
+stessa versione. Preparare `.env` e runtime dall'archivio autenticato, senza
+generare una nuova root. Usare percorsi vuoti e avviare inizialmente **solo**
+database/API, mantenendo OpenVPN e worker spenti:
 
 ```sh
+.venv/bin/python -m scripts.bootstrap recovery-init --host vpn.example.com \
+  --archive /percorso/protetto/copia.fvbackup \
+  --recovery-key-file /percorso/protetto/recovery.key
+# Configurare .env (origini/porte originali e SMTP), verificare HTTPS e CRL root.
 .venv/bin/python -m scripts.backup_coordinator init --recovery-key-file /percorso/protetto/recovery.key
-docker compose up -d --build
+docker compose build
+docker compose up -d --no-deps db
+docker compose up -d --no-deps api
 .venv/bin/python -m scripts.backup_coordinator restore-file --archive /percorso/protetto/copia.fvbackup
 ```
 
@@ -180,11 +221,28 @@ ed email raggiungibile. La password viene inserita senza eco. Non conoscendo le 
 vecchi account e revoca le credenziali VPN/gateway recuperate. L'amministratore deve
 riconvalidare gli accessi e ripetere il provisioning. Il recupero da console non
 presuppone che un vecchio backup rappresenti autorizzazioni ancora valide.
+Il rinnovo automatico dei certificati non aggira questa revoca di API key e identità.
+
+## Copie della root offline
+
+Il backup server e quello della root sono due copie diverse. Conservare almeno due
+copie offline cifrate, su supporti separati, dell'intera cartella root: `root.key`
+(già cifrata con passphrase), `root.crt`, `root.crl`, `state.json` e gli eventuali
+certificati esportati. Custodire la passphrase separatamente e aggiornare entrambe
+le copie dopo ogni firma o rinnovo CRL. Il registro e il contatore CRL servono quanto
+la chiave: non ripristinare una vecchia copia operativa senza confrontarli.
+
+Provare periodicamente il recupero su una macchina isolata: aprire una copia di
+prova, confrontare l'impronta con quella registrata e generare una CRL di prova con
+`root-crl`. Il comando verifica firma root e corrispondenza chiave/certificato prima
+di firmare. Scartare l'ambiente e il risultato di prova; non sostituire con essi lo
+stato autorevole. Per trasferire dati al server usare un supporto contenente solo
+certificati/CRL pubblici, mai quello che custodisce la chiave root.
 
 ## Verifica dopo il recupero
 
 Accedere con un codice email nuovo, verificare gruppi e assegnazioni, preparare
-nuovi profili quando richiesto e provare una VPN completa verso un bersaglio LAN.
+nuovi profili quando richiesto e provare una VPN completa con SSH/web al gateway e accesso alla LAN dalla sua shell.
 Conservare separatamente chiave di recupero e copia esterna. Dalla pagina
 **Backup e ripristino**, eseguire una prova isolata della copia più recente
 e controllarne l'esito prima di considerarla recuperabile.

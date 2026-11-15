@@ -50,6 +50,7 @@ docker/ssl/
 .backups/
 .factoryvpn-lab/
 .factoryvpn-simulator/
+.factoryvpn-factory/
 *.fvbackup
 .aws/
 
@@ -60,6 +61,9 @@ Thumbs.db
 # Local agent settings
 /.agents/
 /.codex/
+
+# Temporary private reference material
+/*.da.cancellare.dopo.analisi/
 
 # Downloaded credentials and VPN profiles
 *.key

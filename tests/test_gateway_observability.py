@@ -39,9 +39,6 @@ async def test_deleted_gateway_does_not_block_worker_logs_for_other_gateways():
 def test_sms_without_mac_and_wifi_without_modem_identifiers():
     base = dict(
         gateway_id=uuid4(),
-        lan_interface="eth0",
-        lan_address="192.168.1.1",
-        lan_cidr="192.168.1.0/24",
     )
     sms = GatewayRegisterRequest(**base, activation_mode="sms", phone_number="+393331234567")
     assert sms.mac_address is None
@@ -225,6 +222,8 @@ def test_modem_optional_response_does_not_discard_imei(load_script):
             RuntimeError(),
             "test modem\r\nOK\r\n",
             "unexpected\nmultiline\r\nOK\r\n",
+            RuntimeError(),
+            RuntimeError(),
         ]
     )
     assert handler.inventory() == {"imei": "123456789012345", "model": "test modem"}
@@ -234,6 +233,43 @@ def test_modem_optional_response_does_not_discard_imei(load_script):
     with pytest.raises(TimeoutError):
         handler.inventory()
     handler._command.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "response",
+    ["+CCID: 08912345678901234567", '"08912345678901234567"', "+QCCID: 08912345678901234567"],
+)
+def test_modem_iccid_fallback_preserves_leading_zero_and_imei(load_script, response):
+    import threading
+
+    module = load_script("gateway-agent", "sms_handler")
+    handler = module.SMSHandler.__new__(module.SMSHandler)
+    handler.timeout, handler._lock = 5, threading.RLock()
+    handler._control_pending = threading.Event()
+    handler._command = Mock(
+        side_effect=[
+            "123456789012345\r\nOK\r\n",
+            RuntimeError(),
+            RuntimeError(),
+            RuntimeError(),
+            RuntimeError(),
+            response + "\r\nOK\r\n",
+        ]
+    )
+    assert handler.inventory() == {"imei": "123456789012345", "iccid": "08912345678901234567"}
+    assert handler.timeout == 5
+
+
+def test_modem_sim_change_is_refreshed_after_cache_interval(monkeypatch, tmp_path):
+    modem = Mock()
+    modem.inventory.side_effect = [
+        {"imei": "123456789012345", "iccid": "89123456789012345678"},
+        {"imei": "123456789012345", "iccid": "89123456789012345679"},
+    ]
+    collector = SystemCollector(modem=modem, sys_root=tmp_path)
+    assert collector.collect().components["modem"].iccid == "89123456789012345678"
+    collector.modem_cached_at -= 3601
+    assert collector.collect().components["modem"].iccid == "89123456789012345679"
 
 
 async def test_system_report_is_sent_only_once_during_sms_sleep(monkeypatch):

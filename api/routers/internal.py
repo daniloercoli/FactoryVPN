@@ -1,6 +1,6 @@
 """Session maintenance endpoints for the authenticated worker."""
 
-from api.services.session_events import event, terminal_event
+from api.services.session_events import event
 
 from uuid import UUID
 from fastapi import HTTPException
@@ -36,30 +36,9 @@ router = APIRouter(dependencies=[Depends(require_worker)])
 TERMINAL_STATUSES = {"CLOSED", "EXPIRED", "FAILED"}
 
 
-class NamespaceStates(BaseModel):
-    protected: list[str]
-    terminal: list[str]
-
-
 @router.post("/sessions/expire-stale")
 async def expire_sessions(db: AsyncSession = Depends(get_db)):
     return {"expired": await expire_stale_sessions(db)}
-
-
-@router.get("/sessions/namespace-states", response_model=NamespaceStates)
-async def namespace_states(db: AsyncSession = Depends(get_db)):
-    rows = (await db.execute(select(Session.id, Session.status))).all()
-    protected = set()
-    terminal = set()
-    for session_id, status in rows:
-        namespace = f"factoryvpn_{str(session_id)[:8]}"
-        if status in TERMINAL_STATUSES:
-            terminal.add(namespace)
-        else:
-            protected.add(namespace)
-    # Legacy namespace names use only eight UUID characters. A live session
-    # sharing a prefix always takes precedence over a terminal one.
-    return NamespaceStates(protected=sorted(protected), terminal=sorted(terminal - protected))
 
 
 @router.get("/sessions/work")
@@ -73,17 +52,7 @@ async def session_work(db: AsyncSession = Depends(get_db)):
     work = []
     for session in sessions:
         await validate_live(db, session)
-        if session.network_slot is None:
-            # Legacy sessions never had a complete routing plan; they cannot be resumed safely.
-            if session.status in LIVE:
-                session.status = "FAILED"
-                session.ended_at = utc_now()
-                session.error_reason = (
-                    "Legacy session has no allocated network; create a new session"
-                )
-                terminal_event(db, session, source="worker")
-        else:
-            work.append(work_item(session))
+        work.append(work_item(session))
         # Commit each validated snapshot before locking the next session.
         await db.commit()
     return work
@@ -206,7 +175,8 @@ async def authorize_vpn(request: VPNAuthorizeRequest, db: AsyncSession = Depends
     kind, session, spec, address = await authorized_peer(
         db, request.common_name, request.certificate_serial
     )
-    route = IPv4Network(spec.peer_ip + "/32" if kind == "gateway" else spec.lan_cidr)
+    # Una sola destinazione VPN per peer; nessuna rotta cliente o default route.
+    route = IPv4Network((spec.technician_ip if kind == "gateway" else spec.gateway_ip) + "/32")
     await db.commit()
     return {
         "config": f'ifconfig-push {address} 255.255.0.0\npush "route {route.network_address} {route.netmask}"\n'

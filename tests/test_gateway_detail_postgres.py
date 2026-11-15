@@ -35,8 +35,6 @@ async def test_card_projects_network_without_metadata_or_foreign_resources(acces
     async with access.db() as db:
         row = await db.get(Gateway, gateway.id)
         row.extra_metadata = {
-            "lan_interface": "eth0",
-            "lan_address": "192.168.1.1",
             "secret": "never-return",
         }
         row.serial_number = "serial-001"
@@ -44,7 +42,8 @@ async def test_card_projects_network_without_metadata_or_foreign_resources(acces
     result = await access.call("GET", f"/gateways/{gateway.id}", "tech_a")
     assert result.status_code == 200 and result.headers["cache-control"] == "no-store"
     data = result.json()
-    assert data["lan_cidr"] == "192.168.1.0/24" and data["lan_interface"] == "eth0"
+    assert data["vpn_ip"] == gateway.vpn_ip
+    assert not {"lan_cidr", "lan_address", "lan_interface"} & data.keys()
     assert data["serial_number"] == "serial-001" and data["current_session"] is None
     assert "metadata" not in data and "never-return" not in result.text
     for actor in ("tech_b", "outsider"):

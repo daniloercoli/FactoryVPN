@@ -107,7 +107,7 @@ async def create_assistance_session(
     Provide exactly one of gateway_id or phone_number. HTTP 200 does not imply an
     active VPN: inspect status, which may be REQUESTED or FAILED. Poll the detail
     until gateway_ready_at is set, connect the technician VPN, then wait for ACTIVE.
-    Sessions last at most 30 minutes, bounded by the opening browser/SSO lifetime;
+    Sessions use the configured maximum (3 hours by default), bounded by the opening browser/SSO lifetime;
     each peer has one reserved session. Browser logout closes its associated VPNs.
     Optional Idempotency-Key (UUID) recovers the same request for this account,
     including terminal outcomes, without resending SMS. Changed input returns 409.

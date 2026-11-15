@@ -13,6 +13,8 @@ from api.middleware.logging import LoggingMiddleware
 from api.middleware.observation_body import ObservationBodyLimit
 from api.routers import auth, sessions, gateways, devices, admin, internal, groups
 from api.routers import sso, admin_sso, web_auth, session_diagnostics, telemetry, provisioning
+from api.routers import certificate_renewal
+from api.routers import enrollment
 from api.routers import backups, email_security, gateway_observability, server_status
 from api.db.session import init_db
 from api.config import settings
@@ -108,6 +110,9 @@ app.include_router(admin_sso.router, prefix="/api/v1/admin", tags=["SSO administ
 app.include_router(sessions.router, prefix="/api/v1/sessions", tags=["Sessions"])
 app.include_router(gateway_observability.router, prefix="/api/v1", tags=["Gateway diagnostics"])
 app.include_router(server_status.router, prefix="/api/v1", tags=["Server status"])
+app.include_router(
+    certificate_renewal.router, prefix="/api/v1/gateways", tags=["Gateway certificates"]
+)
 app.include_router(gateways.router, prefix="/api/v1/gateways", tags=["Gateways"])
 app.include_router(devices.router, prefix="/api/v1/devices", tags=["Devices"])
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
@@ -116,6 +121,7 @@ app.include_router(session_diagnostics.router, prefix="/api/v1", tags=["Diagnost
 app.include_router(internal.router, prefix="/api/v1/internal", tags=["Worker"])
 app.include_router(telemetry.router, prefix="/api/v1", tags=["Telemetry"])
 app.include_router(provisioning.router, prefix="/api/v1", tags=["Provisioning"])
+app.include_router(enrollment.router, prefix="/api/v1", tags=["Enrollment"])
 app.include_router(backups.router, prefix="/api/v1/backups", tags=["Backup and recovery"])
 app.include_router(email_security.router, prefix="/api/v1", tags=["Email verification"])
 

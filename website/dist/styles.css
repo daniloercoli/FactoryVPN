@@ -786,6 +786,14 @@ code {
   overflow:auto;
 }
 
+.docs-content .timing-table {
+  min-width:640px;
+}
+
+.timing-table td:first-child {
+  white-space:nowrap;
+}
+
 .callout {
   background:#edf1ff;
   border-left:3px solid var(--blue);

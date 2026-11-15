@@ -125,12 +125,38 @@ def customer_schema(source: dict) -> dict:
     for path, methods in schema["paths"].items():
         for method, operation in methods.items():
             if path.startswith("/api/v1/web/"):
-                if path not in {"/api/v1/web/login", "/api/v1/web/sso/start"}:
+                description = "Same-origin portal endpoint. No Bearer tokens are returned. "
+                if path in {"/api/v1/web/login/verify", "/api/v1/web/login/resend"}:
+                    operation["security"] = [{"VerificationCookie": []}]
+                    description += (
+                        "Requires the verification cookie issued by /web/login and the challenge_token "
+                        "in the request body, plus Origin and X-FactoryVPN-Portal: 1. "
+                        "No authenticated portal session or CSRF token is required."
+                    )
+                elif path == "/api/v1/web/login":
+                    operation["security"] = []
+                    description += "Requires Origin and X-FactoryVPN-Portal: 1."
+                elif path == "/api/v1/web/sso/start":
+                    operation["security"] = [{}, {"PortalCookie": []}]
+                    description += (
+                        "Requires Origin and X-FactoryVPN-Portal: 1. Initial login needs no session. "
+                        "When reauthenticate=true, an authenticated global SSO administrator's "
+                        "portal session and X-CSRF-Token are also required."
+                    )
+                elif path == "/api/v1/web/logout":
+                    operation["security"] = [{}, {"PortalCookie": []}]
+                    description += (
+                        "Requires Origin. With a portal cookie, even expired or revoked, "
+                        "X-CSRF-Token is required. Without that cookie, "
+                        "X-FactoryVPN-Portal: 1 is required instead."
+                    )
+                else:
                     operation["security"] = [{"PortalCookie": []}]
-                operation["description"] = operation.get("description", "") + (
-                    "\n\nSame-origin portal endpoint. Mutations require Origin and X-CSRF-Token; "
-                    "login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned."
-                )
+                    description += (
+                        "Requires an authenticated portal session. "
+                        "Mutations require Origin and X-CSRF-Token."
+                    )
+                operation["description"] = operation.get("description", "") + "\n\n" + description
             elif path.startswith("/api/v1/backups"):
                 operation["security"] = [{"PortalCookie": []}]
                 operation["description"] = operation.get("description", "") + (
@@ -143,11 +169,14 @@ def customer_schema(source: dict) -> dict:
             elif path in {"/api/v1/auth/password", "/api/v1/auth/register"}:
                 operation["security"] = [{"HTTPBearer": []}]
             errors = {}
-            if operation.get("security"):
+            if path.startswith("/api/v1/web/") or operation.get("security"):
                 errors.update(
                     {
-                        "401": "Invalid or expired bearer token, or an inactive account.",
-                        "403": "Missing or malformed bearer authorization, or insufficient role.",
+                        "401": "Invalid, expired or revoked credentials, or an inactive account.",
+                        "403": (
+                            "Missing or malformed authentication, insufficient permissions, "
+                            "or a failed portal Origin/header/CSRF check."
+                        ),
                     }
                 )
             else:
@@ -161,7 +190,18 @@ def customer_schema(source: dict) -> dict:
                     "Resource conflict, occupied peers, pending cleanup or incompatible operation."
                 )
             if path == "/api/v1/sessions/" and method == "post":
-                errors["503"] = "Session network pool exhausted or no VPN addresses available."
+                errors["503"] = "No VPN addresses available."
+            if path in {
+                f"/api/v1/{surface}/login/{action}"
+                for surface in ("auth", "web")
+                for action in ("verify", "resend")
+            }:
+                errors["400"] = "Invalid or expired challenge, code or browser binding."
+                errors["429"] = (
+                    "Email verification locked, resend cooldown or sending limit reached."
+                )
+                if path.endswith("/resend"):
+                    errors["503"] = "Email verification or mail delivery is unavailable."
             if (
                 path.startswith("/api/v1/admin/users") and method in {"post", "delete"}
             ) or path == "/api/v1/auth/register":
@@ -190,6 +230,7 @@ def customer_schema(source: dict) -> dict:
                 }
                 or path.endswith("/authentication")
                 or "/identities" in path
+                or path.startswith("/api/v1/admin/enrollments")
             )
             if admin_only:
                 operation["description"] = (
@@ -246,7 +287,21 @@ def customer_schema(source: dict) -> dict:
     schema["components"]["schemas"] = {name: schemas[name] for name in sorted(retained)}
     schema["components"]["securitySchemes"] = {
         "HTTPBearer": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"},
-        "PortalCookie": {"type": "apiKey", "in": "cookie", "name": "__Host-factoryvpn_portal"},
+        "PortalCookie": {
+            "type": "apiKey",
+            "in": "cookie",
+            "name": "__Host-factoryvpn_portal",
+            "description": "Portal session cookie. Local HTTP development uses factoryvpn_portal.",
+        },
+        "VerificationCookie": {
+            "type": "apiKey",
+            "in": "cookie",
+            "name": "__Host-factoryvpn_verification",
+            "description": (
+                "Browser binding issued by /web/login for email verification, before a session exists. "
+                "Local HTTP development uses factoryvpn_verification."
+            ),
+        },
     }
     return schema
 

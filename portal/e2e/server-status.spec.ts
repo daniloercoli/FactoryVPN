@@ -90,6 +90,10 @@ test("global server status, real local SMTP check and explicit email, responsive
     certificates.getByRole("row").filter({ hasText: "Server OpenVPN" }),
   ).toContainText("Validità temporale regolare");
   await certificates.getByText("Dettagli del certificato").first().click();
+  const pki = page.getByRole("region", { name: "Autorità e liste di revoca" });
+  await expect(pki).toContainText("Emissione e CRL disponibili");
+  await expect(pki).toContainText("Sub-CA emittente");
+  await expect(pki).toContainText("Ultima data per emettere client");
   await expect(certificates.locator("code").first()).toHaveText(
     /^[a-f0-9]{64}$/,
   );

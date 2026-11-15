@@ -25,7 +25,7 @@ async def test_worker_reports_separate_peers_with_normal_control_request(load_sc
     async with httpx.AsyncClient(
         base_url="http://test", transport=httpx.MockTransport(handler)
     ) as client:
-        await module.SessionWorker(client, Mock(), Mock(), vpn).reconcile()
+        await module.SessionWorker(client, Mock(), vpn).reconcile()
     assert len(posts) == 1 and posts[0][0].endswith("/waiting")
     assert posts[0][1]["gateway_connected"] is True
     assert posts[0][1]["technician_connected"] is False
@@ -49,7 +49,7 @@ async def test_worker_reports_management_failure_without_exception_details(load_
         base_url="http://test", transport=httpx.MockTransport(handler)
     ) as client:
         with pytest.raises(RuntimeError):
-            await module.SessionWorker(client, Mock(), firewall, vpn).reconcile()
+            await module.SessionWorker(client, firewall, vpn).reconcile()
     firewall.apply.assert_not_called()
     assert posts[0]["code"] == "vpn_unavailable"
     assert posts[0]["technician_connected"] is None
@@ -91,7 +91,7 @@ async def test_reporting_outage_does_not_skip_gateway_authorization_checks(load_
 async def test_worker_processes_healthy_sessions_before_failure_telemetry(load_script):
     module = load_script("session-worker", "main")
     broken, healthy = plan(), plan()
-    healthy["network"]["slot"] = 2
+    healthy["network"].update(technician_ip="10.100.128.3", gateway_ip="10.100.0.3")
     order = []
 
     def handler(request):
@@ -100,19 +100,19 @@ async def test_worker_processes_healthy_sessions_before_failure_telemetry(load_s
         order.append(request.url.path.rsplit("/", 1)[-1])
         return httpx.Response(200)
 
-    ns, vpn = Mock(), Mock()
-    ns.delete.side_effect = [RuntimeError("network failure"), None]
+    fw, vpn = Mock(), Mock()
+    fw.delete.side_effect = [RuntimeError("network failure"), None]
     vpn.clients.return_value = {}
     async with httpx.AsyncClient(
         base_url="http://test", transport=httpx.MockTransport(handler)
     ) as client:
-        await module.SessionWorker(client, ns, Mock(), vpn).reconcile()
+        await module.SessionWorker(client, fw, vpn).reconcile()
     assert order == ["waiting", "diagnostics"]
 
 
 async def test_worker_diagnostic_batch_has_one_overall_deadline(load_script):
     module = load_script("session-worker", "main")
-    worker = module.SessionWorker(None, None, None, None)
+    worker = module.SessionWorker(None, None, None)
     cancelled = []
 
     async def slow(*args):

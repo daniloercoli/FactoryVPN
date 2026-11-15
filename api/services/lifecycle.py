@@ -12,6 +12,7 @@ from api.services.credentials import gateway_configured, active_certificate
 from api.models.gateway import Gateway
 from api.models.session import Session
 from api.models.user import User
+from api.config import settings
 from api.time_utils import utc_now
 from factoryvpn_common.network import SessionNetwork
 from factoryvpn_common.protocol import peer_name
@@ -22,9 +23,7 @@ TERMINAL = ("CLOSED", "EXPIRED", "FAILED")
 
 
 def occupied():
-    return or_(
-        Session.status.in_(LIVE), (Session.network_slot.is_not(None) & Session.cleaned_at.is_(None))
-    )
+    return or_(Session.status.in_(LIVE), Session.cleaned_at.is_(None))
 
 
 async def allocation_lock(db, *, maintenance=False):
@@ -58,10 +57,8 @@ async def assign_ip(db, entity):
 def network_for(session):
     return SessionNetwork(
         str(session.id),
-        session.network_slot,
         session.technician_vpn_ip,
         session.gateway_vpn_ip,
-        session.lan_cidr,
     )
 
 
@@ -73,12 +70,13 @@ def lease_seconds(session):
         getattr(session, "_sso_lease_deadline", session.expires_at),
         getattr(session, "_web_lease_deadline", session.expires_at),
     )
-    return max(0, min(30, int((deadline - utc_now()).total_seconds())))
+    return max(0, min(settings.VPN_LEASE_SECONDS, int((deadline - utc_now()).total_seconds())))
 
 
 def gateway_ready(session):
     return bool(
-        session.gateway_ready_at and session.gateway_ready_at > utc_now() - timedelta(seconds=30)
+        session.gateway_ready_at
+        and session.gateway_ready_at > utc_now() - timedelta(seconds=settings.VPN_LEASE_SECONDS)
     )
 
 
@@ -145,7 +143,7 @@ async def validate_live(db, session, *, require_activation=True):
     if (
         session.status == "ACTIVE"
         and session.worker_seen_at
-        and session.worker_seen_at < utc_now() - timedelta(seconds=30)
+        and session.worker_seen_at < utc_now() - timedelta(seconds=settings.VPN_LEASE_SECONDS)
     ):
         session.status = "REQUESTED"
         session.network_ready_at = None

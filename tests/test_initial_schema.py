@@ -64,6 +64,20 @@ def test_initial_schema_contains_all_models_constraints_and_indexes(initial_data
             }
 
 
+def test_gateway_inventory_allows_duplicates_except_serial_number(initial_database):
+    engine, config, _, _ = initial_database
+    initialize(engine, config)
+    statement = text(
+        "INSERT INTO gateways (id, activation_mode, mac_address, serial_number, imei, iccid) "
+        "VALUES (:id, 'wifi', 'AA:BB:CC:DD:EE:FF', :serial, '012345678901234', '08912345678901234567')"
+    )
+    with engine.begin() as conn:
+        for serial in ("factory-001", "factory-002", None, None):
+            conn.execute(statement, {"id": uuid4(), "serial": serial})
+    with pytest.raises(IntegrityError), engine.begin() as conn:
+        conn.execute(statement, {"id": uuid4(), "serial": "factory-001"})
+
+
 def test_initialization_is_repeatable_without_rewriting_accounts(initial_database):
     engine, config, _, _ = initial_database
     initialize(engine, config)
@@ -130,9 +144,7 @@ def test_initial_session_exclusivity_and_gateway_telemetry_cleanup(initial_datab
             {"id": gateway},
         )
         conn.execute(
-            text(
-                "INSERT INTO sessions (id, gateway_id, status, network_slot) VALUES (:id, :gateway, 'CLOSED', 1)"
-            ),
+            text("INSERT INTO sessions (id, gateway_id, status) VALUES (:id, :gateway, 'CLOSED')"),
             {"id": session, "gateway": gateway},
         )
         conn.execute(

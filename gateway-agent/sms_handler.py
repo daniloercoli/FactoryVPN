@@ -76,7 +76,11 @@ class SMSHandler:
             ("AT+CGMI", "manufacturer"),
             ("AT+CGMM", "model"),
             ("AT+CGMR", "version"),
+            ("AT+CCID", "iccid"),
+            ("AT+QCCID", "iccid"),
         ):
+            if field in result:
+                continue
             if not can_probe() or self._control_pending.is_set():
                 break
             if not self._lock.acquire(blocking=False):
@@ -95,6 +99,16 @@ class SMSHandler:
                     for line in response.splitlines()
                     if line.strip() and line.strip() not in {command, "OK"}
                 ]
+                if field == "iccid":
+                    # Varianti di lettura SIM; una risposta non supportata resta facoltativa.
+                    match = (
+                        re.fullmatch(r'(?:\+(?:Q)?CCID:\s*)?"?([0-9]{18,22})"?', lines[0])
+                        if len(lines) == 1
+                        else None
+                    )
+                    if match:
+                        result[field] = match.group(1)
+                    continue
                 pattern = r"[0-9]{15}" if field == "imei" else r"[\w .()+,:@-]{1,128}"
                 if len(lines) != 1 or not re.fullmatch(pattern, lines[0]):
                     if field == "imei":

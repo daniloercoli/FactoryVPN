@@ -24,7 +24,6 @@ EXPECTED_PATHS = {
     "/api/v1/sessions/{session_id}",
     "/api/v1/sessions/expire-stale",
     "/api/v1/internal/sessions/expire-stale",
-    "/api/v1/internal/sessions/namespace-states",
     "/api/v1/gateways/",
     "/api/v1/gateways/register",
     "/api/v1/devices/",

@@ -10,7 +10,6 @@ import pytest
 from factoryvpn_common.backup_archive import (
     BackupError,
     CHUNK,
-    PAYLOAD_FILES,
     decrypt,
     encrypt,
     pack,
@@ -47,7 +46,10 @@ def test_package_checks_complete_manifest(tmp_path):
     source, target = tmp_path / "source", tmp_path / "target"
     source.mkdir()
     target.mkdir()
-    for name in PAYLOAD_FILES:
+    from scripts.lab_pki import initialize
+
+    initialize(source / "runtime", "vpn.example.test")
+    for name in ("database.dump", "configuration.json"):
         private_write(source / name, name.encode())
     key = os.urandom(32)
     path = tmp_path / "backup"

@@ -63,8 +63,38 @@ def test_fresh_lab_configuration_is_isolated(tmp_path, monkeypatch, simulator):
     assert (root / "credentials.json").read_bytes() == secret
     with pytest.raises(RuntimeError, match="mode"):
         local_lab.initialize_lab(root, simulator=not simulator)
+    (root / ".runtime/pki-public/authority.json").unlink()
+    with pytest.raises(RuntimeError, match="fresh lab with --directory"):
+        local_lab.initialize_lab(root, simulator=simulator)
+    assert (root / "credentials.json").read_bytes() == secret
 
 
 def test_unmarked_directory_is_never_overwritten(tmp_path):
     with pytest.raises(RuntimeError, match="without its marker"):
         local_lab.initialize_lab(tmp_path, simulator=True)
+
+
+@pytest.mark.parametrize("lease_seconds", [30, 300, 900])
+def test_worker_loss_waits_for_configured_lease(monkeypatch, lease_seconds):
+    clock = [0.0]
+    monkeypatch.setattr(local_lab.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(
+        local_lab.time, "sleep", lambda delay: clock.__setitem__(0, clock[0] + delay)
+    )
+    assert (
+        local_lab.wait_for_worker_lease(lambda: clock[0] >= lease_seconds + 2, lease_seconds)
+        == lease_seconds + 2
+    )
+
+
+@pytest.mark.parametrize("blocked_after", [303, None])
+def test_worker_loss_rejects_late_or_missing_expiry(monkeypatch, blocked_after):
+    clock = [0.0]
+    monkeypatch.setattr(local_lab.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(
+        local_lab.time, "sleep", lambda delay: clock.__setitem__(0, clock[0] + delay)
+    )
+    with pytest.raises(RuntimeError, match="exceeded|Timed out"):
+        local_lab.wait_for_worker_lease(
+            lambda: blocked_after is not None and clock[0] >= blocked_after, 300
+        )

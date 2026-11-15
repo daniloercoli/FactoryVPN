@@ -24,7 +24,7 @@
         <p class="intro">Give your service team remote access to industrial machines, for the time they need it. Bring that access into the systems your business already uses.</p>
         <div class="actions"><a class="button primary" href="#integrations">Explore integrations</a><a class="text-link" href="#how-it-works">See how it works</a></div>
       </div>
-      <div class="network-visual" role="img" aria-label="A technician connects through FactoryVPN to a factory gateway and its machines. Your existing admin connects to FactoryVPN through a custom API connector.">
+      <div class="network-visual" role="img" aria-label="A technician connects through FactoryVPN to SSH and web on a factory gateway. Local machines are reached from the gateway. Your existing admin connects to FactoryVPN through a custom API connector.">
         <div class="diagram-caption"><span>THE CONNECTION, SIMPLIFIED</span><span>01 / 03</span></div>
         <div class="diagram-admin"><span class="node-symbol" aria-hidden="true">⌘</span><div><strong>Your existing admin</strong><small>Customer portal · Service tools</small></div><span class="mini-label">YOUR SYSTEMS</span></div>
         <div class="connector-line"><span>Custom API connector</span></div>
@@ -32,7 +32,7 @@
         <div class="network-branches" aria-hidden="true"><span></span><span></span></div>
         <div class="diagram-peers">
           <div class="peer"><svg viewBox="0 0 40 40" aria-hidden="true"><rect x="8" y="7" width="24" height="19" rx="2"/><path d="M4 32h32M17 26v6m6-6v6"/></svg><strong>Service technician</strong><small>Provisioned VPN client</small></div>
-          <div class="peer"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M6 32V18l10-6v8l10-6v18M30 32V6h5v26M5 32h31M10 25h2m8 0h2"/></svg><strong>Factory gateway</strong><small>PLC · HMI · Industrial LAN</small></div>
+          <div class="peer"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M6 32V18l10-6v8l10-6v18M30 32V6h5v26M5 32h31M10 25h2m8 0h2"/></svg><strong>Factory gateway</strong><small>Fixed VPN IP · SSH · Web</small></div>
         </div>
         <div class="diagram-footer"><span class="lock-icon" aria-hidden="true">▣</span> One technician. One gateway. One authorized session.</div>
       </div>
@@ -42,10 +42,12 @@
       <div class="section-heading"><p class="eyebrow">01 / REMOTE ASSISTANCE</p><h2>Access when it’s needed.<br>A clear beginning and end.</h2><p>FactoryVPN coordinates the technician, the gateway and the connection in a single, time-limited assistance session.</p><p>The included web portal manages users, groups, gateways and sessions. Gateway details show component versions, technical logs and metric history; the server page brings together service status, certificates, backups and SMTP checks.</p></div>
       <div class="steps">
         <article><span class="step-number">01</span><h3>Request access</h3><p>An authenticated technician selects a provisioned gateway and requests a session from the FactoryVPN portal or your integrated application.</p></article>
-        <article><span class="step-number">02</span><h3>Connect to the machine</h3><p>The gateway activates via a signed SMS or a periodic HTTPS check over Wi-Fi. The technician connects using their provisioned OpenVPN profile.</p></article>
-        <article><span class="step-number">03</span><h3>Close the session</h3><p>Access ends when the session is closed or expires. Session status and timestamps remain available for your service workflow.</p></article>
+        <article><span class="step-number">02</span><h3>Connect to the gateway</h3><p>The gateway activates via a signed SMS or a periodic HTTPS check over Wi-Fi. The technician connects using their provisioned OpenVPN profile, then opens SSH or web on the gateway’s fixed VPN IP.</p></article>
+        <article><span class="step-number">03</span><h3>Close the session</h3><p>Close access when the intervention ends. Signing out also closes VPNs opened by that portal login. Session status and timestamps remain available for your service workflow.</p></article>
       </div>
-      <div class="feature-note"><strong>Different factories. Familiar network addresses.</strong><p>Separate session network paths are designed to support sites that use the same IPv4 subnet. Each technician and gateway takes part in one session at a time.</p></div>
+      <div class="feature-note"><strong>Different factories. Familiar network addresses.</strong><p>Customer LANs can use the same IPv4 subnet because the VPN exposes only each gateway’s fixed VPN address. Reach local devices from the gateway’s SSH shell. Each technician and gateway takes part in one session at a time, including cleanup.</p></div>
+      <div class="feature-note"><strong>Your Internet connection stays local.</strong><p>Gateway Only allows SSH and web on the gateway’s fixed VPN IP (TCP 22, 80 and 443). Internet and DNS stay on the technician’s connection. Use its SSH shell to reach local devices. <a href="developers.html#network-scope">Gateway Only access</a>.</p></div>
+      <div class="feature-note"><strong>Time for longer interventions.</strong><p>VPN sessions last up to 3 hours by default, with a 12-hour portal login. Temporary API failures preserve existing access for up to 5 minutes from the last successful authorization, within login and session deadlines. Durations are configurable; logout and revocation still apply. <a href="developers.html#timing">Durations and outage handling</a>.</p></div>
     </section>
     <section id="integrations" class="integration-section">
       <div class="wrap integration-grid">
@@ -68,7 +70,7 @@ Content-Type: application/json
   <span class="code-key">"gateway_id"</span>: <span class="code-value">"&lt;gateway-uuid&gt;"</span>
 }</code></pre><div class="code-footer">Documented endpoints. Downloadable OpenAPI schema.</div></div>
     </section>
-    <section class="wrap practical-section"><p class="eyebrow">BEFORE YOU CONNECT</p><div class="practical-grid"><article><h3>A gateway at the factory</h3><p>A provisioned Linux gateway connects to the industrial LAN and needs independent HTTPS connectivity. SMS mode also requires a SIM and an AT modem.</p></article><article><h3>Access with a defined scope</h3><p>Technicians manage their own sessions; administrators manage accounts and resources. Individual VPN certificates work together with session authorization.</p></article><article><h3>A deployment built around you</h3><p>FactoryVPN is in pilot development. Hardware, network behavior and custom integrations are validated against your environment before a production rollout.</p></article></div></section>
+    <section class="wrap practical-section"><p class="eyebrow">BEFORE YOU CONNECT</p><div class="practical-grid"><article><h3>A gateway at the factory</h3><p>A factory-prepared gateway can retrieve its individual package after administrator approval. Manual ZIP setup remains available for service and test machines. The gateway needs SSH or web services and independent HTTPS connectivity; SMS mode also needs a SIM and an AT modem.</p></article><article><h3>Access with a defined scope</h3><p>Technicians manage their own sessions; administrators manage accounts and resources. Individual VPN certificates work together with session authorization.</p></article><article><h3>A deployment built around you</h3><p>FactoryVPN is in pilot development. Hardware, network behavior and custom integrations are validated against your environment before a production rollout.</p></article></div></section>
   </main>
   <footer class="site-footer wrap"><a class="brand" href="./"><span class="brand-mark" aria-hidden="true">F</span>Factory<span class="brand-light">VPN</span></a><p>Industrial connectivity, in your workflow.</p><div><a href="developers.html">Developers</a><a href="https://ercoliconsulting.eu/">Ercoli Consulting</a></div></footer>
 </body>

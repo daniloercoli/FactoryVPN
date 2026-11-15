@@ -1,9 +1,9 @@
-import { StrictMode } from "react";
+import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Link, Navigate, Route, Routes } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./auth";
-import Layout, { Allowed } from "./Layout";
+import Layout, { Allowed, GlobalAdmin } from "./Layout";
 import Login from "./pages/Login";
 import Overview from "./pages/Overview";
 import Profile from "./pages/Profile";
@@ -20,8 +20,16 @@ import Backups from "./pages/Backups";
 import ServerStatus from "./pages/ServerStatus";
 import VPN, { VPNDetail } from "./pages/VPN";
 import Clients from "./pages/Clients";
-import { PageTitle } from "./ui";
+import { Loading, PageTitle } from "./ui";
 import "./styles.css";
+
+// La coda di fabbrica viene caricata soltanto quando un amministratore la apre.
+const Enrollments = lazy(() => import("./pages/Enrollments"));
+const EnrollmentDetail = lazy(() =>
+  import("./pages/Enrollments").then((module) => ({
+    default: module.EnrollmentDetail,
+  })),
+);
 
 const client = new QueryClient({
   defaultOptions: {
@@ -52,6 +60,26 @@ createRoot(document.getElementById("root")!).render(
                 }
               />
               <Route path="gateways/:id" element={<GatewayDetail />} />
+              <Route
+                path="enrollments"
+                element={
+                  <GlobalAdmin>
+                    <Suspense fallback={<Loading />}>
+                      <Enrollments />
+                    </Suspense>
+                  </GlobalAdmin>
+                }
+              />
+              <Route
+                path="enrollments/:id"
+                element={
+                  <GlobalAdmin>
+                    <Suspense fallback={<Loading />}>
+                      <EnrollmentDetail />
+                    </Suspense>
+                  </GlobalAdmin>
+                }
+              />
               <Route path="vpn-history" element={<HistoryPage />} />
               <Route
                 path="telemetry"

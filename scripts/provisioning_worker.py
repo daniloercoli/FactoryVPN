@@ -2,14 +2,12 @@
 
 import asyncio
 from contextlib import suppress
-from datetime import timedelta
 import io
 import logging
 import os
 from pathlib import Path
 import secrets
 import zipfile
-from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from sqlalchemy import select, exists, or_, and_
 from api.config import settings
@@ -18,12 +16,18 @@ import api.models  # noqa: F401
 from api.models.gateway import Gateway
 from api.models.user import User
 from api.models.config import Config
-from api.models.provisioning import ProvisioningJob, VPNCertificate, GatewayCredential
+from api.models.provisioning import ProvisioningJob, VPNCertificate, GatewayCredential, PKIIssuer
 from api.services.credentials import encrypt, digest
 from api.services.lifecycle import allocation_lock
 from api.services.provisioning import expire_jobs, audit, mark_revoked
 from api.time_utils import utc_now
-from factoryvpn_common.pki import issue_profile, publish_crl
+from factoryvpn_common.pki import (
+    issue_profile,
+    publish_crl,
+    crl_refresh_required,
+    certificate_issuer,
+)
+from factoryvpn_common.certificates import load_authority, PEM
 from factoryvpn_common.runtime_info import local_runtime
 import json
 
@@ -62,13 +66,16 @@ MAC_ADDRESS={p['mac_address'] or ''}
 GATEWAY_WIFI_INTERFACE=
 GATEWAY_HARDWARE_MODEL=
 GATEWAY_HARDWARE_REVISION=
-LAN_INTERFACE={p['lan_interface']}
-LAN_ADDRESS={p['lan_address']}
-LAN_CIDR={p['lan_cidr']}
 VPN_INTERFACE=tun0
 OPENVPN_CONFIG=/etc/factoryvpn/gateway.ovpn
-GATEWAY_POLL_INTERVAL=5
-GATEWAY_WIFI_CHECK_INTERVAL=30
+# Pausa tra i controlli della sessione attiva (1-10 secondi).
+GATEWAY_POLL_INTERVAL={settings.GATEWAY_POLL_INTERVAL}
+# Polling Wi-Fi in attesa, senza sessione (5-300 secondi).
+GATEWAY_WIFI_CHECK_INTERVAL={settings.GATEWAY_WIFI_CHECK_INTERVAL}
+# Timeout HTTP per fase degli heartbeat; non è la tolleranza complessiva ai guasti API.
+CONTROL_API_TIMEOUT_SECONDS={settings.CONTROL_API_TIMEOUT_SECONDS}
+# Attesa iniziale di OpenVPN, distinta dal lease e dalla durata della VPN.
+GATEWAY_CONNECT_TIMEOUT_SECONDS={settings.GATEWAY_CONNECT_TIMEOUT_SECONDS}
 """
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -80,7 +87,9 @@ GATEWAY_WIFI_CHECK_INTERVAL=30
                 "Questo archivio contiene chiavi private: conservarlo in modo protetto.\n"
                 "Dopo il download, attivare il pacchetto nel portale.\n"
                 "Installare gateway.env e gateway.ovpn in /etc/factoryvpn/ con permessi 0600.\n"
-                "Configurare la LAN nel sistema operativo e installare l'agente FactoryVPN.\n"
+                "Configurare Internet nel sistema operativo e installare l'agente FactoryVPN.\n"
+                "Accesso Gateway Only: SSH (22), HTTP (80), HTTPS (443) sull'IP VPN fisso.\n"
+                "Predisporre questi servizi sul gateway; la VPN non configura né instrada la LAN.\n"
                 "Avviare o riavviare factoryvpn-agent.service e controllare la registrazione nel portale.\n"
                 "L'agente richiede HTTPS attendibile e connettività indipendente dal tunnel.\n"
                 "La registrazione non verifica il tunnel: completare una sessione di prova.\n"
@@ -117,16 +126,27 @@ async def reconcile_revocations(db, root):
     revoked = (
         await db.scalars(select(VPNCertificate).where(VPNCertificate.state == "revoked"))
     ).all()
-    path = root / "server/crl.pem"
-    refresh = not path.exists()
-    if path.exists():
-        refresh = x509.load_pem_x509_crl(path.read_bytes()).next_update_utc < utc_now() + timedelta(
-            days=1
-        )
+    refresh = crl_refresh_required(root)
     if refresh or any(cert.crl_applied_at is None for cert in revoked):
         publish_crl(root, revoked)
+        known_issuers = load_authority(root)[0]["issuers"]
         for cert in revoked:
-            cert.crl_applied_at = cert.crl_applied_at or utc_now()
+            if cert.issuer_id in known_issuers:
+                cert.crl_applied_at = cert.crl_applied_at or utc_now()
+
+
+async def sync_issuers(db, root):
+    data, _, issuers = load_authority(root)
+    for issuer_id, cert in issuers.items():
+        row = await db.get(PKIIssuer, issuer_id)
+        if row is None:
+            row = PKIIssuer(id=issuer_id)
+            db.add(row)
+        row.root_id = data["issuers"][issuer_id]["root_id"]
+        row.certificate_pem = cert.public_bytes(PEM).decode()
+        row.not_after = cert.not_valid_after_utc
+        row.state = data["issuers"][issuer_id]["state"]
+    await db.flush()
 
 
 async def cycle(factory, root):
@@ -134,6 +154,7 @@ async def cycle(factory, root):
     try:
         async with factory() as db:
             await allocation_lock(db)
+            await sync_issuers(db, root)
             await expire_jobs(db)
             await reconcile_revocations(db, root)
             job = await db.scalar(
@@ -151,8 +172,15 @@ async def cycle(factory, root):
                     job.peer_id,
                     settings.OPENVPN_SERVER_HOST,
                     settings.OPENVPN_SERVER_PORT,
+                    days=(
+                        settings.VPN_GATEWAY_CERTIFICATE_DAYS
+                        if job.kind == "gateway"
+                        else settings.VPN_TECHNICIAN_CERTIFICATE_DAYS
+                    ),
                 )
+                await sync_issuers(db, root)
                 row = VPNCertificate(
+                    issuer_id=certificate_issuer(root, cert),
                     kind=job.kind,
                     peer_id=job.peer_id,
                     serial=str(cert.serial_number),
@@ -178,6 +206,9 @@ async def cycle(factory, root):
                     data = gateway_bundle(job, data, key, sms_key)
                 job.artifact_encrypted, job.state = encrypt(data), "ready"
                 audit(db, job, "provisioning_ready")
+            from api.services.certificate_renewal import process_one
+
+            await process_one(db, root)
             await health(db, "ok")
             await db.commit()
     except Exception as exc:

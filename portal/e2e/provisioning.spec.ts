@@ -23,6 +23,9 @@ test(`delegate provisions, downloads and activates a ${mode} gateway; registrati
   await page.goto("/app/vpn");
   await page.getByRole("link", { name: "Aggiungi gateway" }).click();
   await page.getByLabel("Nome", { exact: true }).fill("Gateway provisioning test");
+  await page.getByLabel("Matricola (facoltativo)").fill(`FACTORY-${mode}`);
+  await page.getByLabel("IMEI modem (facoltativo)").fill("012345678901234");
+  await page.getByLabel("ICCID SIM (facoltativo)").fill("08912345678901234567");
   await page.getByRole("combobox", { name: /^Gruppo/ }).selectOption(id(1));
   await page.getByRole("combobox", { name: /^Attivazione/ }).selectOption(mode);
   if (mode === "wifi") {
@@ -36,6 +39,10 @@ test(`delegate provisions, downloads and activates a ${mode} gateway; registrati
   await expect(page).toHaveURL(/\/app\/gateways\/[0-9a-f-]{36}$/);
   const gatewayId = page.url().split("/").at(-1)!;
   try {
+    const card = page.getByRole("region", { name: "Stato e rete del gateway" });
+    await expect(card).toContainText(`FACTORY-${mode}`);
+    await expect(card).toContainText("012345678901234");
+    await expect(card).toContainText("08912345678901234567");
     const section = page.getByRole("region", { name: "Credenziali del gateway" });
     const downloading = page.waitForEvent("download");
     await section.getByRole("button", { name: "Scarica pacchetto gateway" }).click();
@@ -44,6 +51,9 @@ test(`delegate provisions, downloads and activates a ${mode} gateway; registrati
     const env = execFileSync("../.venv/bin/python", ["-c", "import sys,zipfile; print(zipfile.ZipFile(sys.argv[1]).read('gateway.env').decode())", (await file.path())!], { encoding: "utf8" });
     const config = Object.fromEntries(env.trim().split("\n").map(line => line.split("=")));
     expect(config.GATEWAY_API_KEY).not.toBe(config.GATEWAY_SMS_KEY);
+    expect(config).not.toHaveProperty("LAN_CIDR");
+    expect(config).not.toHaveProperty("LAN_ADDRESS");
+    expect(config).not.toHaveProperty("LAN_INTERFACE");
     expect(config.MAC_ADDRESS).toBe(mode === "wifi" ? "02:AC:11:22:33:44" : "");
     await section.getByRole("button", { name: "Attiva il nuovo profilo" }).click();
     await page.getByRole("button", { name: "Ho salvato il file: attiva" }).click();
@@ -51,12 +61,17 @@ test(`delegate provisions, downloads and activates a ${mode} gateway; registrati
     const registration = await request.post("/api/v1/gateways/register", {
       headers: { "X-Gateway-Key": config.GATEWAY_API_KEY }, data: {
         gateway_id: gatewayId, activation_mode: mode, phone_number: config.GATEWAY_PHONE_NUMBER || null,
-        mac_address: config.MAC_ADDRESS || null, lan_interface: config.LAN_INTERFACE,
-        lan_address: config.LAN_ADDRESS, lan_cidr: config.LAN_CIDR,
+        mac_address: config.MAC_ADDRESS || null,
       },
     });
     expect(registration.status()).toBe(200);
+    const registered = await registration.json();
+    await page.reload();
+    await expect(card).toContainText("Indirizzo VPN fisso");
+    await expect(card).toContainText(registered.vpn_ip);
     await expect(section.getByText(/Registrazione confermata/)).toBeVisible();
+    await section.getByRole("button", { name: "Richiedi rinnovo remoto" }).click();
+    await expect(section.getByText("Rinnovo remoto del solo certificato: richiesto.")).toBeVisible();
     await section.getByRole("button", { name: "Revoca credenziali VPN" }).click();
     await page.getByRole("button", { name: "Revoca e chiudi le VPN" }).click();
     await expect(section.getByText("Nessun certificato attivo.")).toBeVisible();

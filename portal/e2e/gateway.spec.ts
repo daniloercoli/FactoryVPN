@@ -16,6 +16,53 @@ const input = {
   mac_address: "AA:BB:CC:DD:EE:FF",
   device_type: "PLC",
 };
+
+test("gateway identifiers can be edited and searched in both catalogs on desktop and mobile", async ({ page, request }) => {
+  const headers = await root(request);
+  const values = { serial_number: "GW-100%_Nord", imei: "012345678901234", iccid: "08912345678901234567" };
+  try {
+    await login(page);
+    await page.goto(`/app/gateways/${id(20)}`);
+    await page.getByRole("button", { name: "Modifica identificativi" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel("Matricola (facoltativo)").fill(values.serial_number);
+    await dialog.getByLabel("IMEI modem (facoltativo)").fill(values.imei);
+    await dialog.getByLabel("ICCID SIM (facoltativo)").fill(values.iccid);
+    await dialog.getByRole("button", { name: "Salva modifiche" }).click();
+    await expect(dialog).toHaveCount(0);
+    const card = page.getByRole("region", { name: "Stato e rete del gateway" });
+    for (const value of Object.values(values)) await expect(card).toContainText(value);
+    for (const n of [21, 23]) {
+      const response = await request.patch(`/api/v1/admin/gateways/${id(n)}`, { headers, data: { imei: values.imei, iccid: values.iccid } });
+      expect(response.status()).toBe(200);
+    }
+    for (const path of ["gateways", "vpn"]) {
+      await page.goto(`/app/${path}`);
+      for (const term of [values.imei, "345678901234", values.iccid]) {
+        await page.getByLabel("Cerca gateway").fill(term);
+        await expect(page.getByText("1–2 di 2", { exact: true })).toBeVisible();
+        await expect(page.getByRole("link", { name: "Pressa Nord", exact: true })).toBeVisible();
+        await expect(page.getByRole("link", { name: "Pressa Sud", exact: true })).toHaveCount(0);
+      }
+      for (const term of ["%_", "gw-100%_nord", "02-00-00-00-00-01", "020000000001"]) {
+        await page.getByLabel("Cerca gateway").fill(term);
+        await expect(page.getByText("1–1 di 1", { exact: true })).toBeVisible();
+        await expect(page.getByRole("row").filter({ hasText: "Pressa Nord" })).toContainText(values.iccid);
+      }
+      await page.setViewportSize({ width: 390, height: 844 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+    await page.goto(`/app/gateways/${id(20)}`);
+    await page.getByRole("button", { name: "Modifica identificativi" }).click();
+    await expect(dialog.getByLabel("ICCID SIM (facoltativo)")).toHaveValue(values.iccid);
+    await page.screenshot({ path: "test-results/gateway-identifiers-mobile.png", fullPage: true });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  } finally {
+    for (const n of [20, 21, 23]) {
+      await request.patch(`/api/v1/admin/gateways/${id(n)}`, { headers, data: { serial_number: null, imei: null, iccid: null } });
+    }
+  }
+});
 async function login(page: Page, username = "delegate") {
   await page.goto("/app/login");
   await page.getByLabel("Username", { exact: true }).fill(username);
@@ -81,7 +128,8 @@ test("gateway card links from lists, edits inventory with revisions, filters and
   await expect(
     page.getByRole("heading", { name: "Pressa Nord", exact: true, level: 1 }),
   ).toBeVisible();
-  await expect(page.getByText("192.168.1.0/24", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Stato e rete del gateway" })).toContainText("SSH (22), HTTP (80), HTTPS (443)");
+  await expect(page.getByText("Rete LAN", { exact: true })).toHaveCount(0);
   await expect(
     page.getByRole("region", { name: "Telemetria del gateway" }),
   ).toContainText("Mai ricevuti");

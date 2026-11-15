@@ -1,6 +1,7 @@
 """
 Gateway Registration Service
 """
+
 import httpx
 import logging
 from typing import Optional
@@ -19,9 +20,6 @@ class GatewayRegistrar:
         self,
         gateway_id: str,
         mac_address: str,
-        lan_interface: str,
-        lan_address: str,
-        lan_cidr: str,
         activation_mode: str = "sms",
         phone_number: str | None = None,
     ) -> Optional[dict]:
@@ -32,9 +30,6 @@ class GatewayRegistrar:
             "activation_mode": activation_mode,
             "phone_number": phone_number,
             "mac_address": mac_address or None,
-            "lan_interface": lan_interface,
-            "lan_address": lan_address,
-            "lan_cidr": lan_cidr,
         }
 
         try:

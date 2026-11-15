@@ -6,10 +6,11 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=/opt/factoryvpn
-EnvironmentFile=/etc/factoryvpn/gateway.env
+EnvironmentFile=-/etc/factoryvpn/gateway.env
 ExecStart=/opt/factoryvpn/.venv/bin/python -m gateway-agent.main
 Restart=always
 RestartSec=5
+RestartPreventExitStatus=78
 TimeoutStopSec=30
 UMask=0077
 

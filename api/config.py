@@ -8,6 +8,8 @@ from sqlalchemy.engine import make_url
 from typing import List, Literal
 from pydantic import Field, SecretStr
 from api.sso_config import OIDCProvider, validate_providers, validate_url, origin
+from factoryvpn_common.timing import MAX_LEASE_SECONDS
+import re
 
 
 def _normalize_database_url(url: str) -> str:
@@ -28,7 +30,17 @@ class Settings(BaseSettings):
 
     # Empty disables browser authentication; never infer trust from Host headers.
     PORTAL_PUBLIC_URL: str = ""
-    PORTAL_SESSION_MINUTES: int = Field(default=30, ge=1, le=480)
+    # Il login dura fino a 12 ore; logout e revoche restano immediatamente validi.
+    PORTAL_SESSION_MINUTES: int = Field(default=720, ge=1, le=720)
+
+    # Durata totale e autorizzazione temporanea del firewall hanno scopi diversi.
+    VPN_SESSION_MINUTES: int = Field(default=180, ge=1, le=720)
+    VPN_LEASE_SECONDS: int = Field(default=300, ge=30, le=MAX_LEASE_SECONDS)
+    # Questi valori vengono copiati nei nuovi pacchetti gateway.
+    GATEWAY_POLL_INTERVAL: int = Field(default=5, ge=1, le=10)
+    GATEWAY_WIFI_CHECK_INTERVAL: int = Field(default=30, ge=5, le=300)
+    CONTROL_API_TIMEOUT_SECONDS: int = Field(default=10, ge=1, le=60)
+    GATEWAY_CONNECT_TIMEOUT_SECONDS: int = Field(default=30, ge=5, le=300)
 
     SMTP_HOST: str = ""
     SMTP_PORT: int = Field(default=587, ge=1, le=65535)
@@ -47,13 +59,14 @@ class Settings(BaseSettings):
     # Public PEMs only; no request can choose a path or a network destination.
     STATUS_HTTPS_CERTIFICATE_FILE: str = ""
     STATUS_VPN_CERTIFICATE_FILE: str = ""
+    STATUS_PKI_ROOT: str = ""
     STATUS_VPN_CA_FILE: str = ""
 
     SSO_PROVIDERS: dict[str, OIDCProvider] = {}
     SSO_PUBLIC_URL: str = ""
     SSO_TOKEN_KEY: SecretStr = SecretStr("")
     SSO_CLIENT_REDIRECT_URIS: list[str] = ["http://127.0.0.1:8765/callback"]
-    SSO_SESSION_MINUTES: int = Field(default=30, ge=1, le=480)
+    SSO_SESSION_MINUTES: int = Field(default=720, ge=1, le=720)
     SSO_CHECK_INTERVAL_SECONDS: int = Field(default=60, ge=5, le=300)
     SSO_MAX_STALENESS_SECONDS: int = Field(default=120, ge=10, le=600)
 
@@ -65,7 +78,29 @@ class Settings(BaseSettings):
     # Separate machine credentials; gateway keys are scoped to a stable gateway UUID.
     WORKER_API_KEY: str = ""
     PROVISIONING_SECRET_KEY: SecretStr = SecretStr("")
+    VPN_GATEWAY_CERTIFICATE_DAYS: int = Field(default=3650, ge=1, le=3650)
+    VPN_TECHNICIAN_CERTIFICATE_DAYS: int = Field(default=3650, ge=1, le=3650)
     PROVISIONING_DOWNLOAD_MINUTES: int = Field(default=15, ge=1, le=60)
+
+    # Solo hash SHA-256: la chiave in chiaro resta sulla postazione di fine linea.
+    # Gli IP fidati vengono filtrati da Nginx prima di raggiungere queste API.
+    FACTORY_STATIONS: dict[str, str] = Field(default_factory=dict)
+    FACTORY_REQUESTS_PER_MINUTE: int = Field(default=60, ge=1, le=600)
+    ENROLLMENT_REQUESTS_PER_MINUTE: int = Field(default=30, ge=1, le=300)
+    ENROLLMENT_PACKAGES_PER_HOUR: int = Field(default=6, ge=1, le=60)
+
+    @field_validator("FACTORY_STATIONS")
+    @classmethod
+    def factory_stations(cls, values):
+        if any(
+            not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", station)
+            or not re.fullmatch(r"[0-9a-f]{64}", digest)
+            for station, digest in values.items()
+        ):
+            raise ValueError("Invalid factory station identifier or SHA-256 hash")
+        if len(set(values.values())) != len(values):
+            raise ValueError("Factory stations must have distinct keys")
+        return values
 
     @field_validator("WORKER_API_KEY")
     @classmethod

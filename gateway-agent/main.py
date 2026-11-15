@@ -5,6 +5,7 @@ from importlib import import_module
 import logging
 import os
 import signal
+import sys
 import httpx
 import time
 from contextlib import suppress
@@ -13,6 +14,7 @@ from factoryvpn_common.technical_logs import LogQueue
 from factoryvpn_common.system_info import SystemCollector, system_info_loop
 
 from factoryvpn_common.network import SessionNetwork
+from factoryvpn_common.api_errors import temporary_api_error
 from factoryvpn_common.protocol import verify_activation
 
 SMSHandler = import_module("gateway-agent.sms_handler").SMSHandler
@@ -20,6 +22,8 @@ OpenVPNClient = import_module("gateway-agent.vpn_client").OpenVPNClient
 NetworkManager = import_module("gateway-agent.network").NetworkManager
 GatewayRegistrar = import_module("gateway-agent.registration").GatewayRegistrar
 HeartbeatService = import_module("gateway-agent.heartbeat").HeartbeatService
+CertificateRenewer = import_module("gateway-agent.certificate_renewal").CertificateRenewer
+enrollment = import_module("gateway-agent.enrollment")
 settings = import_module("gateway-agent.config").settings
 logger = logging.getLogger(__name__)
 
@@ -84,9 +88,8 @@ class GatewayAgent:
         try:
             try:
                 await asyncio.to_thread(
-                    self.network.disable_nat,
+                    self.network.disable,
                     self.config.VPN_INTERFACE,
-                    self.config.LAN_INTERFACE,
                     self.spec,
                 )
             except Exception:
@@ -130,6 +133,11 @@ class GatewayAgent:
             self.logs.emit(code, identifier)
         elif self.config.ACTIVATION_MODE == "sms":
             self.logs.emit("modem_failed")
+        if temporary_api_error(exc) and self.spec is not None and self.vpn.is_running():
+            # Conserviamo solo la rete già autorizzata: nessuna riscrittura delle
+            # regole. Se l'API non torna, il lease scade autonomamente nel kernel.
+            logger.warning("Temporary gateway API failure; existing lease left unchanged")
+            return
         try:
             await self.stop_session()
         finally:
@@ -205,6 +213,7 @@ class GatewayAgent:
             raise
         self.tunnel_state = "ok"
         await self.report(spec.session_id, "tunnel", "ready")
+        requested_at = time.monotonic()
         state = await self.heartbeat.send(
             ip, spec.session_id if self.spec == spec else None, self.activation_token
         )
@@ -212,27 +221,36 @@ class GatewayAgent:
             await self.stop_session()
             await self.discard_activation()
             return
+        already_configured = self.spec == spec
         self.spec = spec
         self.diagnostic_component, self.diagnostic_code = "network", "network_failed"
         self.network_state = "unknown"
         try:
+            # Anche una risposta lenta consuma il tempo autorizzato: non aggiunge
+            # secondi al lease, come già avviene nel worker del server.
+            remaining = int(requested_at + state["lease_seconds"] - time.monotonic())
+            if remaining <= 0:
+                raise RuntimeError("Authorization lease expired before renewal")
             await asyncio.to_thread(
                 self.network.configure_session,
                 spec,
                 self.config.VPN_INTERFACE,
-                self.config.LAN_INTERFACE,
-                state["lease_seconds"],
+                remaining,
             )
         except Exception:
             self.network_state = "error"
             raise
         self.network_state = "ok"
         await self.report(spec.session_id, "network", "ready")
-        state = await self.heartbeat.send(ip, spec.session_id, self.activation_token)
-        if not state["connect"] or SessionNetwork(**state["network"]) != spec:
-            await self.stop_session()
-            await self.discard_activation()
-        elif self.activation_sms_id is not None:
+        # Nei rinnovi l'heartbeat precedente ha già comunicato la sessione pronta.
+        # La conferma dopo la configurazione serve solo alla prima installazione.
+        if not already_configured:
+            state = await self.heartbeat.send(ip, spec.session_id, self.activation_token)
+            if not state["connect"] or SessionNetwork(**state["network"]) != spec:
+                await self.stop_session()
+                await self.discard_activation()
+                return
+        if self.activation_sms_id is not None:
             await asyncio.to_thread(self.modem.delete_sms, self.activation_sms_id)
             self.activation_sms_id = None
 
@@ -244,15 +262,23 @@ async def create_modem(config):
 
 
 async def main():
+    # Senza identità di fabbrica il provisioning manuale segue il percorso esistente.
+    if await enrollment.bootstrap():
+        settings.reload()
     settings.validate()
     modem = await create_modem(settings)
     agent = GatewayAgent(
         modem,
-        OpenVPNClient(settings.OPENVPN_CONFIG, settings.VPN_INTERFACE),
+        OpenVPNClient(
+            settings.OPENVPN_CONFIG,
+            settings.VPN_INTERFACE,
+            connect_timeout=settings.CONNECT_TIMEOUT,
+        ),
         NetworkManager(),
-        HeartbeatService(settings.SERVER_URL, settings.GATEWAY_API_KEY),
+        HeartbeatService(settings.SERVER_URL, settings.GATEWAY_API_KEY, settings.API_TIMEOUT),
     )
     registrar = GatewayRegistrar(settings.SERVER_URL, settings.GATEWAY_API_KEY)
+    renewer = CertificateRenewer(settings)
     task = asyncio.current_task()
     for signum in (signal.SIGINT, signal.SIGTERM):
         asyncio.get_running_loop().add_signal_handler(signum, task.cancel)
@@ -261,9 +287,6 @@ async def main():
         result = await registrar.register(
             settings.GATEWAY_ID,
             settings.MAC_ADDRESS,
-            settings.LAN_INTERFACE,
-            settings.LAN_ADDRESS,
-            settings.LAN_CIDR,
             settings.ACTIVATION_MODE,
             settings.GATEWAY_PHONE_NUMBER or None,
         )
@@ -319,6 +342,16 @@ async def main():
         while True:
             try:
                 await agent.collect_wakeups()
+                try:
+                    renewing = await renewer.tick(
+                        idle=agent.spec is None and not agent.vpn.is_running(), awake=agent.awake
+                    )
+                except (OSError, ValueError, KeyError):
+                    logger.warning("Certificate renewal requires attention; durable state retained")
+                    renewing = renewer.activation_pending()
+                if renewing and agent.spec is None:
+                    await asyncio.sleep(agent.interval)
+                    continue
                 if agent.awake:
                     if not registered:
                         await register()
@@ -327,9 +360,12 @@ async def main():
                     agent.last_cycle, agent.cycle_state = time.monotonic(), "ok"
             except Exception as exc:
                 agent.last_cycle, agent.cycle_state = time.monotonic(), "error"
-                logger.exception("Gateway reconciliation failed; stopping the tunnel")
+                logger.exception("Gateway reconciliation failed")
                 await agent.handle_failure(exc)
-                registered = False
+                # Un guasto temporaneo con rete conservata non richiede una nuova
+                # registrazione e mantiene il normale intervallo dei tentativi.
+                if agent.spec is None:
+                    registered = False
             await asyncio.sleep(agent.interval)
     finally:
         for observer in observers:
@@ -353,3 +389,6 @@ if __name__ == "__main__":
         asyncio.run(main())
     except (KeyboardInterrupt, asyncio.CancelledError):
         pass
+    except enrollment.EnrollmentBlocked as exc:
+        logger.error("Enrollment stopped: %s", exc)
+        sys.exit(78)

@@ -31,6 +31,7 @@ from api.models import (
     EmailChallenge,
     TelemetrySnapshot,
     Config,
+    CertificateRenewal,
 )
 from api.services.lifecycle import allocation_lock
 from api.services import backup_access
@@ -48,6 +49,14 @@ CONFIG_KEYS = (
     "SSO_MAX_STALENESS_SECONDS",
     "SSO_CLIENT_REDIRECT_URIS",
     "PORTAL_SESSION_MINUTES",
+    "VPN_SESSION_MINUTES",
+    "VPN_LEASE_SECONDS",
+    "VPN_GATEWAY_CERTIFICATE_DAYS",
+    "VPN_TECHNICIAN_CERTIFICATE_DAYS",
+    "GATEWAY_POLL_INTERVAL",
+    "GATEWAY_WIFI_CHECK_INTERVAL",
+    "CONTROL_API_TIMEOUT_SECONDS",
+    "GATEWAY_CONNECT_TIMEOUT_SECONDS",
     "SMS_PROVIDER",
     "SMS_PROVIDER_API_KEY",
     "SMS_PROVIDER_URL",
@@ -282,12 +291,34 @@ async def sanitize(db, current, *, actor_id=None, recovery=None):
         job.artifact_encrypted = None
         if job.state in ("queued", "ready"):
             job.state, job.error_code = "cancelled", "installation_restored"
+    for renewal in (await db.scalars(select(CertificateRenewal))).all():
+        candidate = (
+            await db.get(VPNCertificate, renewal.certificate_id) if renewal.certificate_id else None
+        )
+        if renewal.state in ("active", "confirmed") and candidate and candidate.state == "active":
+            # The device can replay confirmation using its durable new private key.
+            continue
+        if renewal.state in ("challenge", "queued", "ready", "active"):
+            renewal.state, renewal.error_code, renewal.maintenance_until = (
+                "cancelled",
+                "installation_restored",
+                None,
+            )
+    from api.models.enrollment import GatewayEnrollment
+
+    # Il restore non riabilita segreti iniziali o approvazioni di fabbrica storiche.
+    for enrollment in (await db.scalars(select(GatewayEnrollment))).all():
+        enrollment.secret_hash = None
+        if enrollment.completed_at is None:
+            enrollment.approved_at = None
+            enrollment.blocked_at, enrollment.blocked_reason = now, "installation_restored"
+    await db.execute(delete(Config).where(Config.key.like("enrollment-rate:%")))
     for session in (await db.scalars(select(Session))).all():
         if session.status in ("REQUESTED", "ACTIVE"):
             session.status, session.ended_at = "CLOSED", now
             session.error_reason = "Installation restored"
         # Coordinator must have destroyed the old OpenVPN network namespace first.
-        session.network_slot, session.cleaned_at = None, now
+        session.cleaned_at = now
         session.gateway_ready_at, session.network_ready_at, session.worker_seen_at = (
             None,
             None,
@@ -337,9 +368,7 @@ async def main():
             output({"closed": True})
         elif operation == "drained":
             occupied = await db.scalar(
-                select(Session.id)
-                .where(Session.network_slot.is_not(None), Session.cleaned_at.is_(None))
-                .limit(1)
+                select(Session.id).where(Session.cleaned_at.is_(None)).limit(1)
             )
             output({"drained": occupied is None})
         elif operation == "check":

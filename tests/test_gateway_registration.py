@@ -34,9 +34,6 @@ async def test_registration_sends_gateway_credential_and_identity(monkeypatch):
     result = await registrar.register(
         "11111111-1111-4111-8111-111111111111",
         "AA:BB:CC:DD:EE:FF",
-        "eth0",
-        "192.168.1.1",
-        "192.168.1.0/24",
         phone_number="+393331234567",
     )
     assert result == {"id": "gateway-id"}

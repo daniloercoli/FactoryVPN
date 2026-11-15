@@ -9,7 +9,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application
 COPY api/ ./api/
 COPY factoryvpn_common/ ./factoryvpn_common/
-COPY pyproject.toml ./
+COPY pyproject.toml .env.example ./
 ARG FACTORYVPN_BUILD_ID=unknown
 ENV FACTORYVPN_BUILD_ID=$FACTORYVPN_BUILD_ID
 COPY scripts/ ./scripts/

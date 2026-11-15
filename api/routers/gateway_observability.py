@@ -53,7 +53,7 @@ router = APIRouter(route_class=ObservationRoute)
 async def report_system(
     report: SystemReport, identity=Depends(get_gateway_identity), db=Depends(get_db)
 ):
-    gateway = await db.get(Gateway, UUID(identity))
+    gateway = await db.scalar(select(Gateway).where(Gateway.id == UUID(identity)).with_for_update())
     if gateway is None:
         raise HTTPException(404, "Gateway not found")
     recorded = await service.record_system(db, gateway, report)

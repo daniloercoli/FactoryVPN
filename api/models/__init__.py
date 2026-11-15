@@ -17,7 +17,9 @@ from api.models.session_event import SessionEvent
 from api.models.gateway_observability import GatewaySystemSnapshot, GatewayTechnicalLog
 from api.models.telemetry import TelemetrySnapshot, TelemetryBucket
 from api.models.server_status import SmtpCheck
-from api.models.provisioning import VPNCertificate, GatewayCredential, ProvisioningJob
+from api.models.certificate_renewal import CertificateRenewal
+from api.models.enrollment import GatewayEnrollment
+from api.models.provisioning import VPNCertificate, GatewayCredential, ProvisioningJob, PKIIssuer
 
 __all__ = [
     "User",
@@ -41,6 +43,9 @@ __all__ = [
     "GatewaySystemSnapshot",
     "GatewayTechnicalLog",
     "VPNCertificate",
+    "PKIIssuer",
+    "CertificateRenewal",
     "GatewayCredential",
     "ProvisioningJob",
+    "GatewayEnrollment",
 ]

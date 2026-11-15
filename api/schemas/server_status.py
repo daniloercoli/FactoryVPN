@@ -100,6 +100,24 @@ class BackupSummary(BaseModel):
     active_operation: BackupOperationSummary | None = None
 
 
+class AuthorityStatus(BaseModel):
+    id: str
+    role: Literal["root", "issuing", "retiring"]
+    expires_at: datetime
+    crl_next_update: datetime | None
+    issuance_deadline: datetime | None = None
+    can_issue_clients: bool = False
+    renewal_due: bool = False
+
+
+class PKIStatus(BaseModel):
+    state: Literal["not_configured", "ok", "error"]
+    observed_at: datetime
+    valid_for_seconds: int = 30
+    crl_valid: bool = False
+    authorities: list[AuthorityStatus] = []
+
+
 class ServerStatus(BaseModel):
     observed_at: datetime
     components: list[CentralComponent]
@@ -107,3 +125,4 @@ class ServerStatus(BaseModel):
     smtp: SmtpStatus
     certificates: list[CertificateStatus]
     backup: BackupSummary
+    pki: PKIStatus

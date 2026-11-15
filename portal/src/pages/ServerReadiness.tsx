@@ -121,6 +121,53 @@ export default function ServerReadiness({
           </table>
         </div>
       </section>
+      <section className="card padded" aria-label="Autorità e liste di revoca">
+        <h2>Autorità e liste di revoca</h2>
+        <p>
+          {elapsed >= status.pki.valid_for_seconds
+            ? "Stato da aggiornare"
+            : status.pki.state === "not_configured"
+              ? "Controllo PKI non configurato"
+              : status.pki.state === "ok"
+                ? "Emissione e CRL disponibili"
+                : "Manutenzione PKI necessaria"}
+        </p>
+        <p>
+          La root privata resta offline. Il server deve ricevere la sua CRL
+          aggiornata prima della scadenza.
+        </p>
+        <ul>
+          {status.pki.authorities.map((authority) => (
+            <li key={authority.id}>
+              <strong>
+                {authority.role === "root"
+                  ? "Root"
+                  : authority.role === "issuing"
+                    ? "Sub-CA emittente"
+                    : "Sub-CA precedente"}
+              </strong>
+              : scade {date(authority.expires_at)}. CRL valida fino a{" "}
+              {date(authority.crl_next_update)}.
+              {authority.issuance_deadline && (
+                <p>
+                  {authority.role === "root"
+                    ? "Ultima data per firmare una Sub-CA di 15 anni"
+                    : "Ultima data per emettere client con l’intera durata configurata"}
+                  : {date(authority.issuance_deadline)}.{" "}
+                  {authority.renewal_due &&
+                    (authority.role === "root"
+                      ? "Preparare la transizione a una nuova root."
+                      : "Preparare una nuova Sub-CA.")}
+                </p>
+              )}
+              <details>
+                <summary>Impronta SHA-256</summary>
+                <code>{authority.id}</code>
+              </details>
+            </li>
+          ))}
+        </ul>
+      </section>
       <section
         className="card padded server-readiness"
         aria-label="Riepilogo backup"

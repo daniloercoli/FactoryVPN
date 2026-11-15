@@ -17,6 +17,7 @@ import {
   Activity,
   DatabaseBackup,
   Server,
+  ClipboardCheck,
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "./api/client";
@@ -38,6 +39,23 @@ export function Allowed({
       <PageTitle
         title="Accesso non disponibile"
         description="Questa sezione richiede un permesso aggiuntivo."
+      />
+      <Link to="/" className="button secondary">
+        Torna alla panoramica
+      </Link>
+    </>
+  );
+}
+
+export function GlobalAdmin({ children }: { children: ReactNode }) {
+  const auth = useAuth();
+  return auth.user?.is_admin ? (
+    children
+  ) : (
+    <>
+      <PageTitle
+        title="Accesso non disponibile"
+        description="Questa sezione è riservata agli amministratori globali."
       />
       <Link to="/" className="button secondary">
         Torna alla panoramica
@@ -139,6 +157,9 @@ export default function Layout() {
     { to: "/permissions", title: "Permessi", icon: ShieldCheck },
     ...(auth.can("gateways.manage")
       ? [{ to: "/gateways", title: "Gateway", icon: Router }]
+      : []),
+    ...(user.is_admin
+      ? [{ to: "/enrollments", title: "Arruolamenti", icon: ClipboardCheck }]
       : []),
     ...(auth.can("audit.read")
       ? [{ to: "/audit", title: "Registro attività", icon: History }]

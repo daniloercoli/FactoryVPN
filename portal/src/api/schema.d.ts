@@ -44,6 +44,130 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/enrollments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Enrollments
+         * @description Requires an administrator account.
+         */
+        get: operations["list_enrollments_api_v1_admin_enrollments_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/enrollments/{identifier}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Detail
+         * @description Requires an administrator account.
+         */
+        get: operations["detail_api_v1_admin_enrollments__identifier__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update
+         * @description Requires an administrator account.
+         */
+        patch: operations["update_api_v1_admin_enrollments__identifier__patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/enrollments/{identifier}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve
+         * @description Requires an administrator account.
+         */
+        post: operations["approve_api_v1_admin_enrollments__identifier__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/enrollments/{identifier}/block": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Block
+         * @description Requires an administrator account.
+         */
+        post: operations["block_api_v1_admin_enrollments__identifier__block_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/enrollments/{identifier}/manual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Manual
+         * @description Requires an administrator account.
+         */
+        post: operations["manual_api_v1_admin_enrollments__identifier__manual_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/enrollments/{identifier}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume
+         * @description Requires an administrator account.
+         */
+        post: operations["resume_api_v1_admin_enrollments__identifier__resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/gateways": {
         parameters: {
             query?: never;
@@ -87,7 +211,11 @@ export interface paths {
         head?: never;
         /**
          * Update Gateway
-         * @description Set or clear a display name; machine registration never overwrites it.
+         * @description Aggiorna inventario e configurazione operativa.
+         *
+         *     MAC, modalità e telefono richiedono un amministratore globale, assenza di
+         *     sessioni/pulizie pendenti e nuovo provisioning dopo la revoca dei materiali.
+         *     Le correzioni di solo inventario mantengono i permessi delegati esistenti.
          *
          *     Requires gateways.manage within the caller's assigned groups, or global administration.
          */
@@ -825,7 +953,7 @@ export interface paths {
         };
         /**
          * List Gateways
-         * @description Search scoped gateways by label, MAC, phone or exact UUID.
+         * @description Search scoped gateways by label, inventory identifiers, phone or exact UUID.
          *
          *     X-Total-Count covers the same filtered scope before pagination. Availability
          *     and can_start are advisory; they neither reserve a peer nor prove it is online.
@@ -1022,6 +1150,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/provisioning/peers/gateway/{peer_id}/renew-certificate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Remote Renewal */
+        post: operations["request_remote_renewal_api_v1_provisioning_peers_gateway__peer_id__renew_certificate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/provisioning/peers/{kind}/{peer_id}": {
         parameters: {
             query?: never;
@@ -1131,7 +1276,7 @@ export interface paths {
          *     Provide exactly one of gateway_id or phone_number. HTTP 200 does not imply an
          *     active VPN: inspect status, which may be REQUESTED or FAILED. Poll the detail
          *     until gateway_ready_at is set, connect the technician VPN, then wait for ACTIVE.
-         *     Sessions last at most 30 minutes, bounded by the opening browser/SSO lifetime;
+         *     Sessions use the configured maximum (3 hours by default), bounded by the opening browser/SSO lifetime;
          *     each peer has one reserved session. Browser logout closes its associated VPNs.
          *     Optional Idempotency-Key (UUID) recovers the same request for this account,
          *     including terminal outcomes, without resending SMS. Changed input returns 409.
@@ -1346,7 +1491,7 @@ export interface paths {
         };
         /**
          * Status
-         * @description Same-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.
+         * @description Same-origin portal endpoint. No Bearer tokens are returned. Requires an authenticated portal session. Mutations require Origin and X-CSRF-Token.
          */
         get: operations["status_api_v1_web_email_get"];
         put?: never;
@@ -1368,7 +1513,7 @@ export interface paths {
         put?: never;
         /**
          * Confirm
-         * @description Same-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.
+         * @description Same-origin portal endpoint. No Bearer tokens are returned. Requires an authenticated portal session. Mutations require Origin and X-CSRF-Token.
          */
         post: operations["confirm_api_v1_web_email_confirm_post"];
         delete?: never;
@@ -1388,7 +1533,7 @@ export interface paths {
         put?: never;
         /**
          * Resend
-         * @description Same-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.
+         * @description Same-origin portal endpoint. No Bearer tokens are returned. Requires an authenticated portal session. Mutations require Origin and X-CSRF-Token.
          */
         post: operations["resend_api_v1_web_email_resend_post"];
         delete?: never;
@@ -1408,7 +1553,7 @@ export interface paths {
         put?: never;
         /**
          * Start
-         * @description Same-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.
+         * @description Same-origin portal endpoint. No Bearer tokens are returned. Requires an authenticated portal session. Mutations require Origin and X-CSRF-Token.
          */
         post: operations["start_api_v1_web_email_start_post"];
         delete?: never;
@@ -1428,7 +1573,7 @@ export interface paths {
         put?: never;
         /**
          * Verify
-         * @description Same-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.
+         * @description Same-origin portal endpoint. No Bearer tokens are returned. Requires an authenticated portal session. Mutations require Origin and X-CSRF-Token.
          */
         post: operations["verify_api_v1_web_email_verify_post"];
         delete?: never;
@@ -1448,7 +1593,7 @@ export interface paths {
         put?: never;
         /**
          * Login
-         * @description Same-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.
+         * @description Same-origin portal endpoint. No Bearer tokens are returned. Requires Origin and X-FactoryVPN-Portal: 1.
          */
         post: operations["login_api_v1_web_login_post"];
         delete?: never;
@@ -1468,7 +1613,7 @@ export interface paths {
         put?: never;
         /**
          * Resend Login
-         * @description Same-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.
+         * @description Same-origin portal endpoint. No Bearer tokens are returned. Requires the verification cookie issued by /web/login and the challenge_token in the request body, plus Origin and X-FactoryVPN-Portal: 1. No authenticated portal session or CSRF token is required.
          */
         post: operations["resend_login_api_v1_web_login_resend_post"];
         delete?: never;
@@ -1488,7 +1633,7 @@ export interface paths {
         put?: never;
         /**
          * Verify Login
-         * @description Same-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.
+         * @description Same-origin portal endpoint. No Bearer tokens are returned. Requires the verification cookie issued by /web/login and the challenge_token in the request body, plus Origin and X-FactoryVPN-Portal: 1. No authenticated portal session or CSRF token is required.
          */
         post: operations["verify_login_api_v1_web_login_verify_post"];
         delete?: never;
@@ -1508,7 +1653,7 @@ export interface paths {
         put?: never;
         /**
          * Logout
-         * @description Same-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.
+         * @description Same-origin portal endpoint. No Bearer tokens are returned. Requires Origin. With a portal cookie, even expired or revoked, X-CSRF-Token is required. Without that cookie, X-FactoryVPN-Portal: 1 is required instead.
          */
         post: operations["logout_api_v1_web_logout_post"];
         delete?: never;
@@ -1528,7 +1673,7 @@ export interface paths {
         put?: never;
         /**
          * Global Logout
-         * @description Same-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.
+         * @description Same-origin portal endpoint. No Bearer tokens are returned. Requires an authenticated portal session. Mutations require Origin and X-CSRF-Token.
          */
         post: operations["global_logout_api_v1_web_logout_all_post"];
         delete?: never;
@@ -1548,7 +1693,7 @@ export interface paths {
         put?: never;
         /**
          * Password
-         * @description Same-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.
+         * @description Same-origin portal endpoint. No Bearer tokens are returned. Requires an authenticated portal session. Mutations require Origin and X-CSRF-Token.
          */
         post: operations["password_api_v1_web_password_post"];
         delete?: never;
@@ -1566,7 +1711,7 @@ export interface paths {
         };
         /**
          * Session
-         * @description Same-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.
+         * @description Same-origin portal endpoint. No Bearer tokens are returned. Requires an authenticated portal session. Mutations require Origin and X-CSRF-Token.
          */
         get: operations["session_api_v1_web_session_get"];
         put?: never;
@@ -1588,7 +1733,7 @@ export interface paths {
         put?: never;
         /**
          * Sso Start
-         * @description Same-origin portal endpoint. Mutations require Origin and X-CSRF-Token; login/start require X-FactoryVPN-Portal: 1. No Bearer tokens are returned.
+         * @description Same-origin portal endpoint. No Bearer tokens are returned. Requires Origin and X-FactoryVPN-Portal: 1. Initial login needs no session. When reauthenticate=true, an authenticated global SSO administrator's portal session and X-CSRF-Token are also required.
          */
         post: operations["sso_start_api_v1_web_sso_start_post"];
         delete?: never;
@@ -1656,11 +1801,15 @@ export interface components {
             display_name?: string | null;
             /** Group Id */
             group_id?: string | null;
+            /** Iccid */
+            iccid?: string | null;
             /**
              * Id
              * Format: uuid
              */
             id: string;
+            /** Imei */
+            imei?: string | null;
             /** Last Seen */
             last_seen: string | null;
             /** Mac Address */
@@ -1672,6 +1821,8 @@ export interface components {
              * @default
              */
             revision: string;
+            /** Serial Number */
+            serial_number?: string | null;
             /** Start Block Reason */
             start_block_reason: ("permission_required" | "personal_profile_required" | "gateway_unconfigured" | "gateway_busy" | "gateway_cleanup_pending" | "technician_busy" | "technician_cleanup_pending") | null;
             /** Status */
@@ -1699,11 +1850,15 @@ export interface components {
             display_name?: string | null;
             /** Group Id */
             group_id?: string | null;
+            /** Iccid */
+            iccid?: string | null;
             /**
              * Id
              * Format: uuid
              */
             id: string;
+            /** Imei */
+            imei?: string | null;
             /** Last Seen */
             last_seen: string | null;
             /** Mac Address */
@@ -1717,6 +1872,8 @@ export interface components {
              * @default
              */
             revision: string;
+            /** Serial Number */
+            serial_number?: string | null;
             /** Start Block Reason */
             start_block_reason: ("permission_required" | "personal_profile_required" | "gateway_unconfigured" | "gateway_busy" | "gateway_cleanup_pending" | "technician_busy" | "technician_cleanup_pending") | null;
             /** Status */
@@ -1737,11 +1894,15 @@ export interface components {
             display_name?: string | null;
             /** Group Id */
             group_id?: string | null;
+            /** Iccid */
+            iccid?: string | null;
             /**
              * Id
              * Format: uuid
              */
             id: string;
+            /** Imei */
+            imei?: string | null;
             /** Last Seen */
             last_seen: string | null;
             /** Mac Address */
@@ -1753,6 +1914,8 @@ export interface components {
              * @default
              */
             revision: string;
+            /** Serial Number */
+            serial_number?: string | null;
             /** Status */
             status: string;
             /** Vpn Ip */
@@ -1905,6 +2068,35 @@ export interface components {
             auth_mode: "local" | "sso";
             /** Password */
             password?: string | null;
+        };
+        /** AuthorityStatus */
+        AuthorityStatus: {
+            /**
+             * Can Issue Clients
+             * @default false
+             */
+            can_issue_clients: boolean;
+            /** Crl Next Update */
+            crl_next_update: string | null;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Id */
+            id: string;
+            /** Issuance Deadline */
+            issuance_deadline?: string | null;
+            /**
+             * Renewal Due
+             * @default false
+             */
+            renewal_due: boolean;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "root" | "issuing" | "retiring";
         };
         /** BackupCommand */
         BackupCommand: {
@@ -2144,6 +2336,8 @@ export interface components {
             architecture?: string | null;
             /** Build */
             build?: string | null;
+            /** Iccid */
+            iccid?: string | null;
             /** Imei */
             imei?: string | null;
             /** Interface */
@@ -2406,6 +2600,129 @@ export interface components {
             /** Verified */
             verified: boolean;
         };
+        /** EnrollmentApproval */
+        EnrollmentApproval: {
+            /**
+             * Group Id
+             * Format: uuid
+             */
+            group_id: string;
+        };
+        /** EnrollmentBlock */
+        EnrollmentBlock: {
+            /** Reason */
+            reason: string;
+        };
+        /** EnrollmentJob */
+        EnrollmentJob: {
+            /** Can Download */
+            can_download: boolean;
+            /** Configuration Version */
+            configuration_version: number | null;
+            /** Error Code */
+            error_code: string | null;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** State */
+            state: string;
+        };
+        /** EnrollmentManualRequest */
+        EnrollmentManualRequest: {
+            /** Expected Certificate Id */
+            expected_certificate_id?: string | null;
+            /**
+             * Group Id
+             * Format: uuid
+             */
+            group_id: string;
+        };
+        /** EnrollmentResponse */
+        EnrollmentResponse: {
+            /** Activation Mode */
+            activation_mode?: ("sms" | "wifi") | null;
+            /** Approved At */
+            approved_at: string | null;
+            /** Blocked Reason */
+            blocked_reason: string | null;
+            /** Can Resume */
+            can_resume: boolean;
+            /** Completed At */
+            completed_at: string | null;
+            /** Configuration Version */
+            configuration_version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Delivery Mode
+             * @enum {string}
+             */
+            delivery_mode: "automatic" | "manual";
+            /** Display Name */
+            display_name?: string | null;
+            /** External Reference */
+            external_reference: string | null;
+            /** Gateway Id */
+            gateway_id: string | null;
+            /** Group Id */
+            group_id: string | null;
+            /** Iccid */
+            iccid?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Imei */
+            imei?: string | null;
+            job: components["schemas"]["EnrollmentJob"] | null;
+            /** Mac Address */
+            mac_address?: string | null;
+            /** Missing Fields */
+            missing_fields: string[];
+            /** Phone Number */
+            phone_number?: string | null;
+            /** Revision */
+            revision: string;
+            /** Serial Number */
+            serial_number: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "prepared" | "awaiting_approval" | "awaiting_data" | "approved" | "preparing" | "ready" | "completed" | "blocked" | "manual";
+            /** Vpn Ip */
+            vpn_ip: string | null;
+        };
+        /** EnrollmentUpdateRequest */
+        EnrollmentUpdateRequest: {
+            /** Activation Mode */
+            activation_mode?: ("sms" | "wifi") | null;
+            /** Display Name */
+            display_name?: string | null;
+            /** External Reference */
+            external_reference?: string | null;
+            /** Iccid */
+            iccid?: string | null;
+            /** Imei */
+            imei?: string | null;
+            /** Mac Address */
+            mac_address?: string | null;
+            /** Phone Number */
+            phone_number?: string | null;
+            /** Serial Number */
+            serial_number?: string | null;
+        };
         /** ExpirationResponse */
         ExpirationResponse: {
             /** Expired */
@@ -2429,14 +2746,20 @@ export interface components {
             display_name?: string | null;
             /** Group Id */
             group_id?: string | null;
+            /** Iccid */
+            iccid?: string | null;
             /** Id */
             id: string;
+            /** Imei */
+            imei?: string | null;
             /** Last Seen */
             last_seen: string | null;
             /** Mac Address */
             mac_address: string | null;
             /** Phone Number */
             phone_number: string | null;
+            /** Serial Number */
+            serial_number?: string | null;
             /** Start Block Reason */
             start_block_reason: ("permission_required" | "personal_profile_required" | "gateway_unconfigured" | "gateway_busy" | "gateway_cleanup_pending" | "technician_busy" | "technician_cleanup_pending") | null;
             /** Status */
@@ -2489,14 +2812,12 @@ export interface components {
             display_name?: string | null;
             /** Group Id */
             group_id?: string | null;
+            /** Iccid */
+            iccid?: string | null;
             /** Id */
             id: string;
-            /** Lan Address */
-            lan_address: string | null;
-            /** Lan Cidr */
-            lan_cidr: string | null;
-            /** Lan Interface */
-            lan_interface: string | null;
+            /** Imei */
+            imei?: string | null;
             /** Last Seen */
             last_seen: string | null;
             /** Mac Address */
@@ -2539,24 +2860,36 @@ export interface components {
              * Format: uuid
              */
             group_id: string;
-            /** Lan Address */
-            lan_address: string;
-            /** Lan Cidr */
-            lan_cidr: string;
-            /** Lan Interface */
-            lan_interface: string;
+            /** Iccid */
+            iccid?: string | null;
+            /** Imei */
+            imei?: string | null;
             /** Mac Address */
             mac_address?: string | null;
             /** Phone Number */
             phone_number?: string | null;
+            /** Serial Number */
+            serial_number?: string | null;
         };
         /**
          * GatewayUpdateRequest
-         * @description Human-managed label, separate from machine registration and network settings.
+         * @description Inventario delegabile; configurazione operativa riservata a HQ.
          */
         GatewayUpdateRequest: {
+            /** Activation Mode */
+            activation_mode?: ("sms" | "wifi") | null;
             /** Display Name */
-            display_name: string | null;
+            display_name?: string | null;
+            /** Iccid */
+            iccid?: string | null;
+            /** Imei */
+            imei?: string | null;
+            /** Mac Address */
+            mac_address?: string | null;
+            /** Phone Number */
+            phone_number?: string | null;
+            /** Serial Number */
+            serial_number?: string | null;
         };
         /** GroupCreateRequest */
         GroupCreateRequest: {
@@ -2739,6 +3072,34 @@ export interface components {
             /** Samples */
             samples: number;
         };
+        /** PKIStatus */
+        PKIStatus: {
+            /**
+             * Authorities
+             * @default []
+             */
+            authorities: components["schemas"]["AuthorityStatus"][];
+            /**
+             * Crl Valid
+             * @default false
+             */
+            crl_valid: boolean;
+            /**
+             * Observed At
+             * Format: date-time
+             */
+            observed_at: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "not_configured" | "ok" | "error";
+            /**
+             * Valid For Seconds
+             * @default 30
+             */
+            valid_for_seconds: number;
+        };
         /** PasswordChangeRequest */
         PasswordChangeRequest: {
             /** Current Password */
@@ -2771,6 +3132,11 @@ export interface components {
             /** Enabled */
             enabled: boolean;
             /**
+             * Enrollment Pending
+             * @default false
+             */
+            enrollment_pending: boolean;
+            /**
              * Issuer Status
              * @enum {string}
              */
@@ -2781,6 +3147,13 @@ export interface components {
             recent_job: components["schemas"]["JobResponse"] | null;
             /** Registered At */
             registered_at: string | null;
+            /**
+             * Remote Renewal Requested
+             * @default false
+             */
+            remote_renewal_requested: boolean;
+            /** Remote Renewal State */
+            remote_renewal_state?: string | null;
             /** Revocation Pending */
             revocation_pending: boolean;
         };
@@ -2886,6 +3259,7 @@ export interface components {
              * Format: date-time
              */
             observed_at: string;
+            pki: components["schemas"]["PKIStatus"];
             smtp: components["schemas"]["SmtpStatus"];
         };
         /**
@@ -2952,12 +3326,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
-            /** Lan Cidr */
-            lan_cidr: string | null;
             /** Network Ready At */
             network_ready_at: string | null;
-            /** Network Slot */
-            network_slot: number | null;
             /** Requested At */
             requested_at: string | null;
             /** Result */
@@ -3407,7 +3777,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuditLogResponse"][];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -3416,7 +3786,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3461,7 +3831,7 @@ export interface operations {
                     "text/csv": string;
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -3470,8 +3840,482 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_enrollments_api_v1_admin_enrollments_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                state?: ("prepared" | "awaiting_approval" | "awaiting_data" | "approved" | "preparing" | "ready" | "completed" | "blocked" | "manual") | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Total rows after authorization and filters, before pagination. */
+                    "X-Total-Count"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentResponse"][];
+                };
+            };
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    detail_api_v1_admin_enrollments__identifier__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentResponse"];
+                };
+            };
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Resource not found or session not visible to this user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_api_v1_admin_enrollments__identifier__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "if-match"?: string | null;
+            };
+            path: {
+                identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrollmentUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentResponse"];
+                };
+            };
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Resource not found or session not visible to this user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Resource conflict, occupied peers, pending cleanup or incompatible operation. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_api_v1_admin_enrollments__identifier__approve_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "if-match"?: string | null;
+            };
+            path: {
+                identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrollmentApproval"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentResponse"];
+                };
+            };
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Resource not found or session not visible to this user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Resource conflict, occupied peers, pending cleanup or incompatible operation. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    block_api_v1_admin_enrollments__identifier__block_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "if-match"?: string | null;
+            };
+            path: {
+                identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrollmentBlock"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentResponse"];
+                };
+            };
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Resource not found or session not visible to this user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Resource conflict, occupied peers, pending cleanup or incompatible operation. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    manual_api_v1_admin_enrollments__identifier__manual_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "idempotency-key": string;
+                "if-match"?: string | null;
+            };
+            path: {
+                identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrollmentManualRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Resource not found or session not visible to this user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Resource conflict, occupied peers, pending cleanup or incompatible operation. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resume_api_v1_admin_enrollments__identifier__resume_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "if-match"?: string | null;
+            };
+            path: {
+                identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentResponse"];
+                };
+            };
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Resource not found or session not visible to this user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Resource conflict, occupied peers, pending cleanup or incompatible operation. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3518,7 +4362,7 @@ export interface operations {
                     "application/json": components["schemas"]["AdminGatewayCatalogResponse"][];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -3527,7 +4371,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3567,7 +4411,7 @@ export interface operations {
                     "application/json": components["schemas"]["AdminGatewayDetailResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -3576,7 +4420,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3625,7 +4469,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -3634,7 +4478,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3698,7 +4542,7 @@ export interface operations {
                     "application/json": components["schemas"]["AdminGatewaySummaryResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -3707,7 +4551,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3772,7 +4616,7 @@ export interface operations {
                     "application/json": components["schemas"]["AdminDeviceResponse"][];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -3781,7 +4625,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3836,7 +4680,7 @@ export interface operations {
                     "application/json": components["schemas"]["AdminDeviceCreatedResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -3845,7 +4689,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3910,7 +4754,7 @@ export interface operations {
                     "application/json": components["schemas"]["AdminDeviceResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -3919,7 +4763,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3978,7 +4822,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -3987,7 +4831,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4051,7 +4895,7 @@ export interface operations {
                     "application/json": components["schemas"]["AdminGatewaySummaryResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4060,7 +4904,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4120,7 +4964,7 @@ export interface operations {
                     "application/json": components["schemas"]["GroupResponse"][];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4129,7 +4973,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4171,7 +5015,7 @@ export interface operations {
                     "application/json": components["schemas"]["GroupResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4180,7 +5024,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4229,7 +5073,7 @@ export interface operations {
                     "application/json": components["schemas"]["GroupResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4238,7 +5082,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4293,7 +5137,7 @@ export interface operations {
                     "application/json": components["schemas"]["GroupResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4302,7 +5146,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4360,7 +5204,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4369,7 +5213,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4425,7 +5269,7 @@ export interface operations {
                     "application/json": string[];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4434,7 +5278,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4463,7 +5307,7 @@ export interface operations {
                     "application/json": components["schemas"]["ServerStatus"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4472,7 +5316,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4505,7 +5349,7 @@ export interface operations {
                     "application/json": components["schemas"]["SmtpResult"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4514,7 +5358,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4574,7 +5418,7 @@ export interface operations {
                     "application/json": components["schemas"]["AdminSessionListResponse"][];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4583,7 +5427,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4623,7 +5467,7 @@ export interface operations {
                     "application/json": components["schemas"]["AdminSessionResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4632,7 +5476,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4681,7 +5525,7 @@ export interface operations {
                     "application/json": components["schemas"]["AdminSessionCloseResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4690,7 +5534,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4746,7 +5590,7 @@ export interface operations {
                     "application/json": components["schemas"]["StatsResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4755,7 +5599,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4791,7 +5635,7 @@ export interface operations {
                     "application/json": components["schemas"]["UserResponse"][];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4800,7 +5644,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4851,7 +5695,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4860,7 +5704,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4909,7 +5753,7 @@ export interface operations {
                     "application/json": components["schemas"]["UserResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4918,7 +5762,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4973,7 +5817,7 @@ export interface operations {
                     "application/json": components["schemas"]["UserResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4982,7 +5826,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -5049,7 +5893,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -5058,7 +5902,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -5122,7 +5966,7 @@ export interface operations {
                     "application/json": components["schemas"]["UserResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -5131,7 +5975,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -5204,7 +6048,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -5213,7 +6057,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -5271,7 +6115,7 @@ export interface operations {
                     "application/json": components["schemas"]["IdentityResponse"][];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -5280,7 +6124,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -5344,7 +6188,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -5353,7 +6197,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -5421,7 +6265,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -5430,7 +6274,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -5541,6 +6385,15 @@ export interface operations {
                     "application/json": components["schemas"]["EmailChallengeResponse"];
                 };
             };
+            /** @description Invalid or expired challenge, code or browser binding. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
             /** @description Invalid username or password, or an inactive account. */
             401: {
                 headers: {
@@ -5566,6 +6419,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Email verification locked, resend cooldown or sending limit reached. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Email verification or mail delivery is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
                 };
             };
         };
@@ -5592,6 +6463,15 @@ export interface operations {
                     "application/json": components["schemas"]["LoginResponse"];
                 };
             };
+            /** @description Invalid or expired challenge, code or browser binding. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
             /** @description Invalid username or password, or an inactive account. */
             401: {
                 headers: {
@@ -5619,6 +6499,15 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description Email verification locked, resend cooldown or sending limit reached. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
         };
     };
     logout_api_v1_auth_logout_post: {
@@ -5639,7 +6528,7 @@ export interface operations {
                     "application/json": components["schemas"]["LogoutResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -5648,7 +6537,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -5686,7 +6575,7 @@ export interface operations {
                     "application/json": components["schemas"]["CurrentUserResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -5695,7 +6584,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -5730,7 +6619,7 @@ export interface operations {
                     "application/json": components["schemas"]["CurrentUserResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -5739,7 +6628,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -5790,7 +6679,7 @@ export interface operations {
                     "application/json": components["schemas"]["LoginResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -5799,7 +6688,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -5859,7 +6748,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -5868,7 +6757,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6046,7 +6935,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackupStatus"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -6055,7 +6944,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6086,7 +6975,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackupJobResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -6095,7 +6984,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6148,7 +7037,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackupJobResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -6157,7 +7046,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6208,7 +7097,7 @@ export interface operations {
                     "application/json": components["schemas"]["EmailChallengeResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -6217,7 +7106,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6266,7 +7155,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -6275,7 +7164,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6330,7 +7219,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackupJobResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -6339,7 +7228,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6397,7 +7286,7 @@ export interface operations {
                     "application/octet-stream": string;
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -6406,7 +7295,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6468,7 +7357,7 @@ export interface operations {
                     "application/json": components["schemas"]["DeviceResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -6477,7 +7366,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6542,7 +7431,7 @@ export interface operations {
                     "application/json": components["schemas"]["DeviceResponse"][];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -6551,7 +7440,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6608,7 +7497,7 @@ export interface operations {
                     "application/json": components["schemas"]["GatewayCatalogResponse"][];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -6617,7 +7506,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6657,7 +7546,7 @@ export interface operations {
                     "application/json": components["schemas"]["GatewayDetailResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -6666,7 +7555,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6715,7 +7604,7 @@ export interface operations {
                     "application/json": components["schemas"]["SystemView"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -6724,7 +7613,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6786,7 +7675,7 @@ export interface operations {
                     "application/json": components["schemas"]["TechnicalLogView"][];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -6795,7 +7684,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6853,7 +7742,7 @@ export interface operations {
                     "text/csv": string;
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -6862,7 +7751,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6913,7 +7802,7 @@ export interface operations {
                     "application/json": components["schemas"]["GroupResponse"][];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -6922,7 +7811,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6966,7 +7855,7 @@ export interface operations {
                     "application/json": components["schemas"]["JobResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -6975,7 +7864,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7024,7 +7913,7 @@ export interface operations {
                     "application/json": components["schemas"]["JobResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -7033,7 +7922,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7082,7 +7971,7 @@ export interface operations {
                     "application/json": components["schemas"]["JobResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -7091,7 +7980,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7149,7 +8038,7 @@ export interface operations {
                     "application/json": components["schemas"]["JobResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -7158,7 +8047,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7216,7 +8105,7 @@ export interface operations {
                     "application/octet-stream": string;
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -7225,7 +8114,74 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Resource not found or session not visible to this user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Resource conflict, occupied peers, pending cleanup or incompatible operation. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_remote_renewal_api_v1_provisioning_peers_gateway__peer_id__renew_certificate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                peer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisioningState"];
+                };
+            };
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7284,7 +8240,7 @@ export interface operations {
                     "application/json": components["schemas"]["ProvisioningState"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -7293,7 +8249,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7349,7 +8305,7 @@ export interface operations {
                     "application/json": components["schemas"]["JobResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -7358,7 +8314,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7421,7 +8377,7 @@ export interface operations {
                     "application/json": components["schemas"]["ProvisioningState"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -7430,7 +8386,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7497,7 +8453,7 @@ export interface operations {
                     "application/json": components["schemas"]["SessionEventResponse"][];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -7506,7 +8462,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7551,7 +8507,7 @@ export interface operations {
                     "text/csv": string;
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -7560,7 +8516,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7610,7 +8566,7 @@ export interface operations {
                     "application/json": components["schemas"]["SessionListResponse"][];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -7619,7 +8575,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7663,7 +8619,7 @@ export interface operations {
                     "application/json": components["schemas"]["SessionCreateResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -7672,7 +8628,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7708,7 +8664,7 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-            /** @description Session network pool exhausted or no VPN addresses available. */
+            /** @description No VPN addresses available. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -7737,7 +8693,7 @@ export interface operations {
                     "application/json": components["schemas"]["ExpirationResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -7746,7 +8702,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7786,7 +8742,7 @@ export interface operations {
                     "application/json": components["schemas"]["SessionDetailResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -7795,7 +8751,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7844,7 +8800,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -7853,7 +8809,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7911,7 +8867,7 @@ export interface operations {
                     "application/json": components["schemas"]["DiagnosticsResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -7920,7 +8876,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7969,7 +8925,7 @@ export interface operations {
                     "application/json": components["schemas"]["SessionCreateResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -7978,7 +8934,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8049,7 +9005,7 @@ export interface operations {
                     "application/json": components["schemas"]["TelemetryView"][];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -8058,7 +9014,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8098,7 +9054,7 @@ export interface operations {
                     "application/json": components["schemas"]["TelemetryView"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -8107,7 +9063,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8158,7 +9114,7 @@ export interface operations {
                     "application/json": components["schemas"]["TelemetryHistory"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -8167,7 +9123,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8214,7 +9170,7 @@ export interface operations {
                     "application/json": components["schemas"]["TelemetryView"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -8223,7 +9179,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8254,7 +9210,7 @@ export interface operations {
                     "application/json": components["schemas"]["TelemetryHistory"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -8263,7 +9219,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8301,7 +9257,7 @@ export interface operations {
                     "application/json": components["schemas"]["EmailStatus"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -8310,7 +9266,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8343,7 +9299,7 @@ export interface operations {
                     "application/json": components["schemas"]["EmailChallengeResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -8352,7 +9308,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8403,7 +9359,7 @@ export interface operations {
                     "application/json": components["schemas"]["EmailChallengeResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -8412,7 +9368,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8463,7 +9419,7 @@ export interface operations {
                     "application/json": components["schemas"]["EmailChallengeResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -8472,7 +9428,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8523,7 +9479,7 @@ export interface operations {
                     "application/json": components["schemas"]["WebSessionResponse"] | components["schemas"]["EmailChallengeResponse"] | components["schemas"]["EmailComplete"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -8532,7 +9488,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8583,8 +9539,17 @@ export interface operations {
                     "application/json": components["schemas"]["WebSessionResponse"] | components["schemas"]["EmailChallengeResponse"];
                 };
             };
-            /** @description Invalid username or password, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8634,7 +9599,16 @@ export interface operations {
                     "application/json": components["schemas"]["EmailChallengeResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid or expired challenge, code or browser binding. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -8643,7 +9617,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8668,6 +9642,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Email verification locked, resend cooldown or sending limit reached. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Email verification or mail delivery is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
                 };
             };
         };
@@ -8694,7 +9686,16 @@ export interface operations {
                     "application/json": components["schemas"]["WebSessionResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid or expired challenge, code or browser binding. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -8703,7 +9704,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8730,6 +9731,15 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description Email verification locked, resend cooldown or sending limit reached. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
         };
     };
     logout_api_v1_web_logout_post: {
@@ -8750,7 +9760,7 @@ export interface operations {
                     "application/json": components["schemas"]["LogoutResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -8759,7 +9769,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8797,7 +9807,7 @@ export interface operations {
                     "application/json": components["schemas"]["LogoutResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -8806,7 +9816,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8848,7 +9858,7 @@ export interface operations {
                     "application/json": components["schemas"]["WebSessionResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -8857,7 +9867,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8904,7 +9914,7 @@ export interface operations {
                     "application/json": components["schemas"]["WebSessionResponse"];
                 };
             };
-            /** @description Invalid or expired bearer token, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -8913,7 +9923,7 @@ export interface operations {
                     "application/json": components["schemas"]["APIError"];
                 };
             };
-            /** @description Missing or malformed bearer authorization, or insufficient role. */
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8946,8 +9956,17 @@ export interface operations {
                     "application/json": components["schemas"]["SSOStartResponse"];
                 };
             };
-            /** @description Invalid username or password, or an inactive account. */
+            /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Missing or malformed authentication, insufficient permissions, or a failed portal Origin/header/CSRF check. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -10,9 +10,10 @@ configurato. Il provider deve attestare MFA per gli amministratori.
 2. In **Utenti**, creare gli account e assegnare gruppi e permessi. Un utente può
    appartenere a più gruppi. Controllare l'email: serve per il codice di accesso.
 3. In **Gateway → Aggiungi gateway** (oppure **Le mie VPN**), indicare gruppo,
-   modalità SMS/Wi-Fi e rete LAN. Preparare il pacchetto, scaricarlo e attivarlo.
+   modalità SMS/Wi-Fi. La configurazione LAN non è richiesta dalla VPN. Preparare il pacchetto, scaricarlo e attivarlo.
    Far installare le credenziali sul gateway e verificarne la registrazione.
-4. Nella scheda gateway, compilare l'inventario PLC/HMI e controllare la rete.
+4. Nella scheda gateway, compilare l'inventario PLC/HMI e verificare l'IP VPN
+   assegnato dopo la registrazione.
    L'inventario descrive i dispositivi: non ne certifica la raggiungibilità.
 5. Ogni tecnico prepara, scarica e attiva il proprio profilo VPN da **Il mio
    profilo**. L'amministratore non scarica le chiavi private degli altri utenti.
@@ -52,8 +53,9 @@ richieste in attesa, sessioni attive e risorse in pulizia. I conteggi operativi
 portano alla relativa vista **Client VPN**.
 
 **Client VPN** mostra per default le sessioni in corso e quelle con risorse ancora
-riservate. Cercare tecnico, nome/MAC del gateway o UUID della sessione; filtrare
-gruppo e stato. Selezionare **Tutte le sessioni** per consultare quelle terminate.
+riservate. Cercare tecnico, nome o identificativi del gateway (matricola, MAC,
+IMEI, ICCID, telefono o UUID), oppure UUID della sessione; filtrare gruppo e stato.
+Selezionare **Tutte le sessioni** per consultare quelle terminate.
 I filtri rimangono nell'URL e l'elenco si aggiorna ogni cinque secondi.
 
 Ogni riga distingue:
@@ -75,30 +77,117 @@ La chiusura non disabilita l'account e non revoca il suo certificato.
 La vista riguarda le sessioni di assistenza, non i computer su cui è installato
 OpenVPN. Un utente autenticato nel portale può non avere una VPN aperta.
 
+## Durata e continuità dell'assistenza
+
+I valori predefiniti sono **3 ore per la VPN**, dalla richiesta, e **12 ore per
+il login al portale**. Le scadenze non si prolungano con l'attività; il login o
+il provider SSO possono limitare ulteriormente la VPN. Il logout chiude le
+sessioni aperte da quell'accesso.
+
+Un guasto API temporaneo conserva l'autorizzazione di rete già ricevuta, fino a
+**5 minuti dall'ultimo rinnovo riuscito per default**. Ogni errore consuma il
+tempo residuo. Logout e revoca bloccano appena ricevuti; se non possono essere
+ricevuti, il blocco può attendere la scadenza del lease. I 30 secondi dello stato
+**Non verificabile** riguardano solo la freschezza della diagnostica.
+
+L'amministratore del server configura questi tempi nel `.env`; il portale mostra
+le scadenze effettive delle sessioni. Seguire la
+[procedura per durate e reti instabili](DOCKER_GUIDE.md#durate-timeout-e-reti-instabili),
+che distingue lease, timeout HTTP, riconnessione OpenVPN e limiti SSO.
+
 ## Gestire gateway e credenziali
 
-In **Gateway** cercare nome, MAC, telefono o UUID e filtrare gruppo, modalità e
+In **Gateway** e **Le mie VPN** cercare nome, matricola, MAC, IMEI, ICCID, telefono o UUID e filtrare gruppo, modalità e
 disponibilità. **Disponibile** significa libero e configurato, non necessariamente
 online. Un gateway SMS inattivo non invia heartbeat periodici.
 
+Matricola, IMEI e ICCID sono facoltativi, inseribili alla preparazione o dalla
+scheda con **Modifica identificativi** (`gateways.manage`). La matricola, se
+presente, è univoca; MAC, IMEI e ICCID possono appartenere a più gateway. La ricerca
+mostra tutte le corrispondenze nel proprio ambito, anche parziali, senza distinguere
+maiuscole e minuscole. Per i MAC accetta anche trattini, punti o nessun separatore.
+
+IMEI identifica il modem, ICCID la SIM: sono stringhe, conservano gli zeri iniziali
+e non sono credenziali. IMEI accetta 15 cifre; ICCID da 18 a 22. Le letture valide
+inviate dal gateway aggiornano questi due campi; dati assenti, errori o report
+obsoleti non cancellano l'ultimo valore noto. Se il modem non supporta la lettura,
+si possono compilare a mano. La rilevazione dipende dal modem e va collaudata
+sull'hardware; non è un controllo in tempo reale della SIM installata.
+
 La scheda raccoglie rete, inventario, sessione corrente, telemetria e provisioning.
+Per l'accesso al sistema operativo del gateway predisporre SSH sul dispositivo:
+vedere [configurazione](DOCKER_GUIDE.md#ssh-sul-gateway) e
+[uso da parte del tecnico](TECHNICIAN_GUIDE.md#entrare-in-ssh-sul-gateway).
 Cambiare gruppo richiede VPN e pulizia concluse; revoca le credenziali esistenti.
 Preparare e installare un nuovo pacchetto nel gruppo di destinazione.
 Il cambio del solo nome non interrompe le connessioni.
 
+Gli amministratori globali HQ possono usare **Modifica connessione** per correggere
+MAC, modalità SMS/Wi-Fi e numero telefonico. Chiudere prima le sessioni e attendere
+la pulizia. Il salvataggio di una variazione operativa revoca le credenziali
+precedenti: preparare, scaricare, attivare e installare un nuovo ZIP sulla stessa
+identità. L'UUID e l'IP VPN già assegnato restano invariati. Le correzioni di nome,
+matricola, IMEI o ICCID non richiedono questa sostituzione. Il numero SMS rimane
+univoco per l'instradamento dei messaggi.
+
 Disabilitare/eliminare un utente revoca accessi e certificati personali. Riabilitarlo
 richiede un nuovo profilo VPN. Per un incidente su un certificato usare **Revoca**
 nella relativa scheda e verificare la chiusura e il rilascio delle risorse.
-Per un rinnovo, preparare e scaricare il sostituto dallo stesso accesso; chiudere
+I certificati gateway e tecnici durano dieci anni per default; il certificato
+server OpenVPN cinque anni. Per i gateway con agente compatibile usare
+**Richiedi rinnovo remoto**: cambia solo chiave/certificato VPN, conserva API key
+e segreto SMS e attende la fine di sessioni e pulizia prima dell'attivazione.
+L'agente avvia anche il rinnovo autonomo nell'ultimo anno di validità. La richiesta
+anticipata a un gateway SMS inattivo viene rilevata al successivo risveglio.
+Controllare in scheda avanzamento e nuova scadenza; una richiesta non significa
+che il dispositivo abbia già installato il certificato.
+
+Per sostituire manualmente il pacchetto o rinnovare un tecnico, preparare e scaricare il sostituto dallo stesso accesso; chiudere
 le VPN e attendere la pulizia prima di attivarlo. L'attivazione revoca il profilo
 precedente. I download scadono e non sono più disponibili dopo l'attivazione:
 se il file è perso, prepararne uno nuovo.
+Se il gateway ha perso la chiave privata o la credenziale API è revocata, il
+rinnovo remoto non recupera l'identità: revocare le vecchie credenziali e ripetere
+il provisioning. Per CA, CRL e server seguire la
+[manutenzione PKI](DOCKER_GUIDE.md#rotazione-e-manutenzione).
+
+## Arruolamenti di fine linea
+
+La pagina **Arruolamenti** è riservata agli amministratori globali. Mostra i
+dispositivi registrati dalla postazione anche senza connettività o SIM attiva.
+Permette la ricerca per identificativi e dati di inventario e il filtro per stato.
+Un dispositivo preparato ma mai collegato può restare in attesa per mesi: non è
+necessario emettere in anticipo un pacchetto destinato a scadere.
+
+Aprire la pratica, verificare matricola e dati disponibili, scegliere il gruppo
+e usare **Approva e assegna**. Il gateway completa via HTTPS i dati mancanti e
+richiede il pacchetto solo quando è pronto. Per SMS serve il numero internazionale;
+per Wi-Fi il MAC. IMEI e ICCID sono facoltativi. Nessun dato LAN è richiesto.
+Approvazione e consegna non dipendono dalla permanenza della sessione amministrativa.
+
+HQ può correggere i dati o bloccare la pratica con un motivo. Una correzione
+operativa prima del completamento annulla il candidato precedente; una variazione
+di inventario conserva il candidato. Se un altro operatore o il gateway ha
+aggiornato la pratica, ricaricare prima di ripetere la modifica.
+
+Per un intervento locale scegliere la consegna manuale nella pratica: il sistema
+conserva UUID e matricola, annulla il candidato automatico e prepara uno ZIP
+scaricabile dal proprio accesso. Scaricarlo, attivarlo, fermare l'agente, copiare
+entrambi i file e riavviare. Prima dell'attivazione si può riprendere esplicitamente
+l'automatismo, purché il segreto iniziale non sia stato revocato. Dopo il
+completamento usare la normale scheda gateway per le sostituzioni.
+
+**Aggiungi gateway resta disponibile** per creare macchine HQ e di laboratorio
+senza alcuna registrazione di fine linea. Il riepilogo pubblico e i requisiti
+del dispositivo sono nella [prima inizializzazione](gateway/INITIAL_SETUP.md).
+Lo stato completato conferma l'attivazione delle credenziali, non un tunnel:
+verificare registrazione ordinaria e IP VPN, poi una sessione SSH/web di prova.
 
 ## Componenti e log del gateway
 
 Nella scheda, **Componenti e identificativi** mostra versioni dell'agente e di
 OpenVPN, sistema operativo e dati hardware disponibili. Per i gateway SIM l'IMEI
-identifica il modem; per quelli Wi-Fi viene mostrato il MAC dell'interfaccia
+identifica il modem e l'ICCID la SIM; per quelli Wi-Fi viene mostrato il MAC dell'interfaccia
 verificata. **MAC registrato** conserva il dato del provisioning, il cui ruolo
 può essere diverso. Per SMS il MAC è facoltativo; per Wi-Fi resta obbligatorio.
 
