@@ -46,11 +46,16 @@ la sessione e la successiva pulizia. Sono disponibili due modalità, configurate
   senza SIM né modem. L'apertura della VPN dipende dalla richiesta autorizzata sul server.
 
 Durante la sessione entrambi usano heartbeat normalmente ogni 5 secondi, configurabili.
-Il tecnico avvia il proprio profilo OpenVPN quando il gateway è pronto. La sessione diventa `ACTIVE`
-solo dopo la verifica di entrambi i client e la configurazione della rete.
+Il tecnico avvia il proprio profilo OpenVPN quando il gateway è pronto. Il worker
+verifica entrambi i peer, prepara la rete bloccata e ne comunica la prontezza
+all'API, che registra `ACTIVE`. Solo dopo la conferma API abilita il lease del
+firewall server. Lo stato registrato non sostituisce la verifica del traffico
+effettivo e delle osservazioni recenti nella diagnostica.
 
 Il modello **Gateway Only** permette al tecnico assegnato di raggiungere il solo
-IP VPN fisso del gateway, sulle porte TCP **22 (SSH), 80 (HTTP), 443 (HTTPS)**.
+IP VPN fisso del gateway, senza filtri VPN su porte o protocolli IPv4: per esempio
+SSH, web anche su porte personalizzate, UDP e ping ICMP. Il traffico è bidirezionale
+solo fra i due peer della sessione autorizzata.
 La LAN non viene instradata: niente IPIP, namespace di sessione o NAT nel gateway.
 Le autorizzazioni nel firewall scadono entro 5 minuti senza rinnovo per default,
 anche se API, worker o agente si fermano. Durate e timeout sono configurabili nel
@@ -65,8 +70,11 @@ restano configurati sul suo computer. Per operare sulle reti raggiungibili
 dal gateway, entra in [SSH sul suo IP VPN fisso](documentation/TECHNICIAN_GUIDE.md#entrare-in-ssh-sul-gateway)
 con un account Linux del dispositivo. La shell usa le rotte correnti del gateway,
 comprese quelle aggiunte durante l'intervento.
-I servizi SSH e web, gli account Linux e i certificati HTTPS del servizio web
-devono essere predisposti sul dispositivo.
+I servizi devono essere predisposti sul dispositivo e ascoltare sull'IP VPN
+(o su tutte le interfacce); il firewall locale può limitarli. Per SSH servono
+account Linux del gateway, per HTTPS certificati attendibili del servizio web.
+È un accesso IP al gateway: non estende Ethernet o la LAN del cliente al PC
+e non trasporta discovery broadcast.
 
 Una sessione chiusa/scaduta mantiene le proprie risorse riservate fino alla
 conferma di pulizia del worker. Un secondo accesso sullo stesso utente o gateway
@@ -97,6 +105,13 @@ viene inviato a una rete telefonica.
 
 ## Verifiche
 
+Preparare l'ambiente Python della [guida di installazione](documentation/DOCKER_GUIDE.md#preparazione)
+e aggiungere le dipendenze di sviluppo dalla radice dei sorgenti:
+
+```bash
+.venv/bin/python -m pip install -e '.[dev]'
+```
+
 Per eseguire tutta la suite, compresi i test PostgreSQL, con Docker attivo:
 
 ```bash
@@ -112,10 +127,10 @@ Accetta anche argomenti pytest, per esempio
 Per la suite senza database oppure con un database di test già disponibile:
 
 ```bash
-pytest -q
-ruff check api gateway-agent session-worker factoryvpn_common scripts tests migrations docker/openvpn/entrypoint.py
+.venv/bin/pytest -q
+.venv/bin/ruff check api gateway-agent session-worker factoryvpn_common scripts tests migrations docker/openvpn/entrypoint.py
 # URL di un database di test: vengono creati e rimossi schemi isolati.
-FACTORYVPN_TEST_DATABASE_URL=postgresql+asyncpg://user:password@localhost/test_db pytest -q
+FACTORYVPN_TEST_DATABASE_URL=postgresql+asyncpg://user:password@localhost/test_db .venv/bin/pytest -q
 ```
 
 Il test di rete richiede un container Linux temporaneo con privilegi per creare
@@ -126,7 +141,8 @@ docker build -f docker/Dockerfile.network --target test -t factoryvpn-network-te
 docker run --rm --privileged --network none -e FACTORYVPN_NETWORK_TEST=1 factoryvpn-network-test
 ```
 
-Il test esercita SSH, HTTP e HTTPS reali, LAN diretta negata, split tunnel,
+Il test esercita SSH, HTTP anche su porta 8080, HTTPS, UDP e ping ICMP,
+traffico bidirezionale fra i peer autorizzati, LAN diretta negata, split tunnel,
 Internet locale simulato, chiusura indipendente e scadenza delle autorizzazioni
 nel kernel anche sull'output SSH. Verifica inoltre che i guasti API temporanei
 non prolunghino il lease già installato.
@@ -138,8 +154,9 @@ insieme, con due gateway e LAN simulate. I test locali non sostituiscono i
 
 - [Guide operative essenziali](documentation/README.md): installazione, amministratore,
   tecnico, backup e risoluzione dei problemi.
-- Per gli sviluppatori gateway: [prima inizializzazione](documentation/gateway/INITIAL_SETUP.md)
-  e [rinnovo remoto dei certificati](documentation/gateway/CERTIFICATE_RENEWAL.md).
+- Per gli sviluppatori gateway: [prima inizializzazione](documentation/gateway/INITIAL_SETUP.md),
+  [protocollo operativo](documentation/gateway/RUNTIME_PROTOCOL.md) e
+  [rinnovo remoto dei certificati](documentation/gateway/CERTIFICATE_RENEWAL.md).
 - [Sito statico e pubblicazione](website/README.md), [OpenAPI](website/dist/api/openapi.json).
 
 ## Licenza

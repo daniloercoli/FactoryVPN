@@ -20,7 +20,11 @@ Il worker deve restare una singola istanza per server OpenVPN.
 ## Preparazione
 
 Servono un server Linux con Docker Compose, Python 3.12, DNS e orologio
-sincronizzato. Dalla cartella del repository:
+sincronizzato e il dispositivo `/dev/net/tun`. Usare una directory dedicata e
+un database nuovo. Eseguire bootstrap, PKI online e coordinatore backup con lo
+stesso account Linux, autorizzato a usare Docker. Non cambiare account fra questi
+passaggi: i container API ed emettitore useranno i suoi UID/GID.
+Dalla cartella del repository:
 
 ```bash
 python3 -m venv .venv
@@ -36,6 +40,11 @@ in `.env` l'origin HTTPS `PORTAL_PUBLIC_URL`, `OPENVPN_SERVER_HOST` e la porta
 ### Root offline e Sub-CA del server
 
 La chiave root viene creata su una macchina offline e non deve entrare nel server.
+Prima di scollegare quella macchina, predisporvi la stessa versione dei sorgenti,
+Python e l'ambiente `.venv` con `requirements.txt`; non serve Docker. Nei terminali
+di entrambe le macchine attivare il rispettivo ambiente Python e operare dalla
+cartella dei sorgenti. Il supporto della root deve essere cifrato e già montato;
+la cartella di trasferimento è separata e non contiene chiavi private.
 Questi comandi usano tre cartelle: `root-offline` soltanto sulla macchina offline,
 `.runtime` sul server e una cartella di trasferimento contenente solo dati pubblici.
 I nomi dei file CSR sono restituiti dal comando `prepare`.
@@ -95,6 +104,35 @@ si può usare `curl --cacert .runtime/https/cert.pem https://vpn.example.com/hea
 non disattivare la verifica TLS. Conservare i backup descritti nella
 [guida di recupero](BACKUP_RESTORE.md).
 
+### Installare l'identità HTTPS
+
+Prima del primo avvio, procurarsi un certificato valido per il dominio scelto e
+la chiave corrispondente: `fullchain.pem` contiene il certificato del dominio
+seguito dagli intermedi; `privkey.pem` è una chiave PEM utilizzabile senza
+passphrase interattiva. Dalla cartella dei sorgenti, con i file in una directory
+privata di ricezione, sostituire i percorsi seguenti:
+
+```bash
+openssl x509 -in /percorso/protetto/fullchain.pem -noout -dates -ext subjectAltName -checkhost vpn.example.com
+openssl x509 -in /percorso/protetto/fullchain.pem -pubkey -noout | openssl pkey -pubin -outform DER | sha256sum
+openssl pkey -in /percorso/protetto/privkey.pem -pubout -outform DER | sha256sum
+```
+
+Procedere soltanto se dominio e validità sono corretti e i due hash coincidono:
+
+```bash
+install -m 0600 /percorso/protetto/fullchain.pem .runtime/https/cert.pem
+install -m 0600 /percorso/protetto/privkey.pem .runtime/https/key.pem
+```
+
+Adattare `.runtime` se è stato scelto un altro `FACTORYVPN_RUNTIME_DIR`. Nginx usa
+questi percorsi; la PKI VPN resta distinta. Se la CA HTTPS è privata, predisporne
+la fiducia nei browser e nei gateway, con il bundle pubblico della CA.
+Su host con SELinux, etichettare i mount per l'accesso dei container mantenendo
+i permessi privati. Per una sostituzione su un server già avviato, applicare prima
+la [manutenzione del servizio](#applicare-modifiche-al-server) e ricreare API/Nginx
+come indicato nella sezione seguente.
+
 ## Certificati nello Stato server
 
 Il Compose monta nell'API soltanto i PEM pubblici `https/cert.pem`,
@@ -115,16 +153,21 @@ CRL, distingue root/Sub-CA emittente/Sub-CA precedenti e mostra il termine per
 emettere client con l'intera durata configurata. Pianifica la nuova Sub-CA almeno
 un anno prima di quel termine. La sezione non è un sistema di notifiche esterne.
 
-Dopo un rinnovo, applicare il certificato al servizio interessato. Se il PEM è
-stato sostituito atomicamente, ricreare anche l'API perché Docker aggiorni i
-bind mount dei singoli file:
+Dopo un rinnovo HTTPS, in una finestra senza VPN e con coordinatore backup fermo,
+installare i nuovi PEM e ricreare API e Nginx. L'API rilegge i bind mount dei
+singoli file, anche dopo una sostituzione atomica; Nginx carica il certificato e
+risolve nuovamente l'indirizzo dell'API ricreata:
 
 ```bash
-docker compose up -d --no-deps --force-recreate api
+docker compose up -d --no-deps --force-recreate --wait api
+docker compose up -d --no-deps --force-recreate --wait nginx
 ```
 
 La ricreazione interrompe brevemente le richieste API. Aggiornare **Stato server**
-e verificare nuova scadenza e impronta; collaudare separatamente HTTPS/OpenVPN.
+e verificare nuova scadenza e impronta; verificare HTTPS effettivamente servito
+prima di riavviare il coordinatore. Per i certificati VPN seguire invece il
+[rinnovo di server e Sub-CA](#rinnovare-server-e-sub-ca), che coordina anche OpenVPN
+e il worker. Se si ricrea l'API per aggiornare un PEM pubblico, ricreare poi Nginx.
 Non rigenerare la CA come semplice rinnovo del certificato HTTPS.
 
 ## Server SMTP locale
@@ -144,6 +187,9 @@ SMTP_CA_FILE=
 `EMAIL_CODE_KEY` è generata dal bootstrap, indipendente da JWT e dalle chiavi di
 backup. Non copiarla in documenti o repository. Un’installazione senza questa
 chiave (almeno 32 caratteri) o senza mittente/host non può inviare i codici.
+Nel `.env`, racchiudere fra virgolette singole le password che contengono `$`,
+per evitarne l'interpolazione; un apostrofo interno si scrive `\'`.
+Modificare le righe esistenti senza duplicare le chiavi.
 
 Modalità disponibili: `starttls` (predefinita, TLS richiesto), `tls` (TLS implicito,
 solitamente porta 465), `plain` (solo per relay fidato su rete protetta).
@@ -158,6 +204,8 @@ server di posta o un servizio nella rete Docker. Se il relay gira sull’host, u
 un indirizzo raggiungibile dai container; su Linux `host.docker.internal` richiede
 un mapping `host-gateway` nello stesso file Compose. Conservare queste modifiche
 nel file usato anche dal coordinatore backup: il recupero non carica override esterni.
+Custodire separatamente l'eventuale CA SMTP e la modifica del Compose: il backup
+applicativo non contiene questi file; predisporli prima del recupero su un nuovo server.
 
 Il server SMTP reale e la consegna alle caselle aziendali vanno collaudati
 nell’installazione: i test automatici usano un sink che non inoltra messaggi.
@@ -168,9 +216,15 @@ Dopo aver configurato HTTPS e SMTP:
 
 ```sh
 docker compose config --quiet
-docker compose up --build -d
+docker compose up --build -d --wait
 docker compose exec api python -m scripts.create_admin admin --email admin@azienda.example
 ```
+
+Se `up --wait` fallisce, controllare `docker compose ps -a` e i log prima di
+creare l'amministratore. Verificare il servizio con
+`curl --fail --show-error https://vpn.example.com/health`: deve restituire
+`{"status":"ready"}`. Con una CA privata aggiungere `--cacert` seguito dal suo
+bundle pubblico; il certificato web non viene validato dalla CA VPN.
 
 L'API inizializza lo schema PostgreSQL prima dell'avvio. L'amministratore viene
 creato con password richiesta da terminale (12–128 caratteri); il comando rifiuta
@@ -226,7 +280,8 @@ se necessario, `mfa_request_acr` soltanto con valori verificati sul provider.
 Il semplice successo del login non attesta MFA. Le operazioni sensibili richiedono
 anche un'autenticazione recente attestata dal provider.
 
-Ricreare API e worker dopo aver aggiornato la configurazione. Dal portale un
+Applicare la [manutenzione del server](#applicare-modifiche-al-server) dopo aver
+aggiornato la configurazione. Dal portale un
 amministratore globale collega esplicitamente il provider e il `sub` all'account
 FactoryVPN e ne imposta il metodo di accesso SSO. Email e gruppi esterni non
 creano account né assegnano permessi. Conservare un amministratore locale attivo
@@ -301,8 +356,9 @@ guasto. Il traffico Internet del tecnico resta sulla sua connessione abituale.
 
 **Dove applicare i valori.** Preparare il `.env` prima del primo avvio Compose.
 I servizi leggono l'ambiente alla partenza: una modifica successiva richiede la
-ricreazione dei container interessati (`docker compose up -d --build`); durante
-un'assistenza, riavviare OpenVPN o il worker può interrompere il collegamento.
+[ricreazione coordinata dei container](#applicare-modifiche-al-server);
+`restart` da solo non rilegge il `.env`. Durante un'assistenza, riavviare OpenVPN
+o il worker può interrompere il collegamento.
 La nuova durata VPN/login vale per le nuove sessioni, non modifica le scadenze
 salvate. Il lease viene concesso dall'API e ricevuto da worker e gateway: non va
 impostato separatamente sul dispositivo.
@@ -369,8 +425,12 @@ separatamente: non è previsto un aggiornamento incrementale dei dati esistenti.
 Per usare il gateway da terminale, predisporre un server SSH nel sistema operativo
 del dispositivo, un account autorizzato e la relativa chiave/password. Il servizio
 deve ascoltare sull’IP VPN fisso (o su tutte le interfacce) e il firewall locale
-deve consentire TCP 22 dalla VPN. Per il web predisporre HTTP 80 e/o HTTPS 443.
-Il firewall FactoryVPN consente solo queste tre porte al tecnico assegnato. Non occorre pubblicare una porta SSH su Internet.
+deve consentire la porta configurata, normalmente TCP 22 per SSH. HTTP 80 e HTTPS
+443 sono altri esempi: FactoryVPN non filtra porte o protocolli IPv4 fra i due
+peer autorizzati. Sono raggiungibili anche servizi su porte personalizzate, UDP
+e ping ICMP, secondo la configurazione dei servizi e dei firewall locali.
+Il traffico è bidirezionale solo per la coppia assegnata e durante il lease della
+sessione. Non occorre pubblicare una porta SSH su Internet.
 
 L'agente FactoryVPN non installa né avvia SSH e non gestisce gli account Linux.
 Configurare il servizio secondo la distribuzione utilizzata e verificare
@@ -380,6 +440,7 @@ FactoryVPN sono separate dalle credenziali SSH del gateway.
 La VPN del tecnico riceve la rotta `/32` verso l’IP VPN fisso del gateway; nessuna
 rotta LAN, Internet predefinita o impostazione DNS viene inviata. Le reti del cliente si possono
 ispezionare dalla shell SSH sul gateway, usando le rotte già presenti sul dispositivo.
+È accesso IP al gateway, senza ponte Ethernet, estensione LAN o discovery broadcast.
 I passaggi operativi sono nella [guida del tecnico](TECHNICIAN_GUIDE.md#entrare-in-ssh-sul-gateway).
 
 ## Agente Linux
@@ -493,9 +554,38 @@ Il flusso completo e il recupero in caso di guasto sono descritti in
   backup protetti. Cambiare quest'ultima senza ricifrare i dati rende indisponibili
   i segreti SMS esistenti. Non rigenerarla a ogni riavvio.
 - Rotazione chiave worker: impostare il nuovo valore in `.env` e ricreare API,
-  OpenVPN, worker ed emettitore insieme.
+  OpenVPN, worker, emettitore e Nginx con la procedura seguente.
 - Se si cambia `POSTGRES_PASSWORD` dopo la prima installazione, impostare anche
   la password del ruolo PostgreSQL: l'immagine non la cambia in un volume esistente.
+
+### Applicare modifiche al server
+
+Prima di modificare `.env`, runtime o immagini, chiudere le VPN e attendere il
+rilascio delle risorse. Attendere anche il completamento delle operazioni di
+backup e fermare il coordinatore. Se è gestito dall'unità distribuita, un
+amministratore dell'host usa `sudo systemctl stop factoryvpn-backup`; se gira
+in primo piano, interromperlo dal suo terminale. Non avviare due coordinatori.
+
+Applicare le modifiche, poi dalla directory dell'installazione e con l'account
+del bootstrap:
+
+```bash
+docker compose config --quiet
+docker compose up -d --force-recreate --wait
+docker compose ps -a
+```
+
+Se sono cambiati i sorgenti aggiungere `--build` a `up`. La ricreazione congiunta
+fa risolvere a Nginx il nuovo indirizzo dell'API e collega `session-worker` al
+namespace OpenVPN corrente. Non ricreare soltanto OpenVPN lasciando il worker
+nel vecchio namespace. Attendere la riuscita e verificare `/health` e login;
+quindi riavviare il coordinatore con il suo gestore (`sudo systemctl start
+factoryvpn-backup` per systemd). Se un comando fallisce, fermarsi e leggere i log.
+
+Per il normale arresto usare `docker compose stop` dopo avere fermato il
+coordinatore; per riprendere usare `docker compose up -d --wait`, poi riavviare
+il coordinatore. Non cambiare nome del progetto Compose. **`down -v` elimina
+anche il volume PostgreSQL** e non è un comando di manutenzione ordinaria.
 
 ### Rinnovare la CRL root
 
@@ -512,7 +602,7 @@ Aggiornare le copie offline e trasferire **solo** `root.crl` al server:
 python -m scripts.pki --directory .runtime import-crl --crl /trasferimento/root.crl
 ```
 
-Il worker ripubblica il bundle completo al ciclo successivo; verificare lo Stato
+`provisioning-worker` ripubblica il bundle completo al ciclo successivo; verificare lo Stato
 server. Le CRL vecchie o firmate da root estranee vengono rifiutate. Il breve
 intervallo fra importazione e pubblicazione può rifiutare nuove connessioni.
 Non cancellare il bundle per azzerare le revoche o i contatori.
@@ -521,29 +611,32 @@ Non cancellare il bundle per azzerare le revoche o i contatori.
 
 Per la Sub-CA ripetere `prepare`, firma `sign` offline e `import` della cerimonia
 iniziale. La precedente passa a `retiring`: conservarne certificato, chiave e CRL
-finché tutti i certificati emessi sono scaduti. Il worker mantiene le CRL di tutti
+finché tutti i certificati emessi sono scaduti. `provisioning-worker` mantiene le CRL di tutti
 gli emettitori ancora validi. Non sovrascrivere chiavi e certificati a mano.
 
 Il server OpenVPN si rinnova in manutenzione, prima dei suoi cinque anni:
-chiudere le VPN dal portale, attendere la pulizia e fermare i servizi indicati.
+chiudere le VPN dal portale, attendere la pulizia e fermare il coordinatore backup
+secondo la [procedura sopra](#applicare-modifiche-al-server), poi i servizi indicati.
 Il comando genera una nuova chiave e un certificato di 1825 giorni.
 
 ```sh
-docker compose stop openvpn session-worker provisioning-worker
+docker compose stop session-worker openvpn provisioning-worker
 python -m scripts.bootstrap renew-server --services-stopped
 docker compose run --rm --no-deps provisioning-worker python -m scripts.backup_publish_crl
-docker compose up -d --force-recreate openvpn session-worker provisioning-worker api
+docker compose up -d --force-recreate --wait
 ```
 
 `--services-stopped` attesta la manutenzione eseguita dall'operatore: il comando
 non ferma Docker. Se si interrompe una sostituzione, tenere i servizi fermi e
-rieseguire il rinnovo completo prima di avviarli. Fare una copia server dopo ogni
+rieseguire il rinnovo completo prima di avviarli. Verificare il nuovo certificato
+servito e una VPN, quindi riavviare il coordinatore. Fare una copia server dopo ogni
 importazione CA o rinnovo server. Il cambio Sub-CA sotto la stessa root non richiede
 di reinstallare i vecchi profili client.
 
 Il ricambio ordinario della root richiede una transizione: importare una Sub-CA
-firmata dalla nuova root e, con OpenVPN fermo, eseguire
-`python -m scripts.bootstrap refresh-server-trust --services-stopped` per accettare
+firmata dalla nuova root e ripetere la sequenza di manutenzione sopra, sostituendo
+il solo comando di rinnovo con
+`python -m scripts.bootstrap refresh-server-trust --services-stopped`, per accettare
 entrambi i rami **mantenendo il certificato server precedente**. Rinnovare i gateway
 via HTTPS e consegnare i profili aggiornati ai tecnici; verificare la distribuzione
 prima di rinnovare il server sotto la nuova root. I gateway rimasti offline devono
@@ -582,7 +675,8 @@ Registrare versione, data ed esito dei controlli nell'ambiente di destinazione:
 3. Con due gruppi distinti, verificare che utenti e delegati vedano soltanto
    gateway, sessioni, log ed esportazioni consentiti.
 4. Eseguire provisioning, attivazione, rinnovo e revoca su gateway reali. Provare
-   SMS e Wi-Fi, client tecnico e SSH/HTTP/HTTPS all’IP VPN fisso; verificare
+   SMS e Wi-Fi, client tecnico, SSH/HTTP/HTTPS, una porta TCP personalizzata, UDP
+   e ping ICMP all’IP VPN fisso. Verificare il traffico in entrambe le direzioni,
    il blocco della LAN diretta e degli altri gateway. Provare dalla shell del gateway
    l’accesso alle reti locali e Internet sulla connessione del tecnico.
 5. Verificare chiusura, logout, scadenza e rilascio delle risorse. In una finestra

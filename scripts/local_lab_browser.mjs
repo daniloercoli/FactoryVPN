@@ -124,15 +124,16 @@ try {
   await expect(
     page.getByRole("heading", { name: "VPN attiva", exact: true }),
   ).toBeVisible({ timeout: 60_000 });
-  for (const protocol of ["tcp", "https"])
+  for (const protocol of ["tcp", "https", "tcp-alt", "gateway-udp"])
     assert.equal(peer("query", protocol), "site1");
-  assert.equal(peer("query", "udp"), "blocked");
+  assert.equal(peer("query", "icmp"), "reachable");
+  assert.equal(peer("query", "lan-udp"), "blocked");
   await page.screenshot({
     path: fileURLToPath(new URL("portal-active.png", labDir)),
     fullPage: true,
   });
   console.log(
-    "PASS: browser opens a real VPN; actual HTTP and HTTPS gateway traffic returns site1",
+    "PASS: browser opens a real VPN; gateway HTTP/HTTPS/TCP8080/UDP9000 and ICMP pass; LAN stays blocked",
   );
   await page
     .getByRole("button", { name: "Chiudi sessione", exact: true })
@@ -143,10 +144,17 @@ try {
   await expect(
     page.getByText("Risorse rilasciate.", { exact: false }),
   ).toBeVisible({ timeout: 60_000 });
-  for (const protocol of ["tcp", "https"])
+  for (const protocol of [
+    "tcp",
+    "https",
+    "tcp-alt",
+    "gateway-udp",
+    "icmp",
+    "lan-udp",
+  ])
     assert.equal(peer("query", protocol), "blocked");
   console.log(
-    "PASS: browser closes the VPN; real HTTP and HTTPS traffic is blocked after cleanup",
+    "PASS: browser closes the VPN; gateway TCP/UDP/ICMP traffic is blocked after cleanup",
   );
   writeFileSync(
     new URL("browser-report.json", labDir),
@@ -161,7 +169,7 @@ try {
             : []),
           "gateway ready",
           "real VPN ACTIVE",
-          "HTTP/HTTPS site1",
+          "HTTP/HTTPS/TCP8080/UDP9000 site1 and ICMP reachable; direct LAN denied",
           "portal close",
           "traffic blocked",
         ],

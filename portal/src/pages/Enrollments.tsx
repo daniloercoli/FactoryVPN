@@ -448,7 +448,7 @@ function EnrollmentCard({ id }: { id: string }) {
         </div>
         <p>
           Questo stato riguarda la preparazione e la consegna del pacchetto. Per
-          usare SSH o web sul gateway occorre poi aprire una sessione VPN
+          raggiungere i servizi del gateway occorre poi aprire una sessione VPN
           autorizzata.
         </p>
         {incomplete && (

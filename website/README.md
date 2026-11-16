@@ -17,8 +17,8 @@ Swagger UI fetches the local JSON specification.
 
 - `/` — product, assistance flow and custom connector integration.
 - `/developers.html` — authentication, examples, lifecycle, errors and client guidance.
-- `/developers.html#gateway-setup` — factory enrollment, manual ZIP setup and gateway firmware contracts.
-- `/developers.html#network-scope` — split tunnel, local Internet, SSH and web on the gateway's fixed VPN IP.
+- `/developers.html#gateway-setup` — factory enrollment, manual ZIP setup, VPN/HTTPS trust and subsequent certificate renewal.
+- `/developers.html#network-scope` — split tunnel, local Internet and access to services on the gateway's fixed VPN IP.
 - `/developers.html#timing` — VPN/login durations, temporary API failures and lease limits.
 - `/api/` — read-only Swagger UI.
 - `/api/openapi.json` — downloadable customer OpenAPI 3.1 contract.
@@ -49,7 +49,9 @@ The full API schema is still available directly from FastAPI at `/openapi.json`.
 ## Keep public guidance aligned
 
 The gateway setup section follows the [initial setup guide](../documentation/gateway/INITIAL_SETUP.md)
-and [factory enrollment contract](../documentation/gateway/FACTORY_ENROLLMENT.md).
+and [factory enrollment contract](../documentation/gateway/FACTORY_ENROLLMENT.md),
+with runtime activation and network enforcement in the [gateway runtime contract](../documentation/gateway/RUNTIME_PROTOCOL.md),
+and subsequent renewals in the [gateway renewal contract](../documentation/gateway/CERTIFICATE_RENEWAL.md).
 Those files ship with the source distribution and are not served from `dist/`.
 
 The HTML pages are maintained directly; regenerating OpenAPI does not update
@@ -59,6 +61,11 @@ the homepage, developer guide, [repository README](../README.md) and
 defaults against [.env.example](../.env.example) and the code that consumes them.
 The [installation guide](../documentation/DOCKER_GUIDE.md#durate-timeout-e-reti-instabili)
 is the operator reference for configuration and applying changes.
+
+Check the four copyable shell examples in `developers.html`: login, session
+creation, readiness and closure. Keep closure in its own block so copying a
+readiness check cannot close the session. Preserve the same idempotency key and
+request body when demonstrating a retry.
 
 Validate local links and section anchors in the served `dist/` tree, including
 Swagger UI and its JSON download, at desktop and mobile widths. Operator guides

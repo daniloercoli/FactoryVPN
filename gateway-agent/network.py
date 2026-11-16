@@ -1,7 +1,6 @@
 """Accesso ai servizi del gateway; nessun inoltro della LAN nella VPN."""
 
 from factoryvpn_common.network import (
-    GATEWAY_PORTS,
     SessionNetwork,
     interface_name,
     lease_ttl,
@@ -17,19 +16,20 @@ class NetworkManager:
     def configure_session(self, spec: SessionNetwork, vpn_interface="tun0", lease_seconds=30):
         vpn_interface = interface_name(vpn_interface)
         ttl = lease_ttl(lease_seconds)
-        ports = ", ".join(map(str, GATEWAY_PORTS))
-        # La scadenza controlla anche le risposte di connessioni già aperte.
+        # La coppia autorizzata comunica in entrambe le direzioni, senza filtri
+        # di porte/protocolli. Ogni pacchetto resta soggetto al lease, anche se
+        # appartiene a una connessione già aperta. La LAN non viene inoltrata.
         replace_table(
             self.run,
             "factoryvpn_gateway",
             f"""
  set technician {{ type ipv4_addr; flags timeout; elements = {{ {spec.technician_ip} timeout {ttl}s }}; }}
  chain input {{ type filter hook input priority -10; policy accept;
-  iifname "{vpn_interface}" ip saddr @technician ip daddr {spec.gateway_ip} tcp dport {{ {ports} }} ct state new,established accept
+  iifname "{vpn_interface}" ip saddr @technician ip daddr {spec.gateway_ip} accept
   iifname "{vpn_interface}" drop
  }}
  chain output {{ type filter hook output priority -10; policy accept;
-  oifname "{vpn_interface}" ip saddr {spec.gateway_ip} ip daddr @technician tcp sport {{ {ports} }} ct state established accept
+  oifname "{vpn_interface}" ip saddr {spec.gateway_ip} ip daddr @technician accept
   oifname "{vpn_interface}" drop
  }}
  chain forward {{ type filter hook forward priority -10; policy accept;

@@ -1,4 +1,4 @@
-"""Contratto Gateway Only: indirizzi, porte e lease senza reti cliente."""
+"""Contratto Gateway Only: coppie IPv4 e lease, senza filtri di porte o reti cliente."""
 
 from uuid import UUID
 from unittest.mock import Mock, AsyncMock
@@ -53,7 +53,11 @@ def test_firewall_snapshot_does_not_renew_existing_leases(load_script):
     assert "timeout " not in script
     assert f"add set inet factoryvpn_support {a.lease_set}" not in script
     assert f"add set inet factoryvpn_support {b.lease_set}" in script
-    assert "tcp dport { 22, 80, 443 }" in script
+    for session in (a, b):
+        assert f"ip saddr . ip daddr @{session.lease_set} accept" in script
+        assert f"ip daddr . ip saddr @{session.lease_set} accept" in script
+    assert 'iifname "tun0" drop' in script and 'oifname "tun0" drop' in script
+    assert not any(restriction in script for restriction in ("dport", "sport", "ct state"))
     manager.ensure(b, renew=False)
     assert runner.call_args.kwargs["input"] == script
     manager.ensure(b, 7)
@@ -67,8 +71,10 @@ def test_gateway_only_local_services_and_both_directions_expire(load_script):
     manager = load_script("gateway-agent", "network").NetworkManager(runner=runner)
     manager.configure_session(spec(), lease_seconds=7)
     policy = runner.call_args.kwargs["input"]
-    assert "timeout 7s" in policy and "tcp dport { 22, 80, 443 }" in policy
-    assert "ip daddr @technician tcp sport { 22, 80, 443 } ct state established" in policy
+    assert "timeout 7s" in policy
+    assert f"ip saddr @technician ip daddr {spec().gateway_ip} accept" in policy
+    assert f"ip saddr {spec().gateway_ip} ip daddr @technician accept" in policy
+    assert not any(restriction in policy for restriction in ("dport", "sport", "ct state"))
     forward = policy.split("chain forward")[1]
     assert "accept\n" not in forward
     assert "masquerade" not in policy and "eth0" not in policy

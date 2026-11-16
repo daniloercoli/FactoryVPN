@@ -28,6 +28,9 @@ L'archivio non è una copia completa del
 restano quelli del server di destinazione, come i parametri SMTP. Conservare la
 configurazione dell'installazione in modo protetto e ricontrollare
 [durate e timeout](DOCKER_GUIDE.md#durate-timeout-e-reti-instabili) dopo il recupero.
+Non sono inclusi eventuali bundle CA SMTP, personalizzazioni di `docker-compose.yml`
+o unità systemd. Conservarli separatamente e predisporli sul nuovo server prima
+del recupero: un percorso CA presente nel `.env` non ricrea il file o il suo mount.
 I `gateway.env` già installati sui dispositivi non vengono aggiornati dal ripristino.
 
 Il primo rilascio usa un archivio locale e file scaricabili per una copia esterna.
@@ -38,7 +41,7 @@ istante arbitrario tramite WAL non sono inclusi.
 
 Il coordinatore gira sull'host Linux con Docker Compose e Python 3.12, utilizzando
 le dipendenze di `requirements.txt`. L'API **non** riceve socket Docker, chiave di
-recupero o accesso alla CA. L'account che esegue il coordinatore controlla lo stack
+recupero o chiavi private delle CA. L'account che esegue il coordinatore controlla lo stack
 Docker e va trattato come amministratore dell'installazione.
 
 Nella directory dell'installazione, dopo il bootstrap di `.env` e `.runtime` e
@@ -68,12 +71,28 @@ inserirla nell'archivio, nel repository o nella configurazione dell'API.
 Avviare lo stack e il coordinatore:
 
 ```sh
-docker compose up -d --build
+docker compose up -d --build --wait
 .venv/bin/python -m scripts.backup_coordinator serve
 ```
 
+`serve` rimane in primo piano: il terminale va lasciato aperto. Per gestire il
+servizio anche dopo la chiusura della sessione o il riavvio dell'host usare systemd.
 Il modello `deploy/factoryvpn-backup.service` permette la gestione con systemd;
-adattare percorso, account e gruppo Docker prima di installarlo. Il coordinatore
+adattare `User`, `Group`, `SupplementaryGroups`, `WorkingDirectory`, `ExecStart`
+e `ReadWritePaths` ai percorsi e all'account del bootstrap. Dopo avere interrotto
+l'eventuale `serve` in primo piano, un amministratore dell'host lo installa dalla
+cartella dei sorgenti:
+
+```sh
+sudo install -m 0644 deploy/factoryvpn-backup.service /etc/systemd/system/factoryvpn-backup.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now factoryvpn-backup
+sudo systemctl status factoryvpn-backup --no-pager
+```
+
+Lo stato deve essere `active (running)`; in caso contrario leggere
+`sudo journalctl -u factoryvpn-backup -n 80 --no-pager`.
+Il coordinatore
 controlla sempre il progetto indicato da `COMPOSE_PROJECT_NAME` in `.env`, oppure
 `factoryvpn`. Non usare override Compose esterni al file dell'installazione: i
 comandi di recupero utilizzano esplicitamente quel file e quella configurazione.
@@ -193,11 +212,19 @@ non viene dichiarato successo. Eventi e job restano nel catalogo esterno al data
 
 ## Recupero da console
 
-Per riprendere un recupero interrotto quando il portale è indisponibile:
+Per riprendere un recupero interrotto quando il portale è indisponibile, fermare
+prima l'eventuale coordinatore già in esecuzione: un amministratore dell'host usa
+`sudo systemctl stop factoryvpn-backup` se è gestito da systemd. Poi, con lo
+stesso account del bootstrap e dalla directory dell'installazione:
 
 ```sh
 .venv/bin/python -m scripts.backup_coordinator recover
 ```
+
+Il comando usa lo stesso lock esclusivo del servizio: non eseguirli insieme.
+Dopo il recupero riuscito riavviare il coordinatore con il gestore configurato;
+se fallisce, conservare catalogo e journal e leggere l'errore senza rimuovere
+la manutenzione a mano.
 
 In caso di perdita dell'intero server, predisporre una nuova installazione della
 stessa versione. Preparare `.env` e runtime dall'archivio autenticato, senza
@@ -211,8 +238,8 @@ database/API, mantenendo OpenVPN e worker spenti:
 # Configurare .env (origini/porte originali e SMTP), verificare HTTPS e CRL root.
 .venv/bin/python -m scripts.backup_coordinator init --recovery-key-file /percorso/protetto/recovery.key
 docker compose build
-docker compose up -d --no-deps db
-docker compose up -d --no-deps api
+docker compose up -d --no-deps --wait db
+docker compose up -d --no-deps --wait api
 .venv/bin/python -m scripts.backup_coordinator restore-file --archive /percorso/protetto/copia.fvbackup
 ```
 
@@ -222,6 +249,9 @@ vecchi account e revoca le credenziali VPN/gateway recuperate. L'amministratore 
 riconvalidare gli accessi e ripetere il provisioning. Il recupero da console non
 presuppone che un vecchio backup rappresenti autorizzazioni ancora valide.
 Il rinnovo automatico dei certificati non aggira questa revoca di API key e identità.
+Dopo il successo completare i controlli sotto e avviare il coordinatore come
+descritto nell'[installazione](#installazione); `restore-file` termina al termine
+del recupero e non lascia un servizio backup in esecuzione.
 
 ## Copie della root offline
 

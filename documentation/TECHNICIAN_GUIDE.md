@@ -13,8 +13,11 @@
    del provider è distinta dalla conferma del gateway; per Wi-Fi il gateway
    acquisisce la richiesta al successivo controllo periodico.
 5. Quando il gateway è pronto, avviare manualmente il profilo OpenVPN. Il portale
-   attende entrambi i client e la configurazione della rete di assistenza.
-6. Collegarsi in SSH o web all’IP VPN fisso del gateway. Dalla sua shell verificare
+   attende entrambi i client e la preparazione della rete di assistenza.
+   Attendere **VPN attiva** e controllare le osservazioni recenti in **Diagnostica**:
+   lo stato da solo non prova la raggiungibilità del servizio.
+6. Raggiungere i servizi all’IP VPN fisso del gateway, per esempio SSH o web.
+   Dalla sua shell verificare
    la raggiungibilità del PLC con gli strumenti disponibili sul dispositivo.
    Il solo stato VPN non prova che il PLC risponda né registra le modifiche al PLC.
 7. Al termine premere **Chiudi sessione**, confermare e attendere il rilascio.
@@ -33,11 +36,18 @@ del login: non c'è un rinnovo automatico della durata della VPN.
 
 ## Entrare in SSH sul gateway
 
-FactoryVPN usa **Gateway Only**: la VPN autorizza soltanto l’IP VPN fisso del gateway
-sulle porte TCP 22 (SSH), 80 (HTTP) e 443 (HTTPS).
+FactoryVPN usa **Gateway Only**: il tecnico raggiunge i servizi esposti sull’IP VPN
+fisso del gateway. Non ci sono filtri VPN su porte o protocolli IPv4: sono ammessi
+TCP anche su porte personalizzate, UDP e ping ICMP. Il traffico è bidirezionale
+solo fra tecnico e gateway assegnati, per la durata dell'autorizzazione di sessione
+e del relativo lease di rete.
 Non cambia la rotta predefinita Internet, i DNS o la configurazione IPv6 del
 computer del tecnico. La navigazione e le altre applicazioni continuano a usare
 la connessione abituale. La LAN del cliente non viene instradata sul PC.
+
+L'analogia con un collegamento via cavo riguarda l'accesso IP al solo gateway:
+non è un ponte Ethernet, non estende la LAN e non consente la discovery broadcast
+dei dispositivi. Gli altri gateway restano isolati.
 
 Dopo aver aperto la sessione e collegato OpenVPN, leggere **Indirizzo VPN fisso**
 nella sua scheda. Se è `10.100.0.2`, dal terminale del proprio PC:
@@ -49,13 +59,14 @@ ssh nomeutente@10.100.0.2
 Usare un account e una chiave/password del sistema Linux del gateway, forniti
 dall'amministratore del dispositivo. FactoryVPN non crea account SSH: il servizio
 deve essere abilitato come descritto nei [prerequisiti](DOCKER_GUIDE.md#ssh-sul-gateway).
-Per il web aprire `http://10.100.0.2` o `https://10.100.0.2` (sostituire l’IP
-con quello della scheda). Servizi e credenziali devono essere predisposti sul
-gateway. Per HTTPS usare un certificato attendibile e coerente con il nome/IP
-del servizio; la VPN non sostituisce la verifica del certificato web.
-Il ping e le altre porte, comprese le porte web diverse da 80/443, non sono
-consentiti attraverso la VPN. Per verificare l'accesso provare SSH o il servizio
-web predisposto sul gateway.
+Per il web aprire `http://10.100.0.2` o `https://10.100.0.2`, oppure una porta
+personalizzata come `http://10.100.0.2:8080` (sostituire l’IP con quello della
+scheda e la porta con quella del servizio). Si possono usare anche servizi UDP
+e `ping 10.100.0.2`. Servizi e credenziali devono essere predisposti sul gateway;
+i servizi devono ascoltare sull'IP VPN o su tutte le interfacce. Il firewall locale
+del gateway o del PC può limitare le connessioni e le risposte al ping.
+Per HTTPS usare un certificato attendibile e coerente con il nome/IP del servizio;
+la VPN non sostituisce la verifica del certificato web.
 
 Una volta dentro SSH, questi comandi vengono eseguiti **sul gateway**:
 

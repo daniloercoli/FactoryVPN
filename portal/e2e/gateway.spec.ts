@@ -128,7 +128,9 @@ test("gateway card links from lists, edits inventory with revisions, filters and
   await expect(
     page.getByRole("heading", { name: "Pressa Nord", exact: true, level: 1 }),
   ).toBeVisible();
-  await expect(page.getByRole("region", { name: "Stato e rete del gateway" })).toContainText("SSH (22), HTTP (80), HTTPS (443)");
+  await expect(
+    page.getByRole("region", { name: "Stato e rete del gateway" }),
+  ).toContainText("Qualsiasi servizio sull’IP VPN");
   await expect(page.getByText("Rete LAN", { exact: true })).toHaveCount(0);
   await expect(
     page.getByRole("region", { name: "Telemetria del gateway" }),

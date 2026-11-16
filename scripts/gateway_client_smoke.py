@@ -28,12 +28,15 @@ def main(root=ROOT / ".factoryvpn-simulator"):
         return lab.docker("exec", "-T", "peers", "python", "-c", code, *args).decode().strip()
 
     def traffic(number, expected):
-        for protocol in ("tcp", "https"):
+        for protocol in ("tcp", "https", "tcp-alt", "gateway-udp"):
             observed = lab.peer("query", number, protocol)
             if observed != expected:
                 raise RuntimeError(f"Site {number} {protocol}: expected {expected}, got {observed}")
 
-        assert lab.peer("query", number, "udp") == "blocked", "Direct LAN access"
+        assert lab.peer("query", number, "icmp") == (
+            "blocked" if expected == "blocked" else "reachable"
+        )
+        assert lab.peer("query", number, "lan-udp") == "blocked", "Direct LAN access"
 
     def vpn_pids(namespace):
         return json.loads(

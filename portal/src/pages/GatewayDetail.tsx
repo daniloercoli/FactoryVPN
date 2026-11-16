@@ -101,7 +101,7 @@ function GatewayCard({ id }: { id: string }) {
     ["ICCID SIM", g.iccid || "Non registrato"],
     ["Telefono", g.phone_number || "Non configurato"],
     ["Indirizzo VPN fisso", g.vpn_ip || "Non assegnato"],
-    ["Servizi VPN", "SSH (22), HTTP (80), HTTPS (443)"],
+    ["Servizi VPN", "Qualsiasi servizio sull’IP VPN"],
     [
       "Stato dichiarato",
       (
@@ -119,7 +119,7 @@ function GatewayCard({ id }: { id: string }) {
     <>
       <PageTitle
         title={g.display_name || g.mac_address || g.id}
-        description="Scheda gateway · accesso SSH e web, assistenza e inventario"
+        description="Scheda gateway · servizi, assistenza e inventario"
         back="/vpn"
         action={
           <button
@@ -160,6 +160,12 @@ function GatewayCard({ id }: { id: string }) {
             </div>
           ))}
         </dl>
+        <p className="muted">
+          Durante la sessione puoi raggiungere i servizi del gateway, anche su
+          porte personalizzate, via TCP o UDP, e usare il ping. I servizi devono
+          ascoltare sull’IP VPN; il firewall del dispositivo può limitarli. La
+          LAN non viene estesa al tuo PC.
+        </p>
         <p className="page-note mono">ID: {g.id}</p>
         {auth.can("gateways.manage") && <GatewaySettings gateway={g} />}
         {auth.user?.is_admin && <GatewayConnection gateway={g} />}

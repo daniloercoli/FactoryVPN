@@ -376,14 +376,17 @@ class Lab:
             print("PASS: " + label, flush=True)
 
         def traffic(number, expected):
-            for protocol in ("tcp", "https"):
+            for protocol in ("tcp", "https", "tcp-alt", "gateway-udp"):
                 observed = self.peer("query", number, protocol)
                 if observed != expected:
                     raise RuntimeError(
                         f"{protocol} site {number}: expected {expected}, got {observed}"
                     )
 
-            assert self.peer("query", number, "udp") == "blocked", "Direct LAN access"
+            assert self.peer("query", number, "icmp") == (
+                "blocked" if expected == "blocked" else "reachable"
+            )
+            assert self.peer("query", number, "lan-udp") == "blocked", "Direct LAN access"
 
         try:
             for number, client in enumerate(clients, 1):
@@ -396,7 +399,7 @@ class Lab:
                 self.connect(client, number)
                 traffic(number, f"site{number}")
             record(
-                "Two real OpenVPN sessions reach HTTP/HTTPS on their gateway IP; direct LAN denied"
+                "Two real OpenVPN sessions reach HTTP/HTTPS/TCP8080/UDP9000/ICMP on their gateway IP; direct LAN denied"
             )
             if self.state.get("simulator"):
                 record("SMS waits for manual delivery and modem ACK; Wi-Fi starts without SMS")
@@ -766,7 +769,14 @@ def main(root=LAB, *, simulator=False):
         lab.peer(args.action, args.site)
         print("Linux OpenVPN client: " + args.action.removeprefix("client-"))
     elif args.action == "query":
-        for protocol, label in (("tcp", "HTTP"), ("https", "HTTPS"), ("udp", "LAN UDP")):
+        for protocol, label in (
+            ("tcp", "HTTP"),
+            ("https", "HTTPS"),
+            ("tcp-alt", "HTTP 8080"),
+            ("gateway-udp", "Gateway UDP"),
+            ("icmp", "ICMP"),
+            ("lan-udp", "LAN UDP"),
+        ):
             print(label + ": " + lab.peer("query", args.site, protocol))
     elif args.action in ("connect", "disconnect"):
         credentials = json.loads((root / "credentials.json").read_text())

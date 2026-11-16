@@ -1,7 +1,7 @@
 """Firewall Gateway Only: coppie autorizzate con lease conservati nel kernel."""
 
 import json
-from factoryvpn_common.network import GATEWAY_PORTS, interface_name, lease_ttl, replace_table, run
+from factoryvpn_common.network import interface_name, lease_ttl, replace_table, run
 
 
 class FirewallManager:
@@ -16,14 +16,13 @@ class FirewallManager:
         replace_table(self.run, self.table, self._chains([]))
 
     def _chains(self, sessions):
-        ports = ", ".join(map(str, GATEWAY_PORTS))
         rules = []
         for spec in sessions:
             pair = spec.lease_set
             rules.extend(
                 [
-                    f'iifname "{self.vpn_interface}" oifname "{self.vpn_interface}" ip saddr . ip daddr @{pair} tcp dport {{ {ports} }} ct state new,established accept',
-                    f'iifname "{self.vpn_interface}" oifname "{self.vpn_interface}" ip daddr . ip saddr @{pair} tcp sport {{ {ports} }} ct state established accept',
+                    f'iifname "{self.vpn_interface}" oifname "{self.vpn_interface}" ip saddr . ip daddr @{pair} accept',
+                    f'iifname "{self.vpn_interface}" oifname "{self.vpn_interface}" ip daddr . ip saddr @{pair} accept',
                 ]
             )
         rules += [f'iifname "{self.vpn_interface}" drop', f'oifname "{self.vpn_interface}" drop']

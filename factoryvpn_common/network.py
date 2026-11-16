@@ -1,4 +1,4 @@
-"""Indirizzi VPN e servizi autorizzati delle sessioni Gateway Only."""
+"""Indirizzi VPN e coppie autorizzate delle sessioni Gateway Only."""
 
 from dataclasses import asdict, dataclass
 from ipaddress import IPv4Address, IPv4Network
@@ -8,7 +8,6 @@ from uuid import UUID
 from factoryvpn_common.timing import MAX_LEASE_SECONDS
 
 VPN_NETWORK = IPv4Network("10.100.0.0/16")
-GATEWAY_PORTS = (22, 80, 443)
 VPN_SERVER_IP = "10.100.0.1"
 
 

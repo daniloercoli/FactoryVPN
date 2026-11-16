@@ -136,8 +136,10 @@ Idempotency-Key: <lo stesso UUID per tutti i retry di questa richiesta>
 }
 ```
 
-La CSR deve essere P-256 e lunga al massimo 16384 byte; l'API limita anche il campo
-testuale. Generare un nuovo UUID solo per una nuova operazione, mai per un timeout.
+La CSR deve essere P-256, lunga 100–16384 caratteri e al massimo 16384 byte.
+I body JSON di questo protocollo rifiutano campi extra; il campo `signature`
+richiede 8–512 caratteri base64. Generare un nuovo UUID solo per una nuova
+operazione, mai per un timeout.
 Stesso UUID con CSR o certificato precedente differenti produce `409`.
 Il limite è **10 nuove richieste per gateway in 24 ore**. Una sola sostituzione può
 essere pendente, condividendo il vincolo con il provisioning umano.
@@ -200,11 +202,13 @@ Il worker firma la CSR e porta lo stato a `ready`. `bundle` contiene:
 La nuova chiave privata non compare nel bundle. Prima dell'attivazione verificare:
 
 - corrispondenza della chiave pubblica client con la nuova chiave locale;
-- CN esatto `gateway-<UUID proprio>`, `CA=false`, `digitalSignature`, EKU `clientAuth`;
+- CN esatto `gateway-<UUID proprio>`, `CA=false`, `digitalSignature`, EKU esclusivamente `clientAuth`;
 - impronte SHA-256 calcolate sul DER del certificato, non sui byte PEM;
-- firme root → Sub-CA → client, root auto-firmate, CA/KeyUsage appropriati e
-  `pathLen=1` per root, `pathLen=0` per Sub-CA;
-- validità temporale di tutti i livelli e scadenza client non successiva a quella
+- da 1 a 32 root auto-firmate, firme root → Sub-CA → client; chiavi CA P-256,
+  BasicConstraints e KeyUsage critiche, `CA=true`, `keyCertSign`, `cRLSign`,
+  `pathLen=1` per root e `pathLen=0` per Sub-CA; una sola root deve corrispondere
+  all'emettitore della Sub-CA;
+- validità temporale della catena scelta e scadenza client non successiva a quella
   dell'emettitore, a sua volta non successiva alla root;
 - generazione di fiducia intera e **non inferiore** a quella già installata.
 
@@ -330,8 +334,9 @@ il protocollo richiede ECDSA/SHA-256 del messaggio, non un doppio hash.
 |---|---|
 | Timeout/errore di rete o `5xx` | Conservare journal e chiavi; backoff e stesso UUID. Dopo una possibile attivazione rileggere prima lo stato. |
 | `401` | API key non valida/revocata: non aggirare il blocco con altri account. Segnalare necessità di provisioning. |
-| `403` su `submit`/`activate` | Prova di possesso errata: controllare chiave, byte e DER; non attivare. |
+| `403` su `submit`/`activate`/`confirm` | Prova di possesso errata: controllare chiave, byte e DER; non avanzare. |
 | `404` | Richiesta assente/non più accessibile, anche dopo cambio identità/gruppo: non installare il bundle conservato senza riconciliazione. |
+| `409` su stato/creazione/`submit` | Certificato non idoneo, registrazione incompleta, sostituzione pendente, idempotenza diversa o challenge scaduta: rileggere lo stato e riconciliare il journal; non cambiare UUID alla cieca. |
 | `409` su `activate` | Rileggere lo stato; se ancora `ready`, attendere fine sessione/pulizia. Un conflitto di generazione non autorizza un rollback. |
 | `422` | JSON/UUID/CSR/firma fuori contratto: correggere il client; evitare tentativi ciechi. |
 | `429` | Limite giornaliero raggiunto; rallentare i retry, senza generare nuove chiavi a ogni tentativo. |

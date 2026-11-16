@@ -4,7 +4,9 @@ Versione del protocollo API: **v1**.
 Questa guida è destinata agli sviluppatori del firmware o dell'agente gateway.
 Riassume i due percorsi di inizializzazione e la conferma iniziale via HTTPS. Per rinnovare
 successivamente il certificato senza accesso locale, implementare anche il
-[protocollo di rinnovo](CERTIFICATE_RENEWAL.md).
+[protocollo di rinnovo](CERTIFICATE_RENEWAL.md). Il
+[protocollo operativo](RUNTIME_PROTOCOL.md) definisce SMS, polling, heartbeat,
+OpenVPN e autorizzazione del traffico dopo il primo avvio.
 
 ## Due percorsi, la stessa identità operativa
 
@@ -74,6 +76,10 @@ registrazione via HTTPS come descritto sotto.
   identità al riavvio e non usare IMEI o MAC come sostituti dell'UUID.
 - Configurare modem e accesso dati per la modalità SMS, oppure accesso di rete
   per la modalità Wi-Fi. L'agente non configura APN, PPP/WWAN o la rete wireless.
+- Per l'agente Linux servono OpenVPN compatibile con il profilo consegnato,
+  `/dev/net/tun`, iproute2 e nftables con set a scadenza. Il processo deve poter
+  gestire tunnel, firewall e modem; il servizio distribuito usa root.
+  Conservare configurazione, profilo e journal su memoria persistente scrivibile.
 
 ## Registrazione HTTPS
 
@@ -153,11 +159,16 @@ Non aggirare un rifiuto generando UUID o credenziali nuovi sul dispositivo.
 La registrazione non apre né collauda il tunnel. Il gateway attende la richiesta
 di una sessione autorizzata: SMS firmato in modalità SMS, controllo HTTPS in
 modalità Wi-Fi. Durante la sessione l'agente gestisce OpenVPN, heartbeat e regole
-di rete. I comportamenti operativi sono nella [guida dell'agente](../DOCKER_GUIDE.md#agente-linux);
-l'implementazione è in [main.py](../../gateway-agent/main.py).
+di rete secondo il [protocollo operativo del firmware](RUNTIME_PROTOCOL.md).
+La [guida dell'agente](../DOCKER_GUIDE.md#agente-linux) descrive l'installazione
+Linux; l'implementazione è in [main.py](../../gateway-agent/main.py).
 
-Completare una sessione di prova dal portale e verificare la raggiungibilità
-di SSH e web sull’IP VPN fisso (TCP 22/80/443), con servizi predisposti nel firmware.
+Completare una sessione di prova dal portale e verificare i servizi predisposti
+nel firmware sull’IP VPN fisso: per esempio SSH, web anche su porte personalizzate,
+UDP e ping ICMP. La VPN non filtra porte o protocolli IPv4 fra i due peer
+autorizzati; il traffico è bidirezionale e subordinato al lease della sessione.
+I servizi devono ascoltare sull'IP VPN o su tutte le interfacce, con accesso
+consentito dai firewall locali. Non c'è ponte Ethernet né discovery broadcast.
 La LAN è accessibile solo operando dalla shell del gateway. Il cambio di LAN non
 richiede un nuovo pacchetto VPN. Per i rinnovi successivi usare esclusivamente il
 [contratto dei certificati](CERTIFICATE_RENEWAL.md): il rinnovo mantiene UUID,

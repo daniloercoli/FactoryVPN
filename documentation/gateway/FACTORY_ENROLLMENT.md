@@ -23,9 +23,13 @@ di distanza. La prima connessione e il download non richiedono un tunnel VPN:
 sono richieste HTTPS in uscita sulla connessione mobile/Wi-Fi del dispositivo.
 L'IP della SIM e la LAN del cliente non vanno comunicati al server.
 
-La VPN permette TCP 22/80/443 sul solo IP VPN del gateway. SSH e servizi web,
-account del sistema operativo, APN, DNS, orologio e connettività sono predisposti
-nel firmware/sistema operativo. L'arruolamento non li installa né li collauda.
+La VPN consente traffico IPv4 bidirezionale fra i due peer autorizzati durante
+il lease della sessione, senza filtri su porte o protocolli: per esempio SSH,
+web, UDP e ping ICMP sul solo IP VPN del gateway. I servizi devono ascoltare
+su quell'IP o su tutte le interfacce; i firewall locali possono limitarli.
+Non estende la LAN né trasporta discovery broadcast. Servizi, account del sistema
+operativo, APN, DNS, orologio e connettività sono predisposti nel firmware/sistema
+operativo. L'arruolamento non li installa né li collauda.
 
 ## Abilitare una postazione sul server
 
@@ -199,6 +203,19 @@ Telefono in formato internazionale `+` e 10–15 cifre; MAC a sei coppie esadeci
 separate da `:` o `-`; IMEI di 15 cifre; ICCID di 18–22 cifre, conservando gli zeri.
 Campi extra sono rifiutati. Inviare solo dati realmente disponibili.
 
+`secret_hash` è SHA-256 dei byte UTF-8 del **testo esatto** che il gateway invierà
+in `X-Enrollment-Key`, non dei byte casuali prima della codifica. La CLI genera
+quel testo con `secrets.token_urlsafe(32)`; l'API accetta chiavi di 32–256 caratteri.
+Un retry della postazione riusa `Idempotency-Key` e body originali; una chiave
+idempotente già usata con un body diverso restituisce `409`.
+
+Nel `PUT` un campo omesso rimane invariato; `null` è invece una richiesta di
+cancellazione. Per nome/telefono/MAC/IMEI/ICCID anche la stringa vuota viene
+normalizzata a `null`. Una configurazione operativa già materializzata deve
+continuare a rispettare i requisiti SMS/Wi-Fi: non inviare valori vuoti al posto
+di letture hardware fallite. `configuration_version` può cambiare dopo modifiche
+operative o assegnazione del gruppo: rileggere lo stato prima di chiedere il pacchetto.
+
 La risposta di stato contiene `id`, eventuale `gateway_id` operativo, `vpn_ip`,
 anagrafica, `group_id`, `state`, `delivery_mode`, `configuration_version`,
 `revision`, date, `blocked_reason`, `missing_fields`, `can_resume` e `job`.
@@ -208,6 +225,25 @@ Gli stati sono `prepared`, `awaiting_approval`, `awaiting_data`, `approved`,
 `preparing`, `ready`, `completed`, `blocked`, `manual`.
 `completed` indica attivazione delle credenziali: non prova un tunnel attivo.
 
+| Stato osservato | Azione del firmware |
+|---|---|
+| `prepared`, `awaiting_approval` | Presentare i dati disponibili e attendere HQ, senza creare altre identità. |
+| `awaiting_data` | Completare i campi in `missing_fields`, poi rileggere lo stato. |
+| `approved` | Richiedere `/package` con la versione corrente. |
+| `preparing` | Attendere lo stesso job; ripetere `/package` non ne crea un altro mentre è valido. |
+| `ready` | Scaricare solo se `job.can_download` è vero e le versioni coincidono; installare e confermare quel job. |
+| `manual` | Lasciare la consegna a HQ; verificare un'eventuale coppia manuale già installata con la registrazione ordinaria. |
+| `blocked`, `completed` | Sono visibili a HQ/postazione; la credenziale iniziale bloccata o consumata riceve normalmente `401`, anche sul GET di stato. |
+
+Per un installatore proprio, limitare il ZIP e ciascun file a 256 KiB e accettare
+solo `gateway.env`, `gateway.ovpn`, `LEGGIMI.txt`, senza estrarre percorsi arbitrari.
+Verificare UUID/origin, dati operativi e versione contro lo stato ricevuto;
+verificare certificato, chiave e catena del profilo come nel
+[contratto PKI](CERTIFICATE_RENEWAL.md#4-attendere-e-verificare-il-bundle-pubblico).
+Il file `.env` è configurazione, non uno script da eseguire. Salvare journal e
+nuova coppia con `0600`, scritture atomiche e `fsync` prima di `/confirm`.
+Non avviare OpenVPN con un candidato non ancora attivato o superato da HQ.
+
 Alla conferma riuscita il server risponde con `activated: true`, `gateway_id`
 e `configuration_version`. Attivazione e consumo del segreto iniziale sono
 atomici. Se la risposta si perde, provare la registrazione ordinaria con i file
@@ -216,8 +252,9 @@ ritentare la conferma iniziale; un `409` operativo richiede verifica HQ.
 
 | Esito | Gestione |
 |---|---|
-| Timeout, errore di rete, `5xx` | Conservare identità e journal; ritentare con attesa crescente. |
+| Timeout, errore di rete, `408`, `5xx` | Conservare identità e journal; ritentare con attesa crescente. |
 | `401`/`403` | Credenziale errata, consumata/revocata o accesso non consentito. Non generare un'identità nuova. |
+| `404` | Identità o job assente/non accessibile; verificare UUID e candidato con HQ, senza ricreare l'identità. |
 | `409` | Conflitto di identità/idempotenza oppure candidato/configurazione/stato superati. Rileggere lo stato; non attivare una versione diversa. |
 | `422` | Correggere dati o formato della richiesta. |
 | `429` | Rispettare `Retry-After`; evitare cicli serrati. |
@@ -226,6 +263,11 @@ Un solo candidato pendente per gateway; la finestra è
 `PROVISIONING_DOWNLOAD_MINUTES` (default 15 minuti dalla richiesta).
 Il job nasce quando il dispositivo è pronto, non mentre è offline in magazzino.
 Alla scadenza si può richiedere un nuovo candidato dopo rivalidazione.
+Se `/confirm` restituisce `409`, i file del candidato non autorizzano la VPN:
+rileggere lo stato e riprendere la consegna della versione valida. Conservare
+sempre la stessa identità; il journal del candidato superato non deve continuare
+a reinstallarlo. Per una conferma dalla risposta persa usare prima la verifica
+operativa descritta sopra, senza presumere che sia fallita.
 Limiti predefiniti: 60 richieste/minuto per postazione, 30 per gateway,
 6 nuovi pacchetti/ora per gateway e almeno 60 secondi tra nuovi candidati.
 
@@ -254,3 +296,7 @@ L'autoarruolamento senza registrazione a fine linea resta un'evoluzione futura.
 Questa prima implementazione usa il percorso semplice di identità predisposta,
 approvazione amministrativa e consegna individuale; non prevede codici di
 abbinamento, attestazione hardware o creazione autonoma di identità sconosciute.
+
+Dopo il completamento implementare il [protocollo operativo](RUNTIME_PROTOCOL.md)
+e il [rinnovo dei certificati](CERTIFICATE_RENEWAL.md): il solo arruolamento non
+gestisce attivazione, heartbeat o scadenza del traffico.
