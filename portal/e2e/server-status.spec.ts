@@ -1,3 +1,4 @@
+import { appName } from "./branding";
 import { execFileSync } from "node:child_process";
 import { completeEmail } from "./email";
 import { test, expect, type Page } from "./fixtures";
@@ -34,7 +35,7 @@ test("server operational states expire during a stalled refresh even with a back
     await route.continue();
   });
   await page.goto("/app/server");
-  const api = page.getByRole("row").filter({ hasText: "API FactoryVPN" });
+  const api = page.getByRole("row").filter({ hasText: `API ${appName}` });
   await expect(api).toContainText("Operativo");
   hold = true;
   await page.clock.setSystemTime(new Date("2020-01-01T00:00:00Z"));

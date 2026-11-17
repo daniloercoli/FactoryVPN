@@ -10,6 +10,7 @@ import {
   type BackupStatus,
 } from "../api/client";
 import { useAuth } from "../auth";
+import { APP_NAME } from "../branding";
 import {
   Badge,
   Confirm,
@@ -165,7 +166,7 @@ function BackupManagement() {
     <>
       <PageTitle
         title="Backup e ripristino"
-        description="Proteggi dati, configurazione e credenziali dell’intera installazione FactoryVPN."
+        description={`Proteggi dati, configurazione e credenziali dell’intera installazione ${APP_NAME}.`}
         action={
           <button
             className="button"
@@ -262,7 +263,7 @@ function BackupManagement() {
                 <section className="card padded">
                   <h2>Importa un backup</h2>
                   <p>
-                    Carica un archivio FactoryVPN cifrato di questa
+                    Carica un archivio {APP_NAME} cifrato di questa
                     installazione. L’importazione verifica il file senza
                     sostituire i dati in uso.
                   </p>

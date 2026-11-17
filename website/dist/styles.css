@@ -20,6 +20,7 @@ html {
 }
 
 body {
+  overflow-wrap:anywhere;
   margin:0;
   color:var(--ink);
   background:#fff;
@@ -109,7 +110,13 @@ code {
   font-size:1.35rem;
   font-weight:750;
   letter-spacing:-.055em;
-  white-space:nowrap;
+  min-width:0;
+  max-width:100%;
+}
+
+.brand-name {
+  min-width:0;
+  overflow-wrap:anywhere;
 }
 
 .brand-light {
@@ -117,6 +124,7 @@ code {
 }
 
 .brand-mark {
+  flex-shrink:0;
   height:33px;
   width:33px;
   background:var(--blue);
@@ -328,6 +336,9 @@ code {
 .diagram-core strong {
   font-size:1.5rem;
   letter-spacing:-.04em;
+  max-width:100%;
+  overflow-wrap:anywhere;
+  text-align:center;
 }
 
 .diagram-core>span:last-child {
@@ -1130,4 +1141,3 @@ code {
 .reference-shell .swagger-ui .authorization__btn {
   display:none;
 }
-

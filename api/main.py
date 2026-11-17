@@ -7,8 +7,14 @@ from fastapi.responses import JSONResponse
 import asyncio
 from contextlib import asynccontextmanager
 from contextlib import suppress
-from fastapi import FastAPI
+from html import escape
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import (
+    get_redoc_html,
+    get_swagger_ui_html,
+    get_swagger_ui_oauth2_redirect_html,
+)
 from api.middleware.logging import LoggingMiddleware
 from api.middleware.observation_body import ObservationBodyLimit
 from api.routers import auth, sessions, gateways, devices, admin, internal, groups
@@ -31,7 +37,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
-    logger.info("FactoryVPN API starting up...")
+    logger.info("%s API starting up...", settings.APP_NAME)
     await init_db()
     from api.db.session import async_session_maker
     from api.services.sso_service import maintenance_loop
@@ -55,15 +61,49 @@ async def lifespan(app: FastAPI):
         with suppress(asyncio.CancelledError):
             await task
     # Shutdown
-    logger.info("FactoryVPN API shutting down...")
+    logger.info("%s API shutting down...", settings.APP_NAME)
 
 
 app = FastAPI(
-    title="FactoryVPN API",
-    description="FactoryVPN industrial VPN API for remote machine assistance",
+    title=f"{settings.APP_NAME} API",
+    description=f"{settings.APP_NAME} industrial VPN API for remote machine assistance",
     version="2.0.0",
     lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None,
 )
+
+
+async def swagger_docs(request: Request):
+    # FastAPI's HTML helpers interpolate the title verbatim; the display label
+    # remains plain text in OpenAPI and is escaped only for these HTML pages.
+    root_path = request.scope.get("root_path", "").rstrip("/")
+    redirect_url = app.swagger_ui_oauth2_redirect_url
+    return get_swagger_ui_html(
+        openapi_url=root_path + app.openapi_url,
+        title=escape(app.title + " - Swagger UI"),
+        oauth2_redirect_url=root_path + redirect_url if redirect_url else None,
+        init_oauth=app.swagger_ui_init_oauth,
+        swagger_ui_parameters=app.swagger_ui_parameters,
+    )
+
+
+async def swagger_redirect(request: Request):
+    return get_swagger_ui_oauth2_redirect_html()
+
+
+async def redoc_docs(request: Request):
+    root_path = request.scope.get("root_path", "").rstrip("/")
+    return get_redoc_html(
+        openapi_url=root_path + app.openapi_url,
+        title=escape(app.title + " - ReDoc"),
+    )
+
+
+# add_route preserves the default GET/HEAD behavior and excludes docs from OpenAPI.
+app.add_route("/docs", swagger_docs, include_in_schema=False)
+app.add_route(app.swagger_ui_oauth2_redirect_url, swagger_redirect, include_in_schema=False)
+app.add_route("/redoc", redoc_docs, include_in_schema=False)
 
 # CORS Middleware
 app.add_middleware(
@@ -135,7 +175,7 @@ async def health_check():
 @app.get("/")
 async def root():
     """Root endpoint"""
-    return {"name": "FactoryVPN API", "version": "2.0.0", "docs": "/docs"}
+    return {"name": f"{settings.APP_NAME} API", "version": "2.0.0", "docs": "/docs"}
 
 
 @app.exception_handler(IntegrityError)

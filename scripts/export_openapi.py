@@ -13,6 +13,8 @@ import subprocess
 import sys
 import tempfile
 
+from factoryvpn_common.branding import DEFAULT_APP_NAME, normalize_app_name
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "website/dist/api/openapi.json"
 HTTP_METHODS = {"get", "post", "put", "delete", "patch", "head", "options", "trace"}
@@ -21,7 +23,13 @@ HTTP_METHODS = {"get", "post", "put", "delete", "patch", "head", "options", "tra
 def load_schema() -> dict:
     # A clean cwd avoids Settings.env_file, and a minimal environment avoids
     # importing the caller's database, provider, or signing configuration.
-    env = {"PATH": os.environ.get("PATH", ""), "PYTHONPATH": str(ROOT)}
+    env = {
+        "PATH": os.environ.get("PATH", ""),
+        "PYTHONPATH": str(ROOT),
+        # Export starts from a deterministic label, independent of deployment
+        # settings; the selected build label is applied by customer_schema.
+        "APP_NAME": DEFAULT_APP_NAME,
+    }
     if "SYSTEMROOT" in os.environ:
         env["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
     with tempfile.TemporaryDirectory(prefix="factoryvpn-openapi-") as directory:
@@ -40,7 +48,8 @@ def load_schema() -> dict:
     return json.loads(result.stdout)
 
 
-def customer_schema(source: dict) -> dict:
+def customer_schema(source: dict, app_name: str = DEFAULT_APP_NAME) -> dict:
+    app_name = normalize_app_name(app_name)
     schema = deepcopy(source)
     # Select using the generated security requirements. Machine-only operations
     # never belong to a customer client, even when added to an existing router.
@@ -67,12 +76,12 @@ def customer_schema(source: dict) -> dict:
         if path.startswith("/api/v1/") and not path.startswith("/api/v1/internal/")
     }
     schema["paths"] = {path: methods for path, methods in schema["paths"].items() if methods}
-    schema["info"]["title"] = "FactoryVPN Customer API"
+    schema["info"]["title"] = f"{app_name} Customer API"
     schema["info"]["description"] = (
         "HTTP API for customer clients and custom connectors. Authenticate with JSON at "
         "POST /api/v1/auth/login for local accounts, or use the SSO start/browser/exchange flow. "
         "When challenge_required is true, complete /auth/login/verify with the emailed code before receiving a JWT. "
-        "Pass the returned FactoryVPN JWT as a bearer token. "
+        f"Pass the returned {app_name} JWT as a bearer token. "
         "Access is restricted to assigned resource groups. Delegated administration requires "
         "the operation's capability within those groups; global administrators manage the instance. "
         "The API controls sessions; machine traffic requires a separately provisioned OpenVPN client. "
@@ -163,7 +172,7 @@ def customer_schema(source: dict) -> dict:
                     "\n\nGlobal administrators with an authenticated portal session only. "
                     "Mutations require Origin, X-CSRF-Token and identity confirmation within five minutes. "
                     "Queued operations require a UUID Idempotency-Key. Import accepts an encrypted "
-                    "FactoryVPN binary archive, up to the configured limit (maximum 512 MiB). "
+                    f"{app_name} binary archive, up to the configured limit (maximum 512 MiB). "
                     "A missing recent identity confirmation returns 428; maintenance returns 503."
                 )
             elif path in {"/api/v1/auth/password", "/api/v1/auth/register"}:
@@ -314,10 +323,16 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument(
+        "--app-name",
+        type=normalize_app_name,
+        default=DEFAULT_APP_NAME,
+        help="Display label (default: FactoryVPN); deployment APP_NAME is deliberately ignored",
+    )
+    parser.add_argument(
         "--check", action="store_true", help="Fail if the published specification is stale"
     )
     args = parser.parse_args()
-    content = render_schema(customer_schema(load_schema()))
+    content = render_schema(customer_schema(load_schema(), app_name=args.app_name))
     if args.check:
         if not args.output.exists() or args.output.read_text(encoding="utf-8") != content:
             print("OpenAPI export is stale. Run python -m scripts.export_openapi.", file=sys.stderr)

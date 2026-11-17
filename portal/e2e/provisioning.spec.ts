@@ -1,3 +1,4 @@
+import { appName } from "./branding";
 import { completeEmail, completeApi } from "./email";
 import { test, expect, type Page, type APIRequestContext } from "./fixtures";
 import { execFileSync } from "node:child_process";
@@ -131,7 +132,7 @@ test("SSO profile delivery is discarded when its browser logs out during downloa
   await started;
   await page.getByRole("button", { name: "Esci dal portale", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Esci dal portale", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Accedi a FactoryVPN" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: `Accedi a ${appName}` })).toBeVisible();
   release();
   await login(page, "technician");
   expect(downloads).toBe(0);

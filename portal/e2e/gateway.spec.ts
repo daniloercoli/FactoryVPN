@@ -1,3 +1,4 @@
+import { appName } from "./branding";
 import { completeEmail, completeApi } from "./email";
 import {
   test,
@@ -374,7 +375,7 @@ test("revocation removes an open inventory form and prevents writes", async ({
   ).toBe(200);
   await dialog.getByRole("button", { name: "Salva dispositivo" }).click();
   await expect(
-    page.getByRole("heading", { name: "Accedi a FactoryVPN" }),
+    page.getByRole("heading", { name: `Accedi a ${appName}` }),
   ).toBeVisible();
   await expect(dialog).toHaveCount(0);
   const rows = await (

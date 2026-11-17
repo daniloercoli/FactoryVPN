@@ -9,6 +9,7 @@ from typing import List, Literal
 from pydantic import Field, SecretStr
 from api.sso_config import OIDCProvider, validate_providers, validate_url, origin
 from factoryvpn_common.timing import MAX_LEASE_SECONDS
+from factoryvpn_common.branding import DEFAULT_APP_NAME, normalize_app_name
 import re
 
 
@@ -20,6 +21,14 @@ def _normalize_database_url(url: str) -> str:
 
 
 class Settings(BaseSettings):
+    # Display label only; protocol names and technical identifiers stay stable.
+    APP_NAME: str = DEFAULT_APP_NAME
+
+    @field_validator("APP_NAME")
+    @classmethod
+    def app_name(cls, value: str) -> str:
+        return normalize_app_name(value)
+
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://factoryvpn:password@localhost:5432/factoryvpn"
 

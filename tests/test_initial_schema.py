@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+import re
 from pathlib import Path
 from uuid import uuid4
 
@@ -195,7 +196,10 @@ def test_api_requires_the_complete_initial_revision(initial_database, monkeypatc
             if revision == "factoryvpn_initial":
                 await database_module.init_db()
             else:
-                with pytest.raises(RuntimeError, match="Initialize the FactoryVPN schema"):
+                with pytest.raises(
+                    RuntimeError,
+                    match=re.escape(f"Initialize the {database_module.settings.APP_NAME} schema"),
+                ):
                     await database_module.init_db()
         finally:
             await runtime.dispose()

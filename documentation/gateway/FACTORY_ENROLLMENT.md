@@ -1,8 +1,8 @@
 # FactoryVPN — arruolamento del gateway a fine linea
 
-Protocollo **v1**, modello di rete **Gateway Only**. Questa guida descrive il
-flusso disponibile per nuove installazioni. Il riepilogo dei due percorsi,
-compreso quello manuale HQ, è nella [prima inizializzazione](INITIAL_SETUP.md).
+Protocollo API **v1**. La postazione prepara l'identità del gateway. Il
+dispositivo usa quell'identità per scaricare e attivare il pacchetto via HTTPS.
+Per la consegna manuale vedere il [primo avvio](INITIAL_SETUP.md).
 
 ## Processo
 
@@ -19,23 +19,14 @@ compreso quello manuale HQ, è nella [prima inizializzazione](INITIAL_SETUP.md).
    Il server assegna l'IP VPN se manca; il gateway attende una sessione autorizzata.
 
 Approvazione e primo contatto possono avvenire in qualsiasi ordine, anche a mesi
-di distanza. La prima connessione e il download non richiedono un tunnel VPN:
-sono richieste HTTPS in uscita sulla connessione mobile/Wi-Fi del dispositivo.
-L'IP della SIM e la LAN del cliente non vanno comunicati al server.
-
-La VPN consente traffico IPv4 bidirezionale fra i due peer autorizzati durante
-il lease della sessione, senza filtri su porte o protocolli: per esempio SSH,
-web, UDP e ping ICMP sul solo IP VPN del gateway. I servizi devono ascoltare
-su quell'IP o su tutte le interfacce; i firewall locali possono limitarli.
-Non estende la LAN né trasporta discovery broadcast. Servizi, account del sistema
-operativo, APN, DNS, orologio e connettività sono predisposti nel firmware/sistema
-operativo. L'arruolamento non li installa né li collauda.
+di distanza. Una volta ottenuto l'accesso a Internet, usare HTTPS sulla connessione
+mobile o Wi-Fi del gateway. Per aprire una sessione dopo la registrazione seguire
+la [sequenza SMS o Wi-Fi](RUNTIME_PROTOCOL.md).
 
 ## Abilitare una postazione sul server
 
-Il bootstrap del server crea `factory/allow.conf` nel runtime con `deny all;`.
-La configurazione `FACTORY_STATIONS={}` non accetta alcuna postazione. Servono
-**sia IP fidato sia chiave API**. Con l'ambiente Python dell'installazione:
+L'operatore del server abilita l'IP di uscita e la chiave della postazione.
+Con l'ambiente Python dell'installazione:
 
 ```bash
 .venv/bin/python -m scripts.factory_access --root .runtime --env-file .env \
@@ -59,17 +50,14 @@ percorso `--key-file`; per revoca usare `revoke-station --station line-1`.
 Ricreare `api` dopo la modifica e distribuire la nuova chiave alla postazione.
 Una rotazione non modifica le credenziali individuali dei dispositivi già registrati.
 
-Nginx usa l'indirizzo del peer TCP, non `X-Forwarded-For` o `X-Real-IP` inviati dal
-chiamante. Il Compose non espone la porta API. Non pubblicarla separatamente.
-Con un reverse proxy ulteriore, verificare la topologia e configurare esplicitamente
-la fiducia nel proxy oppure applicare il filtro al bordo corretto: consentire
-semplicemente l'IP di un proxy aperto annullerebbe la restrizione per postazione.
-Le API del gateway non hanno questa allowlist, perché l'IP del cliente può cambiare.
+Con un proxy a monte, applicare la restrizione all'IP effettivo della postazione.
+L'allowlist si applica alla chiamata della postazione, mentre il gateway si
+autentica via HTTPS con la sua credenziale individuale.
 
 ## Preparazione a fine linea
 
-Installare l'agente e il servizio Linux come nella
-[guida di installazione](../DOCKER_GUIDE.md#agente-linux). L'identità individuale
+Installare l'agente come nella [guida al primo avvio su Yocto](INITIAL_SETUP.md#usare-lagente-su-yocto)
+o nella [guida Linux](../DOCKER_GUIDE.md#agente-linux). L'identità individuale
 deve stare fuori dall'immagine comune e sopravvivere agli aggiornamenti firmware.
 Il comando fornito può scriverla direttamente su un filesystem del dispositivo
 montato dalla postazione:
@@ -271,7 +259,7 @@ operativa descritta sopra, senza presumere che sia fallita.
 Limiti predefiniti: 60 richieste/minuto per postazione, 30 per gateway,
 6 nuovi pacchetti/ora per gateway e almeno 60 secondi tra nuovi candidati.
 
-## Intervento HQ, recupero ed evoluzioni
+## Intervento HQ e recupero
 
 In **Arruolamenti** HQ può approvare, correggere dati, bloccare o passare alla
 consegna manuale sulla stessa identità. Il passaggio annulla il candidato automatico.
@@ -292,11 +280,5 @@ non riattivarli copiando vecchi segreti. Le chiavi delle postazioni e la allowli
 restano configurazione dell'installazione corrente; vedere
 [backup e ripristino](../BACKUP_RESTORE.md).
 
-L'autoarruolamento senza registrazione a fine linea resta un'evoluzione futura.
-Questa prima implementazione usa il percorso semplice di identità predisposta,
-approvazione amministrativa e consegna individuale; non prevede codici di
-abbinamento, attestazione hardware o creazione autonoma di identità sconosciute.
-
-Dopo il completamento implementare il [protocollo operativo](RUNTIME_PROTOCOL.md)
-e il [rinnovo dei certificati](CERTIFICATE_RENEWAL.md): il solo arruolamento non
-gestisce attivazione, heartbeat o scadenza del traffico.
+Dopo il completamento, seguire la [sequenza di apertura](RUNTIME_PROTOCOL.md)
+e il [rinnovo dei certificati](CERTIFICATE_RENEWAL.md).

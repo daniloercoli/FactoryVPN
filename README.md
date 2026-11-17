@@ -15,6 +15,10 @@ Gli amministratori globali dispongono di [backup cifrati e ripristino guidato](d
 con un coordinatore separato dal portale per gestire anche il recupero dopo un guasto.
 Impostare `PORTAL_PUBLIC_URL`
 all’origin HTTPS dell’istanza per abilitare le sessioni browser.
+Il nome visualizzato si imposta con `APP_NAME` nel `.env` prima della build;
+vedere [personalizzazione del nome](documentation/DOCKER_GUIDE.md#nome-visualizzato-dellapplicazione).
+Anche il [sito statico](website/README.md#build) usa `APP_NAME`, incorporato nei
+file pubblicabili dalla sua build Python.
 Prima dell'uso operativo occorre collaudare l'installazione su hardware, modem e
 provider reali. L'integrazione SSO comprende OIDC e un connettore **Amazon Cognito
 sperimentale**, coperto da test locali ma non ancora validato su un User Pool reale.
@@ -102,6 +106,10 @@ si controlla da terminale; la grafica per sessioni e diagnostica è il portale
 FactoryVPN. Consultare `.venv/bin/python -m scripts.gateway_simulator --help`
 per i comandi disponibili. Il modem e le reti radio sono simulati: nessun SMS
 viene inviato a una rete telefonica.
+
+Per eseguire **un solo gateway Wi-Fi/polling** contro un server già installato,
+senza creare il laboratorio, seguire la
+[mini guida Docker gateway](documentation/gateway/DOCKER_SIMULATOR.md).
 
 ## Verifiche
 

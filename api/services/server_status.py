@@ -162,9 +162,9 @@ def probe(recipient=None):
                 message = EmailMessage()
                 message["From"] = mail_service.email_address(settings.SMTP_FROM)
                 message["To"] = mail_service.email_address(recipient)
-                message["Subject"] = "FactoryVPN — verifica SMTP"
+                message["Subject"] = f"{settings.APP_NAME} — verifica SMTP"
                 message.set_content(
-                    "Questa email di prova è stata richiesta dalla pagina Stato server di FactoryVPN.\nLa ricezione conferma la consegna a questa casella. Non contiene codici di accesso.\n"
+                    f"Questa email di prova è stata richiesta dalla pagina Stato server di {settings.APP_NAME}.\nLa ricezione conferma la consegna a questa casella. Non contiene codici di accesso.\n"
                 )
                 if smtp.send_message(message):
                     return "recipient_rejected"

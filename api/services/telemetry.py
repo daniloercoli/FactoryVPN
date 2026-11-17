@@ -1,6 +1,7 @@
 from datetime import timedelta
 from fastapi import HTTPException
 from sqlalchemy.dialects.postgresql import insert
+from api.config import settings
 from api.models.telemetry import TelemetrySnapshot
 from api.time_utils import utc_now
 
@@ -50,7 +51,7 @@ def project(row, gateway=None, *, server=False):
         services = {**services, "api": "ok", "database": "ok"}
     return dict(
         gateway_id=gateway.id if gateway else None,
-        display_name=gateway.display_name if gateway else "Server FactoryVPN",
+        display_name=gateway.display_name if gateway else f"Server {settings.APP_NAME}",
         mac_address=gateway.mac_address if gateway else None,
         activation_mode=gateway.activation_mode if gateway else None,
         freshness="fresh" if fresh else "stale" if row else "missing",

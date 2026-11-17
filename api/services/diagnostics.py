@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 from fastapi import HTTPException
+from api.config import settings
 from api.services.session_events import event
 from api.time_utils import utc_now
 
@@ -170,7 +171,7 @@ def project(session):
                 "waiting",
                 "Il client non risulta collegato al server.",
                 (
-                    "Avviare manualmente OpenVPN con il profilo FactoryVPN."
+                    f"Avviare manualmente OpenVPN con il profilo {settings.APP_NAME}."
                     if key == "technician"
                     else "Verificare connettività e configurazione VPN del gateway."
                 ),

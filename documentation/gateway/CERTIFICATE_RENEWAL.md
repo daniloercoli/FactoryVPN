@@ -1,35 +1,15 @@
 # FactoryVPN — integrazione del rinnovo certificati nel gateway
 
-Versione del protocollo API: **v1**.
-Questa guida è destinata agli sviluppatori del firmware o dell'agente gateway
-che integrano FactoryVPN con root offline e Sub-CA online. Descrive il contratto
-HTTPS, le firme e il recupero delle operazioni interrotte necessari al rinnovo remoto.
-
-## Prima inizializzazione e rinnovi successivi
-
-La prima inizializzazione usa il [percorso di fine linea](FACTORY_ENROLLMENT.md)
-con approvazione e consegna HTTPS, oppure la copia manuale HQ di `gateway.ovpn`
-e `gateway.env` dallo ZIP preparato, scaricato e attivato nel portale. I percorsi standard
-sono `/etc/factoryvpn/gateway.ovpn` e `/etc/factoryvpn/gateway.env`, con permessi
-`0600`. La procedura operativa è in [installazione del gateway](../DOCKER_GUIDE.md#utenti-e-gateway).
-
-Al primo avvio l'agente usa i dati già installati per confermare la registrazione
-con `POST /api/v1/gateways/register`, come descritto nella
-[guida alla prima inizializzazione](INITIAL_SETUP.md).
-La copia manuale dei file non elimina questa comunicazione iniziale via HTTPS.
-
-Le API `/api/v1/gateways/certificates` descritte qui servono **solo per i rinnovi
-successivi**: non creano il gateway e non consegnano le sue credenziali iniziali.
-Dopo il provisioning iniziale, il firmware deve implementare questo protocollo
-per sostituire chiave e certificato da remoto, senza ricopiare i due file a bordo macchina.
+Protocollo API **v1**. Dopo il [primo avvio e la registrazione](INITIAL_SETUP.md),
+usare queste API per sostituire da remoto la chiave e il certificato OpenVPN.
+Per gestire una sessione del tecnico seguire la [sequenza di apertura](RUNTIME_PROTOCOL.md).
 
 ## Obiettivo e prerequisiti
 
 Rinnovare chiave e certificato OpenVPN senza accesso locale al gateway, conservando
 UUID, credenziale HTTPS `GATEWAY_API_KEY` e segreto `GATEWAY_SMS_KEY`.
-I certificati client durano **3650 giorni** per default; quello server OpenVPN
-**1825 giorni**. Usare sempre le date effettive restituite/lette dal certificato.
-Il rinnovo viene preparato nell'ultimo anno di validità; non attendere l'ultimo giorno.
+Leggere la scadenza effettiva del certificato client e preparare il rinnovo
+nell'ultimo anno di validità.
 
 Il gateway deve avere:
 
@@ -54,10 +34,8 @@ X-Gateway-Key: <credenziale individuale del gateway>
 Content-Type: application/json
 ```
 
-`Content-Type` serve per i POST con JSON. Non usare cookie browser, JWT del tecnico,
-`X-Worker-Key`, SMS come autorizzazione al rinnovo o API di provisioning umane.
-Il server ricava il gateway dall'API key: non si specifica un altro gateway nel body.
-Non seguire redirect verso origini diverse; non disabilitare la verifica HTTPS.
+`Content-Type` serve per i POST con JSON. Il server ricava il gateway dall'API
+key. Verificare la connessione HTTPS ed evitare redirect verso altre origini.
 Non registrare API key, chiavi private o profili `.ovpn` nei log.
 
 Il rinnovo non richiede una VPN, una sessione tecnica o un download del pacchetto ZIP.
@@ -186,7 +164,7 @@ Il successo porta a `queued`; se l'emissione è già progredita un retry può re
 ### 4. Attendere e verificare il bundle pubblico
 
 Interrogare `GET B/renewals/{renewal_id}`, con intervallo indicativo di 60 secondi.
-Il worker firma la CSR e porta lo stato a `ready`. `bundle` contiene:
+Quando lo stato è `ready`, leggere `bundle`:
 
 ```json
 {
@@ -351,8 +329,7 @@ conferma resta possibile se l'identità è ancora valida. Non interpretare `expi
 come scadenza del certificato; leggere il certificato X.509 restituito.
 
 `error_code` può indicare `expired`, `identity_changed`, `cancelled`,
-`installation_restored` o `issuer_unavailable`. La CRL server viene aggiornata
-dal worker; le autorizzazioni nel database revocano subito l'uso del vecchio seriale.
+`installation_restored` o `issuer_unavailable`.
 
 Un restore annulla i candidati non attivati. Le conferme già attivate sono
 recuperabili solo se il certificato è ancora autorizzato. Dopo perdita totale del

@@ -3,6 +3,7 @@
 import base64
 import hashlib
 import secrets
+from html import escape
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 from uuid import UUID, uuid4
@@ -227,7 +228,7 @@ async def complete_callback(provider_id, request, db):
     )
     user = await db.get(User, identity.user_id) if identity else None
     if not user or not user.is_active or user.auth_mode != "sso":
-        raise HTTPException(403, "Identity is not enabled for FactoryVPN")
+        raise HTTPException(403, f"Identity is not enabled for {settings.APP_NAME}")
     from api.services.email_security import privileged
 
     amr = claims.get("amr", [])
@@ -371,5 +372,6 @@ async def signed_out():
     if settings.PORTAL_PUBLIC_URL:
         return RedirectResponse("/app/login", status_code=303, headers=NO_STORE)
     return HTMLResponse(
-        "<p>FactoryVPN: signed out. You can close this window.</p>", headers=NO_STORE
+        f"<p>{escape(settings.APP_NAME)}: signed out. You can close this window.</p>",
+        headers=NO_STORE,
     )

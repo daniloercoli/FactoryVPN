@@ -6,6 +6,7 @@ import {
   type SmtpResult,
 } from "../api/client";
 import { useAuth } from "../auth";
+import { APP_NAME } from "../branding";
 import {
   Badge,
   Confirm,
@@ -20,7 +21,7 @@ import ServerReadiness from "./ServerReadiness";
 import { ServerTelemetry, clock, useTelemetryClock } from "./Telemetry";
 
 const names: Record<string, string> = {
-  api: "API FactoryVPN",
+  api: `API ${APP_NAME}`,
   python_api: "Python API",
   postgresql: "PostgreSQL",
   worker: "Worker VPN",

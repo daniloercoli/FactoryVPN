@@ -8,6 +8,7 @@ import {
 } from "react-router";
 import { ArrowRight, ShieldCheck, LockKeyhole, Network } from "lucide-react";
 import { useAuth } from "../auth";
+import { APP_NAME, APP_INITIAL } from "../branding";
 import {
   api,
   ApiError,
@@ -78,7 +79,10 @@ export default function Login() {
     <main className="login-page">
       <section className="login-story">
         <a className="brand" href="/app/">
-          <span className="brand-mark">F</span>Factory<span>VPN</span>
+          <span className="brand-mark" aria-hidden="true">
+            {APP_INITIAL}
+          </span>
+          <span className="brand-name">{APP_NAME}</span>
         </a>
         <div className="login-story-copy">
           <p className="eyebrow">IL CONTROLLO, AL POSTO GIUSTO</p>
@@ -93,7 +97,7 @@ export default function Login() {
           </p>
           <div className="network-art" aria-hidden="true">
             <div>
-              <Network size={25} /> FactoryVPN
+              <Network size={25} /> <span>{APP_NAME}</span>
             </div>
             <span>UTENTI</span>
             <span>GRUPPI</span>
@@ -110,7 +114,7 @@ export default function Login() {
             <LockKeyhole size={25} />
           </span>
           <p className="eyebrow">PORTALE DI AMMINISTRAZIONE</p>
-          <h2>Accedi a FactoryVPN</h2>
+          <h2>Accedi a {APP_NAME}</h2>
           <p className="muted">
             Usa il tuo account locale o l’accesso aziendale.
           </p>
@@ -215,7 +219,7 @@ export default function Login() {
             Per SSO, usa il recupero del provider aziendale.
           </p>
         </div>
-        <p className="muted login-copyright">FactoryVPN · Portale accessi</p>
+        <p className="muted login-copyright">{APP_NAME} · Portale accessi</p>
       </section>
     </main>
   );

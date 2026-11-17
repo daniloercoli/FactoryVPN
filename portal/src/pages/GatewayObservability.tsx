@@ -9,10 +9,11 @@ import {
   type TechnicalLog,
 } from "../api/client";
 import { useAuth } from "../auth";
+import { APP_NAME } from "../branding";
 import { Badge, ErrorBox, Loading, Pager, date } from "../ui";
 
 const names: Record<string, string> = {
-  agent: "Agente FactoryVPN",
+  agent: `Agente ${APP_NAME}`,
   openvpn: "OpenVPN",
   system: "Sistema operativo",
   hardware: "Hardware",

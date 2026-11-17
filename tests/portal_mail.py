@@ -8,6 +8,7 @@ import re
 import socketserver
 import threading
 from fastapi import FastAPI, HTTPException
+from api.config import settings
 
 messages = {}
 test_deliveries = {}
@@ -38,7 +39,7 @@ class SMTPHandler(socketserver.StreamRequestHandler):
                 match = re.search(r"\b\d{6}\b", message.get_content())
                 if match:
                     messages[str(message["To"]).lower()] = match.group()
-                if str(message["Subject"]) == "FactoryVPN — verifica SMTP":
+                if str(message["Subject"]) == f"{settings.APP_NAME} — verifica SMTP":
                     recipient = str(message["To"]).lower()
                     test_deliveries[recipient] = test_deliveries.get(recipient, 0) + 1
                 self.wfile.write(b"250 Stored\r\n")

@@ -24,8 +24,38 @@ def test_download_matches_current_code_and_ignores_deployment_environment(monkey
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("JWT_SECRET", "invalid")
     monkeypatch.setenv("DATABASE_URL", "not-a-database-url")
+    monkeypatch.setenv("APP_NAME", "Private deployment name")
     schema = customer_schema(load_schema())
+    assert schema["info"]["title"] == "FactoryVPN Customer API"
+    assert "Private deployment name" not in render_schema(schema)
     assert DEFAULT_OUTPUT.read_text(encoding="utf-8") == render_schema(schema)
+
+
+def test_custom_label_is_json_data_and_keeps_protocol_identifiers_stable():
+    label = 'Assistenza & "VPN" </script> $&'
+    source = app.openapi()
+    original_title = source["info"]["title"]
+    schema = customer_schema(source, app_name=f"  {label}  ")
+    rendered = render_schema(schema)
+    assert json.loads(rendered)["info"]["title"] == f"{label} Customer API"
+    assert f"Pass the returned {label} JWT" in schema["info"]["description"]
+    for path, methods in schema["paths"].items():
+        if path.startswith("/api/v1/backups"):
+            assert all(
+                f"{label} binary archive" in operation["description"]
+                for operation in methods.values()
+            )
+    assert (
+        "X-FactoryVPN-Portal: 1"
+        in schema["paths"]["/api/v1/web/login"]["post"]["description"]
+    )
+    assert (
+        schema["components"]["securitySchemes"]["PortalCookie"]["name"]
+        == "__Host-factoryvpn_portal"
+    )
+    assert schema["externalDocs"]["url"] == "https://factoryvpn.ercoliconsulting.eu/developers.html"
+    assert schema["servers"][0]["url"] == "https://vpn-api.example.com"
+    assert source["info"]["title"] == original_title
 
 
 def test_customer_contract_has_typed_responses_and_no_machine_surface():

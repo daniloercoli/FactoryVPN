@@ -1,3 +1,4 @@
+import { appName } from "./branding";
 import { completeEmail, completeApi } from "./email";
 import { test, expect, type Page } from "./fixtures";
 const origin = process.env.FACTORYVPN_PORTAL_URL!;
@@ -96,7 +97,7 @@ test("telemetry shows scoped metrics, stale SMS data and restricts the server to
   await admin.goto("/app/telemetry");
   await expect(
     admin.getByRole("region", { name: "Telemetria server" }),
-  ).toContainText("Server FactoryVPN");
+  ).toContainText(`Server ${appName}`);
   await expect(
     admin.getByRole("heading", { name: "Pressa Sud", exact: true }),
   ).toBeVisible();

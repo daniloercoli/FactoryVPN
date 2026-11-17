@@ -63,7 +63,7 @@ def deliver(recipient, code, purpose):
     message = EmailMessage()
     message["From"] = email_address(settings.SMTP_FROM)
     message["To"] = email_address(recipient)
-    message["Subject"] = "FactoryVPN — codice di verifica"
+    message["Subject"] = f"{settings.APP_NAME} — codice di verifica"
     labels = {
         "login_web": "accedere al portale",
         "login_api": "accedere alle API",
@@ -74,7 +74,7 @@ def deliver(recipient, code, purpose):
         "change_new": "confermare il nuovo indirizzo",
     }
     message.set_content(
-        f"Il codice FactoryVPN per {labels[purpose]} è: {code}\n\nScade entro 5 minuti ed è utilizzabile una sola volta.\nNon condividerlo. Se non hai richiesto questa operazione, ignora il messaggio e contatta il tuo amministratore.\n"
+        f"Il codice {settings.APP_NAME} per {labels[purpose]} è: {code}\n\nScade entro 5 minuti ed è utilizzabile una sola volta.\nNon condividerlo. Se non hai richiesto questa operazione, ignora il messaggio e contatta il tuo amministratore.\n"
     )
     with transport() as smtp:
         if smtp.send_message(message):

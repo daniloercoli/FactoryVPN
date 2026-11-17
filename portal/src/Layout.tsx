@@ -22,6 +22,7 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { api } from "./api/client";
 import { useAuth } from "./auth";
+import { APP_NAME, APP_INITIAL } from "./branding";
 import { Avatar, Badge, Confirm, ErrorBox, Loading, PageTitle } from "./ui";
 
 export function Allowed({
@@ -177,7 +178,10 @@ export default function Layout() {
         aria-hidden={mobile && !open}
       >
         <Link to="/" className="brand" onClick={() => setOpen(false)}>
-          <span className="brand-mark">F</span>Factory<span>VPN</span>
+          <span className="brand-mark" aria-hidden="true">
+            {APP_INITIAL}
+          </span>
+          <span className="brand-name">{APP_NAME}</span>
         </Link>
         <button
           className="mobile-close icon-button"
@@ -294,7 +298,7 @@ export default function Layout() {
           />
         </main>
         <footer className="app-footer">
-          FactoryVPN <span>Accessi definiti. Risorse separate.</span>
+          {APP_NAME} <span>Accessi definiti. Risorse separate.</span>
         </footer>
       </div>
       {logout && (

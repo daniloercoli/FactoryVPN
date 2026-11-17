@@ -1,12 +1,55 @@
 # FactoryVPN website
 
 English-only static product website, developer guide and customer API reference.
-The public document root is **`website/dist/`**. No frontend build, backend,
-account, external font, analytics or CDN is required to serve it.
+The public document root is **`website/dist/`**. A Python build embeds the visible
+product name before publication; the result is ordinary HTML, CSS, JavaScript and
+JSON. Serving it requires no backend, Python, Node.js, account, external font,
+analytics or CDN.
+
+The site uses the same **`APP_NAME`** parameter as the portal, with `FactoryVPN`
+as its default. It covers page titles, navigation, prose, diagram, monograms,
+favicon and the downloadable API reference. Protocol headers, cookie names,
+download filenames and the configured hostname remain stable.
+
+## Build
+
+Use the project's Python environment with `requirements.txt` installed. From the
+repository root:
+
+```bash
+.venv/bin/python -m scripts.build_website
+```
+
+On native Windows, use `.venv\Scripts\python.exe` instead of `.venv/bin/python`.
+The name comes from `--app-name`, then the process's `APP_NAME`, then `APP_NAME`
+in the repository root `.env`, and finally the default `FactoryVPN`. Only the
+public name is selected from `.env`; deployment settings are not passed to the
+isolated API exporter. The `.env` value is read literally, without variable
+expansion. Set the final name directly rather than using `${OTHER_VARIABLE}`.
+Names must contain 1–80 characters on one line, without control characters;
+leading and trailing whitespace is removed.
+
+To prepare and verify a separate customized directory:
+
+```bash
+.venv/bin/python -m scripts.build_website --app-name "Assistenza aziendale" --output .build/website
+.venv/bin/python -m scripts.build_website --check --app-name "Assistenza aziendale" --output .build/website
+```
+
+Use `--app-name vpn` to build with the generic name. Every build starts from
+`website/src/` HTML templates and `website/static/` assets; edit those sources,
+then rebuild. `website/dist/` is generated output. The default output committed
+to the repository uses `FactoryVPN`; regenerate and check it explicitly before
+committing source or API changes:
+
+```bash
+.venv/bin/python -m scripts.build_website --app-name FactoryVPN
+.venv/bin/python -m scripts.build_website --check --app-name FactoryVPN
+```
 
 ## Preview
 
-From the repository root:
+After building, from the repository root:
 
 ```bash
 python3 -m http.server 8873 --bind 127.0.0.1 --directory website/dist
@@ -14,6 +57,7 @@ python3 -m http.server 8873 --bind 127.0.0.1 --directory website/dist
 
 Open <http://127.0.0.1:8873/>. Serve over HTTP rather than opening files directly:
 Swagger UI fetches the local JSON specification.
+For a separate build, replace `website/dist` with its output directory.
 
 - `/` — product, assistance flow and custom connector integration.
 - `/developers.html` — authentication, examples, lifecycle, errors and client guidance.
@@ -25,7 +69,8 @@ Swagger UI fetches the local JSON specification.
 
 ## Update the API reference
 
-Use the project's Python environment with `requirements.txt` installed:
+The website build also regenerates the customer OpenAPI contract with the same
+name as the HTML pages. To export or check only the default API contract:
 
 ```bash
 .venv/bin/python -m scripts.export_openapi
@@ -35,6 +80,8 @@ Use the project's Python environment with `requirements.txt` installed:
 The exporter imports the real FastAPI application in an isolated subprocess with
 a temporary working directory and a minimal environment. It does not read the
 deployment `.env`, connect to the database or start the API lifespan.
+Its default name is deterministically `FactoryVPN`, independent of the caller's
+`APP_NAME`; an explicit `--app-name` overrides that default for a standalone export.
 Request schemas and route definitions come from FastAPI. Additional response
 models in `api/schemas/client.py` describe existing responses through route
 metadata; they do not change runtime serialization. Update those contracts if
@@ -42,8 +89,8 @@ an untyped response body changes. The exporter adds customer guidance, common
 errors, explicit admin roles and a placeholder API server, and excludes worker
 and gateway machine operations and unused schemas.
 
-Commit regenerated `website/dist/api/openapi.json` alongside API changes. The
-export regression test fails when the committed specification is stale.
+Rebuild the full website and commit its default generated output alongside API
+changes. The export regression test fails when the committed specification is stale.
 The full API schema is still available directly from FastAPI at `/openapi.json`.
 
 ## Keep public guidance aligned
@@ -54,15 +101,15 @@ with runtime activation and network enforcement in the [gateway runtime contract
 and subsequent renewals in the [gateway renewal contract](../documentation/gateway/CERTIFICATE_RENEWAL.md).
 Those files ship with the source distribution and are not served from `dist/`.
 
-The HTML pages are maintained directly; regenerating OpenAPI does not update
-their prose. When session timing, routing or logout behavior changes, review
+The HTML templates are maintained in `website/src/`; exporting only OpenAPI does
+not update their prose. When session timing, routing or logout behavior changes, review
 the homepage, developer guide, [repository README](../README.md) and
 [operator guides](../documentation/README.md) together. Check the deployment
 defaults against [.env.example](../.env.example) and the code that consumes them.
 The [installation guide](../documentation/DOCKER_GUIDE.md#durate-timeout-e-reti-instabili)
 is the operator reference for configuration and applying changes.
 
-Check the four copyable shell examples in `developers.html`: login, session
+Check the four copyable shell examples in `website/src/developers.html`: login, session
 creation, readiness and closure. Keep closure in its own block so copying a
 readiness check cannot close the session. Preserve the same idempotency key and
 request body when demonstrating a retry.
@@ -70,11 +117,12 @@ request body when demonstrating a retry.
 Validate local links and section anchors in the served `dist/` tree, including
 Swagger UI and its JSON download, at desktop and mobile widths. Operator guides
 live in the repository; do not add links from `dist/` to files outside that
-public document root. Editing these files does not deploy the website.
+public document root. Building these files does not deploy the website.
 
 ## API viewer
 
-Swagger UI **5.33.1** is vendored in `dist/vendor/swagger-ui/`, including its
+Swagger UI **5.33.1** is vendored in `static/vendor/swagger-ui/` and copied into
+`dist/vendor/swagger-ui/`, including its
 Apache-2.0 license and notice. The package was obtained from the official npm
 `swagger-ui-dist` package and checked against the registry's SHA-512 integrity
 value. Browser requests and the remote validator are disabled. No bearer token
@@ -87,18 +135,20 @@ and [Swagger UI configuration](https://swagger.io/docs/open-source-tools/swagger
 
 The canonical links, sitemap and robots file already use
 `https://factoryvpn.ercoliconsulting.eu`. When deploying to a different hostname,
-update canonical URLs, `sitemap.xml`, `robots.txt` and the documentation URL in
-`scripts/export_openapi.py`, then regenerate the API reference.
+update canonical URLs in `website/src/`, `sitemap.xml` and `robots.txt` in
+`website/static/`, and the documentation URL in `scripts/export_openapi.py`,
+then rebuild the website.
 
 1. Configure that hostname on the selected static hosting service or web server.
-2. Upload only the **contents of `website/dist/`**, preserving subdirectories.
+2. Build with the desired `APP_NAME` and upload only the **contents of the build
+   output** (`website/dist/` by default), preserving subdirectories.
 3. Serve `index.html` as the directory index, including for `/api/`.
 4. Point the hostname's DNS record to the destination supplied by the hosting
    provider and enable HTTPS for the hostname.
 5. Verify the homepage, developer guide, Swagger UI and OpenAPI download over HTTPS.
 
-Do not upload the repository root, deployment `.env`, private certificates or
-runtime directories. Keep the documentation origin distinct from the operational
+Do not upload source templates, the repository root, deployment `.env`, private
+certificates or runtime directories. Keep the documentation origin distinct from the operational
 API: the site's `/api/` route serves documentation and must not be proxied to the
 VPN backend. Use an appropriate separate hostname for the operational API.
 

@@ -1,196 +1,152 @@
-# FactoryVPN — prima inizializzazione del gateway
+# FactoryVPN — primo avvio del gateway
 
-Versione del protocollo API: **v1**.
-Questa guida è destinata agli sviluppatori del firmware o dell'agente gateway.
-Riassume i due percorsi di inizializzazione e la conferma iniziale via HTTPS. Per rinnovare
-successivamente il certificato senza accesso locale, implementare anche il
-[protocollo di rinnovo](CERTIFICATE_RENEWAL.md). Il
-[protocollo operativo](RUNTIME_PROTOCOL.md) definisce SMS, polling, heartbeat,
-OpenVPN e autorizzazione del traffico dopo il primo avvio.
+Protocollo API **v1**. Servono un'identità individuale, un profilo OpenVPN e una
+connessione Internet funzionante. Per le richieste che aprono una sessione,
+vedere [apertura VPN dal gateway](RUNTIME_PROTOCOL.md).
 
-## Due percorsi, la stessa identità operativa
+Per provare l'agente contro un server già disponibile, vedere la
+[mini guida del singolo gateway Docker](DOCKER_SIMULATOR.md).
 
-| Percorso | Preparazione | Completamento |
-|---|---|---|
-| Fine linea | La postazione registra il gateway e scrive UUID, URL e credenziale iniziale individuale sul dispositivo. | L'amministratore approva e assegna un gruppo; quando ha Internet, il gateway completa i dati, scarica e installa il pacchetto. |
-| Manuale HQ / laboratorio | L'operatore crea il gateway dal portale, prepara, scarica e attiva lo ZIP. | Copia `gateway.env` e `gateway.ovpn` sul dispositivo e avvia l'agente. Non occorre una postazione di produzione. |
+## Preparare il dispositivo
 
-Nel percorso di fine linea il dispositivo può restare offline, anche con SIM
-inattiva, durante magazzino e trasporto. L'approvazione può precedere il primo
-contatto. IMEI, ICCID e telefono possono essere completati successivamente;
-la modalità SMS richiede il numero prima di preparare il pacchetto operativo.
-Il download usa **HTTPS sulla normale connessione Internet, prima della VPN**.
-Non servono un IP pubblico del gateway o un codice di abbinamento.
+- **Consegna manuale, anche per i test.** Chiedere all'amministratore lo ZIP
+   scaricato e attivato nel portale. Copiare entrambi i file del pacchetto:
+   - `gateway.env` in `/etc/factoryvpn/gateway.env` per URL, identità,
+     credenziali, modalità e impostazioni del tunnel.
+   - `gateway.ovpn` in `/etc/factoryvpn/gateway.ovpn` per profilo, certificato
+     e chiave privata OpenVPN.
+- **Dispositivo predisposto in fabbrica.** Usare il
+   [contratto di arruolamento](FACTORY_ENROLLMENT.md) per completare la consegna
+   dei due file via HTTPS. Al termine, la registrazione è la stessa del percorso
+   manuale.
 
-UUID e matricola restano i riferimenti dell'identità. MAC, modem, SIM, LAN e IP
-Internet possono cambiare senza creare un altro gateway. La matricola è univoca;
-MAC, IMEI e ICCID sono dati ricercabili, non credenziali. L'IP VPN fisso viene
-assegnato dal server alla prima registrazione operativa riuscita.
-
-La procedura completa, i file di fabbrica e le API dedicate sono nel
-[contratto di arruolamento a fine linea](FACTORY_ENROLLMENT.md).
-Questa è la prima modalità automatizzata implementata, scelta per contenere la
-complessità. **L'autoarruolamento senza passaggio a fine linea è un'evoluzione
-futura**: oggi il gateway deve avere un'identità preparata dalla postazione oppure
-un pacchetto manuale HQ.
-
-## Consegna manuale sempre disponibile
-
-Copiare `gateway.ovpn` e `gateway.env` dal pacchetto ZIP preparato, scaricato e
-attivato nel portale FactoryVPN.
-La [procedura per l'operatore](../DOCKER_GUIDE.md#utenti-e-gateway) descrive
-creazione del gateway, download e attivazione. Lo ZIP contiene anche `LEGGIMI.txt`.
-
-| File | Contenuto | Percorso standard |
-|---|---|---|
-| `gateway.ovpn` | Profilo OpenVPN, certificato client, chiave privata e materiale di fiducia VPN | `/etc/factoryvpn/gateway.ovpn` |
-| `gateway.env` | UUID, credenziali HTTPS/SMS, URL server, modalità e interfaccia VPN | `/etc/factoryvpn/gateway.env` |
-
-I due file devono appartenere allo stesso pacchetto. Conservarli con permessi
-`0600`, accessibili soltanto all'account che esegue l'agente. Sono individuali:
-non distribuirli come parte di un'immagine firmware comune a più dispositivi.
-Non inserire file o credenziali nei log.
-
-Il firmware deve caricare le variabili di `gateway.env`; nell'agente Linux di
-riferimento lo fa [l'unità systemd](../../gateway-agent/factoryvpn-agent.service)
-tramite `EnvironmentFile`, oppure il bootstrap dopo l'installazione automatica.
-Copiare il file senza caricarne i valori non configura
-automaticamente un processo. `OPENVPN_CONFIG` indica il percorso del profilo VPN.
-Per installare l'agente di riferimento seguire la [guida Linux](../DOCKER_GUIDE.md#agente-linux).
-
-Le API di rinnovo non creano il gateway e non consegnano queste credenziali
-iniziali. Dopo la copia manuale o l'installazione automatica, l'agente deve confermare la propria
-registrazione via HTTPS come descritto sotto.
-
-## Prerequisiti del dispositivo
-
-- Configurare nel sistema operativo accesso Internet, DNS e sincronizzazione
-  dell’orologio. Configurare la LAN solo se usata dall'applicazione: è indipendente
-  dalla VPN e non viene registrata nel portale.
-  Riservare `10.100.0.0/16` alla VPN, senza sovrapposizioni con le reti locali.
-- Rendere `SERVER_URL` raggiungibile via HTTPS anche senza tunnel VPN.
-  Verificare nome host e catena TLS; la fiducia HTTPS è distinta da quella VPN.
-- Per la registrazione operativa caricare UUID e credenziali dal pacchetto attivato;
-  il primo contatto di fine linea usa invece il file identità e il protocollo dedicato.
-  Non generare una nuova
-  identità al riavvio e non usare IMEI o MAC come sostituti dell'UUID.
-- Configurare modem e accesso dati per la modalità SMS, oppure accesso di rete
-  per la modalità Wi-Fi. L'agente non configura APN, PPP/WWAN o la rete wireless.
-- Per l'agente Linux servono OpenVPN compatibile con il profilo consegnato,
-  `/dev/net/tun`, iproute2 e nftables con set a scadenza. Il processo deve poter
-  gestire tunnel, firewall e modem; il servizio distribuito usa root.
-  Conservare configurazione, profilo e journal su memoria persistente scrivibile.
+Conservare file individuali e journal su memoria persistente scrivibile, con
+permessi `0600` sui file sensibili. Caricare `gateway.env` nell'ambiente
+dell'agente. Configurare Internet, DNS, orologio e trust store HTTPS. Se serve
+una CA HTTPS dedicata, indicare il bundle con `SSL_CERT_FILE`. Consentire anche
+l'uscita UDP verso host e porta del profilo OpenVPN. In modalità SMS predisporre
+modem, SIM e accesso dati. In modalità Wi-Fi predisporre la rete e usare il MAC
+del pacchetto. Evitare sovrapposizioni con il pool `10.100.0.0/16`.
 
 ## Registrazione HTTPS
 
-All'avvio inviare un POST a `{SERVER_URL}/api/v1/gateways/register`.
-`SERVER_URL` è l'origin HTTPS, senza il suffisso `/api/v1`.
+Prima di iniziare l'attesa, bloccare il traffico del tunnel e fermare eventuali
+client OpenVPN posseduti dall'agente. Inviare la richiesta a `SERVER_URL`,
+l'origin HTTPS del pacchetto senza `/api/v1`.
 
 ```http
 POST /api/v1/gateways/register
 Content-Type: application/json
-X-Gateway-Key: <valore di GATEWAY_API_KEY>
+X-Gateway-Key: <GATEWAY_API_KEY>
 ```
 
-Non usare cookie del portale o JWT di un tecnico. Non seguire redirect verso
-origini diverse e non disabilitare la verifica HTTPS.
-
-| Variabile in `gateway.env` | Campo JSON |
+| Campo JSON | Valore da `gateway.env` |
 |---|---|
-| `GATEWAY_ID` | `gateway_id` |
-| `GATEWAY_ACTIVATION_MODE` | `activation_mode` |
-| `GATEWAY_PHONE_NUMBER` | `phone_number` (vuoto → `null`) |
-| `MAC_ADDRESS` | `mac_address` (vuoto → `null`) |
+| `gateway_id` | `GATEWAY_ID` (UUID) |
+| `activation_mode` | `GATEWAY_ACTIVATION_MODE` (`sms` o `wifi`) |
+| `phone_number` | `GATEWAY_PHONE_NUMBER` (numero internazionale con `+` per SMS, `null` se assente) |
+| `mac_address` | `MAC_ADDRESS` (obbligatorio per Wi-Fi, `null` se assente) |
 
-Esempio con dati dimostrativi; sostituire tutti i valori con quelli del pacchetto:
+Esempio SMS:
 
 ```json
 {
-  "gateway_id": "11111111-1111-4111-8111-111111111111",
+  "gateway_id": "22222222-2222-4222-8222-222222222222",
   "activation_mode": "sms",
   "phone_number": "+15550100001",
   "mac_address": null
 }
 ```
 
-`activation_mode` è `sms` oppure `wifi`. SMS richiede il numero internazionale
-con prefisso `+`; Wi-Fi richiede il MAC. I campi facoltativi vanno comunque
-trasmessi con il valore provisionato, oppure `null` se assenti. Non inviare
-`lan_cidr`, `lan_address` o `lan_interface`: Gateway Only non li usa.
+Esempio Wi-Fi:
 
-Non inviare `GATEWAY_SMS_KEY`, certificati o chiavi private nel body. Non inviare
-`group_id`, `display_name`, `serial_number`, `imei` o `iccid`: gruppo e anagrafica
-sono gestiti separatamente dal contratto di registrazione. I campi extra
-sono rifiutati. Lo [schema della richiesta](../../api/schemas/gateway.py) definisce
-la validazione completa.
+```json
+{
+  "gateway_id": "33333333-3333-4333-8333-333333333333",
+  "activation_mode": "wifi",
+  "phone_number": null,
+  "mac_address": "02:00:00:00:00:01"
+}
+```
 
-### Risposta e ripetizione della richiesta
+Usare i valori del pacchetto, anche per i campi facoltativi. Inviare solo i
+quattro campi indicati. Verificare TLS e nome del server, evitare redirect e
+tenere segreti e profilo fuori dai log.
 
-Una risposta `200` contiene `id`, `display_name`, `group_id`, `activation_mode`,
-`phone_number`, `mac_address`, `serial_number`, `imei`, `iccid`, `status`, `vpn_ip`
-e `last_seen`.
-Verificare che `id` coincida con `GATEWAY_ID` e che `activation_mode` coincida
-con la modalità configurata prima di proseguire.
+Con **HTTP 200**, controllare che `id` e `activation_mode` coincidano con i valori
+inviati. `vpn_ip` è l'indirizzo VPN assegnato al gateway. `status: ACTIVE` in
+questa risposta conferma la registrazione. La registrazione è ripetibile dopo
+un riavvio o una risposta persa e conserva l'IP già assegnato.
 
-La chiamata conferma una configurazione già assegnata: non crea un'identità né
-modifica la LAN. Il server assegna un IP VPN se manca e conserva quello già
-associato al gateway, indipendentemente dall'indirizzo della connessione Internet
-mobile o Wi-Fi. Riceverlo non avvia il client OpenVPN. Lo stato `ACTIVE` nella risposta conferma la registrazione e
-**non indica che il tunnel sia attivo**.
-
-La stessa richiesta è ripetibile, anche dopo un riavvio o una risposta persa,
-senza `Idempotency-Key`. Per timeout, errori di rete o `5xx`, conservare i dati
-installati e ritentare con attesa crescente. L'agente di riferimento usa un
-timeout HTTP di 30 secondi per la registrazione.
-
-| Risposta | Significato e gestione |
+| Esito | Azione |
 |---|---|
-| `401` | Credenziale assente, errata, non attivata o revocata. Verificare pacchetto e attivazione con l'operatore. |
-| `403` | UUID diverso da quello della credenziale. Non mescolare file di dispositivi diversi. |
-| `404` | Gateway non presente. Richiedere la verifica del provisioning. |
-| `409` | Configurazione diversa da quella assegnata, oppure conflitto di identità/numero. Verificare i valori con l'operatore. |
-| `422` | Body non valido o campi extra. Correggere la richiesta secondo lo schema. |
+| Timeout, errore di rete, `5xx` | Ritentare con attesa crescente e gli stessi dati. |
+| `401` o `404` | Verificare con l'operatore provisioning, attivazione e chiave. |
+| `403` | L'UUID non corrisponde alla credenziale. Usare entrambi i file dello stesso pacchetto. |
+| `409` | Verificare con l'operatore i dati provisionati per il dispositivo. |
+| `422` | Correggere formato o campi del body. |
 
-Il controllo della configurazione vale anche senza sessioni VPN attive.
-Non aggirare un rifiuto generando UUID o credenziali nuovi sul dispositivo.
+## Invio facoltativo di IMEI e ICCID
 
-## Dopo la registrazione
+Dopo il `200` di `register`, se sono disponibili letture del modem, inviare un
+report allo stesso `SERVER_URL` con la stessa `GATEWAY_API_KEY`.
 
-La registrazione non apre né collauda il tunnel. Il gateway attende la richiesta
-di una sessione autorizzata: SMS firmato in modalità SMS, controllo HTTPS in
-modalità Wi-Fi. Durante la sessione l'agente gestisce OpenVPN, heartbeat e regole
-di rete secondo il [protocollo operativo del firmware](RUNTIME_PROTOCOL.md).
-La [guida dell'agente](../DOCKER_GUIDE.md#agente-linux) descrive l'installazione
-Linux; l'implementazione è in [main.py](../../gateway-agent/main.py).
+```http
+POST /api/v1/gateways/system-info
+Content-Type: application/json
+X-Gateway-Key: <GATEWAY_API_KEY>
+```
 
-Completare una sessione di prova dal portale e verificare i servizi predisposti
-nel firmware sull’IP VPN fisso: per esempio SSH, web anche su porte personalizzate,
-UDP e ping ICMP. La VPN non filtra porte o protocolli IPv4 fra i due peer
-autorizzati; il traffico è bidirezionale e subordinato al lease della sessione.
-I servizi devono ascoltare sull'IP VPN o su tutte le interfacce, con accesso
-consentito dai firewall locali. Non c'è ponte Ethernet né discovery broadcast.
-La LAN è accessibile solo operando dalla shell del gateway. Il cambio di LAN non
-richiede un nuovo pacchetto VPN. Per i rinnovi successivi usare esclusivamente il
-[contratto dei certificati](CERTIFICATE_RENEWAL.md): il rinnovo mantiene UUID,
-API key e segreto SMS e aggiorna da remoto il profilo OpenVPN.
+Generare un nuovo UUID per `report_id` e usare la data e l'ora effettive della
+lettura in UTC per `observed_at`. I valori seguenti sono dimostrativi.
 
-## Implementazione di riferimento e simulatore
+```json
+{
+  "report_id": "44444444-4444-4444-8444-444444444444",
+  "observed_at": "2026-11-17T10:30:00Z",
+  "components": {
+    "modem": {
+      "state": "reported",
+      "imei": "012345678901234",
+      "iccid": "89000000000000000001"
+    }
+  }
+}
+```
 
-La richiesta iniziale è implementata in [registration.py](../../gateway-agent/registration.py)
-e verificata da [test_gateway_registration.py](../../tests/test_gateway_registration.py).
-L'agente di riferimento può essere usato direttamente su Linux oppure come
-riferimento per un firmware diverso.
+Inviare entrambi come stringhe. L'IMEI ha 15 cifre, l'ICCID da 18 a 22. Omettere
+i valori mancanti o non validi per conservare quelli già registrati. Una risposta
+`200` con `{"recorded": true}` conferma l'acquisizione. L'agente Linux tenta
+l'invio all'avvio, anche in modalità SMS.
 
-Il simulatore FactoryVPN esegue lo stesso agente con API, certificati, OpenVPN e
-traffico HTTP/HTTPS al gateway reali. Il codice di preparazione in [local_lab.py](../../scripts/local_lab.py)
-automatizza download, estrazione dei due file e attivazione per il laboratorio.
-Il simulatore usa il percorso di provisioning manuale e non richiede API
-amministrative nel firmware. Il bootstrap di fine linea è implementato in
-[enrollment.py](../../gateway-agent/enrollment.py); entrambi convergono sulla
-stessa registrazione operativa.
+Proseguire con [l'attesa SMS o Wi-Fi](RUNTIME_PROTOCOL.md) anche se il modem non
+fornisce dati o il report non viene acquisito.
 
-I comandi disponibili si consultano dalla radice del repository con
-`.venv/bin/python -m scripts.gateway_simulator --help`; requisiti e contesto sono
-nel [README](../../README.md#prima-installazione). Modem e reti radio sono
-simulati: collaudare separatamente hardware, modem/provider, riavvii, indisponibilità
-HTTPS e persistenza della configurazione sul dispositivo di destinazione.
+## Usare l'agente su Yocto
+
+[`gateway-agent/`](../../gateway-agent/) contiene l'agente Python di riferimento
+per Linux. [`main.py`](../../gateway-agent/main.py) avvia il ciclo,
+[`registration.py`](../../gateway-agent/registration.py) e
+[`heartbeat.py`](../../gateway-agent/heartbeat.py) eseguono le richieste HTTPS.
+
+Per integrarlo nella propria immagine Yocto:
+
+1. Includere i moduli `gateway-agent`, `factoryvpn_common` e lo
+   [schema di registrazione](../../api/schemas/gateway.py) nel package `api`.
+   L'agente usa Python 3.11 o successivo, `httpx`,
+   `pydantic` 2, `cryptography`, `python-dotenv` e `pyserial`.
+2. Includere OpenVPN, iproute2, nftables, il dispositivo kernel `/dev/net/tun`,
+   il supporto nftables per set a scadenza e le CA HTTPS. Dare al servizio i
+   permessi per gestire tunnel e firewall; per SMS anche accesso alla porta AT
+   del modem indicata in `MODEM_PATH`.
+3. Adattare il comando `python3 -m gateway-agent.main` e i percorsi al layout
+   dell'immagine. Con systemd usare come base
+   [l'unità fornita](../../gateway-agent/factoryvpn-agent.service), che carica
+   `gateway.env`. Verificare che gli aggiornamenti del firmware preservino la
+   directory delle credenziali, il profilo e i journal.
+4. Collaudare [l'apertura e la chiusura](RUNTIME_PROTOCOL.md#collaudo-sul-dispositivo)
+   sull'immagine e sul modem effettivi. Per la sostituzione del certificato usare
+   la [guida al rinnovo](CERTIFICATE_RENEWAL.md).
+
+L'integrazione nell'immagine e il collaudo su hardware Yocto sono da eseguire
+sulla piattaforma di destinazione.

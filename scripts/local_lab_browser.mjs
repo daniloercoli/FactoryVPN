@@ -1,68 +1,120 @@
 // Real portal -> gateway -> OpenVPN -> gateway web smoke test against the local lab.
-// Requires the portal's Playwright dependency and its Chromium installation.
+// Requires the portal's Playwright dependency and Chromium, or --browser-channel chrome.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { fileURLToPath, pathToFileURL } from "node:url";
-import { resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+import { posix, resolve } from "node:path";
 import { parseArgs } from "node:util";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const { values } = parseArgs({
-  options: { simulator: { type: "boolean" }, directory: { type: "string" } },
+  options: {
+    simulator: { type: "boolean" },
+    directory: { type: "string" },
+    "wsl-distribution": { type: "string" },
+    "wsl-project-directory": { type: "string" },
+    "browser-channel": { type: "string" },
+  },
 });
 const simulator = Boolean(values.simulator);
-const labDir = values.directory
-  ? pathToFileURL(resolve(values.directory) + sep)
-  : new URL(
-      simulator ? "../.factoryvpn-simulator/" : "../.factoryvpn-lab/",
-      import.meta.url,
+const distribution = values["wsl-distribution"];
+assert(
+  !distribution || process.platform === "win32",
+  "WSL control requires Windows Node",
+);
+assert(
+  distribution || !values["wsl-project-directory"],
+  "--wsl-project-directory requires --wsl-distribution",
+);
+const linuxRoot = values["wsl-project-directory"] ?? "/root/factoryvpn";
+if (distribution)
+  assert(posix.isAbsolute(linuxRoot), "Use an absolute Linux project path");
+const defaultLab = simulator ? ".factoryvpn-simulator" : ".factoryvpn-lab";
+// Host files/dependencies and Linux lab paths deliberately use separate roots.
+const labDir = distribution
+  ? posix.resolve(linuxRoot, values.directory ?? defaultLab)
+  : resolve(values.directory ?? resolve(root, defaultLab));
+const labFile = (name) =>
+  distribution ? posix.join(labDir, name) : resolve(labDir, name);
+const python = fileURLToPath(new URL("../.venv/bin/python", import.meta.url));
+const runPython = (args, options = {}) =>
+  execFileSync(
+    distribution ? "wsl.exe" : python,
+    distribution
+      ? [
+          "-d",
+          distribution,
+          "-u",
+          "root",
+          "--cd",
+          linuxRoot,
+          "--",
+          ".venv/bin/python",
+          ...args,
+        ]
+      : args,
+    { cwd: root, encoding: "utf8", timeout: 120_000, ...options },
+  );
+const readLabText = (name) =>
+  distribution
+    ? runPython([
+        "-c",
+        "import sys; from pathlib import Path; sys.stdout.write(Path(sys.argv[1]).read_text(encoding='utf-8'))",
+        labFile(name),
+      ])
+    : readFileSync(labFile(name), "utf8");
+const writeLabFile = (name, data) => {
+  if (distribution) {
+    // Transfer private artifacts through stdin, without exposing content in arguments/logs.
+    runPython(
+      [
+        "-c",
+        "import sys; from pathlib import Path; from factoryvpn_common.certificates import write_private; " +
+          "target=Path(sys.argv[1]); write_private(target, sys.stdin.buffer.read(), replace=target.exists())",
+        labFile(name),
+      ],
+      { input: data },
     );
+  } else {
+    writeFileSync(labFile(name), data, { mode: 0o600 });
+  }
+};
+const screenshot = async (page, name) =>
+  writeLabFile(name, await page.screenshot({ fullPage: true }));
 const labSetup =
   "import sys; from pathlib import Path; from scripts.local_lab import Lab; " +
   "lab=Lab(Path(sys.argv[1])); ";
-const state = JSON.parse(readFileSync(new URL("lab.json", labDir), "utf8"));
+const state = JSON.parse(readLabText("lab.json"));
 assert.equal(state.purpose, "factoryvpn-local-lab");
 assert.equal(Boolean(state.simulator), simulator);
 assert.match(state.origin, /^https:\/\/localhost:\d+$/);
-const credentials = JSON.parse(
-  readFileSync(new URL("credentials.json", labDir), "utf8"),
-);
+const credentials = JSON.parse(readLabText("credentials.json"));
 const require = createRequire(
   new URL("../portal/package.json", import.meta.url),
 );
 const { chromium, expect } = require("@playwright/test");
-const python = fileURLToPath(new URL("../.venv/bin/python", import.meta.url));
 const pythonRun = (code, ...args) =>
-  execFileSync(
-    python,
-    ["-c", labSetup + code, fileURLToPath(labDir), ...args],
-    {
-      cwd: root,
-      encoding: "utf8",
-      timeout: 120_000,
-    },
-  ).trim();
+  runPython(["-c", labSetup + code, labDir, ...args]).trim();
 const peer = (action, protocol = "tcp") =>
   pythonRun("print(lab.peer(sys.argv[2], 1, sys.argv[3]))", action, protocol);
 const disconnect = () =>
-  execFileSync(
-    python,
-    [
-      "-m",
-      simulator ? "scripts.gateway_simulator" : "scripts.local_lab",
-      "disconnect",
-      "--directory",
-      fileURLToPath(labDir),
-      "--site",
-      "1",
-    ],
-    { cwd: root, encoding: "utf8", timeout: 120_000 },
-  );
+  runPython([
+    "-m",
+    simulator ? "scripts.gateway_simulator" : "scripts.local_lab",
+    "disconnect",
+    "--directory",
+    labDir,
+    "--site",
+    "1",
+  ]);
 
 disconnect();
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({
+  headless: true,
+  ...(values["browser-channel"] ? { channel: values["browser-channel"] } : {}),
+});
 try {
   // This exception applies only to the loopback lab with its private test CA.
   const page = await browser.newPage({
@@ -102,10 +154,7 @@ try {
   if (simulator) {
     assert.equal(JSON.parse(peer("sms-status")).pending, 1);
     assert.equal(peer("query"), "blocked");
-    await page.screenshot({
-      path: fileURLToPath(new URL("portal-awaiting-sms.png", labDir)),
-      fullPage: true,
-    });
+    await screenshot(page, "portal-awaiting-sms.png");
     pythonRun(
       "import json; from contextlib import closing; " +
         "account=json.loads((lab.root/'credentials.json').read_text())['tech1']; " +
@@ -128,10 +177,7 @@ try {
     assert.equal(peer("query", protocol), "site1");
   assert.equal(peer("query", "icmp"), "reachable");
   assert.equal(peer("query", "lan-udp"), "blocked");
-  await page.screenshot({
-    path: fileURLToPath(new URL("portal-active.png", labDir)),
-    fullPage: true,
-  });
+  await screenshot(page, "portal-active.png");
   console.log(
     "PASS: browser opens a real VPN; gateway HTTP/HTTPS/TCP8080/UDP9000 and ICMP pass; LAN stays blocked",
   );
@@ -156,11 +202,14 @@ try {
   console.log(
     "PASS: browser closes the VPN; gateway TCP/UDP/ICMP traffic is blocked after cleanup",
   );
-  writeFileSync(
-    new URL("browser-report.json", labDir),
+  writeLabFile(
+    "browser-report.json",
     JSON.stringify(
       {
         timestamp: new Date().toISOString(),
+        origin: state.origin,
+        browser_channel: values["browser-channel"] ?? "chromium",
+        wsl_distribution: distribution ?? null,
         session_id: sessionId,
         checks: [
           "portal login",
@@ -177,7 +226,6 @@ try {
       null,
       2,
     ) + "\n",
-    { mode: 0o600 },
   );
 } finally {
   try {

@@ -1,3 +1,4 @@
+import { appName } from "./branding";
 import { randomUUID } from "node:crypto";
 import { completeEmail } from "./email";
 import { test, expect, type Page, type APIRequestContext } from "./fixtures";
@@ -182,7 +183,7 @@ test("late log response cannot reappear after logout", async ({
     .getByRole("button", { name: "Esci dal portale", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Accedi a FactoryVPN" }),
+    page.getByRole("heading", { name: `Accedi a ${appName}` }),
   ).toBeVisible();
   release();
   await expect(page.getByText("Log tecnici", { exact: true })).toHaveCount(0);

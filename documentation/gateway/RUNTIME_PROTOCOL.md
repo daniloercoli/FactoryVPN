@@ -1,85 +1,44 @@
-# FactoryVPN — protocollo operativo del gateway
+# FactoryVPN — apertura VPN dal gateway
 
-Protocollo **v1**, modello **Gateway Only**. Questo contratto serve a implementare
-un agente firmware proprio dopo la [prima inizializzazione](INITIAL_SETUP.md).
-L'agente Linux distribuito applica lo stesso percorso in
-[main.py](../../gateway-agent/main.py). Il [rinnovo PKI](CERTIFICATE_RENEWAL.md)
-è un flusso separato: un certificato valido da solo non autorizza una VPN.
+Protocollo API **v1**. Prima di attendere una sessione, caricare il pacchetto del
+dispositivo e completare `POST /api/v1/gateways/register` come descritto nella
+[prima inizializzazione](INITIAL_SETUP.md#registrazione-https). Il tecnico
+richiede l'apertura dal portale. Il gateway risponde con la sequenza seguente.
 
-## Credenziali e confini
+## Modalità SMS
 
-Le richieste del gateway usano `SERVER_URL` come origin HTTPS e
-`X-Gateway-Key: <GATEWAY_API_KEY>`. Verificare TLS, nome del server e orologio;
-non seguire redirect né inviare segreti in query o log. La connessione HTTPS
-deve funzionare prima e indipendentemente dal tunnel. La CA HTTPS è distinta
-dalla PKI VPN. Il profilo `.ovpn` installato contiene endpoint UDP e fiducia VPN.
+1. Leggere il modem ogni `GATEWAY_POLL_INTERVAL` (default 5 s, da 1 a 10 s).
+   In attesa di un [SMS valido](#verificare-lsms), il gateway non invia heartbeat.
+2. Inviare l'heartbeat **1**, con `vpn_ip` e `ready_session_id` a `null` e il
+   testo dell'SMS in `activation_token`. Procedere solo con `connect: true` e
+   `network.session_id` uguale all'UUID firmato nell'SMS.
+3. Avviare OpenVPN e inviare l'heartbeat **2** con l'IPv4 del tunnel. Se l'API
+   conferma la stessa sessione e coppia di IP, applicare il lease locale.
+4. Inviare l'heartbeat **3** con IPv4 e UUID della sessione pronta. Dopo la
+   conferma, eliminare l'SMS dal modem e conservare il token in memoria.
+5. Durante la sessione continuare gli heartbeat con IPv4, UUID e lo stesso
+   token. Se HTTPS cade prima della conferma, conservare l'SMS per ritentare
+   finché è valido. Se il gateway si riavvia dopo averlo eliminato, per una
+   sessione ancora valida chiedere al tecnico di reinviare l'SMS dal portale.
 
-Il firmware non usa JWT del tecnico, `X-Worker-Key` o chiavi di fabbrica durante
-le sessioni. Non chiama `/api/v1/internal/vpn/authorize`: è un hook del server
-OpenVPN che verifica certificato e sessione. Neppure crea una sessione utente:
-la richiesta parte dal portale o dalle API del tecnico autorizzato.
+## Modalità Wi-Fi
 
-Un tecnico e un gateway possono partecipare ciascuno a una sola sessione,
-anche durante la pulizia. Il server concede una coppia di IP VPN; non concede
-LAN, rotte arbitrarie, accesso a tutti i peer o traffico Layer 2.
+1. In attesa, inviare l'heartbeat **1** ogni `GATEWAY_WIFI_CHECK_INTERVAL`
+   (default 30 s, da 5 a 300 s). Impostare tutti e tre i campi a `null`.
+   Con `connect: false`, attendere il prossimo controllo.
+2. Con `connect: true`, avviare OpenVPN e inviare l'heartbeat **2** con l'IPv4
+   del tunnel. Se l'API conferma la stessa sessione e coppia di IP, applicare
+   il lease locale.
+3. Inviare l'heartbeat **3** con IPv4 e UUID della sessione pronta.
+4. Durante la sessione continuare gli heartbeat con IPv4 e UUID.
+   `activation_token` resta sempre `null`. Dopo un riavvio, il polling
+   può ritrovare una sessione ancora valida.
 
-## Attesa e risveglio
+## Chiamata heartbeat
 
-All'avvio bloccare il traffico sull'interfaccia VPN, fermare eventuali processi
-OpenVPN posseduti dall'agente e completare la registrazione HTTPS. Lo stato
-gateway `ACTIVE` della registrazione non dimostra la presenza di un tunnel.
-
-| Modalità | Comportamento senza sessione |
-|---|---|
-| `wifi` | Chiamare l'heartbeat ogni `GATEWAY_WIFI_CHECK_INTERVAL`: 30 s predefiniti, 5–300 s ammessi. Non occorre un modem. |
-| `sms` | Leggere il modem ogni `GATEWAY_POLL_INTERVAL`: 5 s predefiniti, 1–10 s ammessi. Nessun heartbeat periodico prima di un SMS valido. |
-
-In SMS restano possibili la registrazione e un rapporto iniziale d'inventario,
-oltre al rinnovo PKI quando necessario o già pendente. Non trasformare questi
-percorsi in un polling HTTPS continuo durante l'attesa SMS.
-
-### SMS firmato
-
-Il messaggio è testo ASCII con questo formato:
-
-```text
-FACTORYVPN: activate <session_id> <expires_unix> <signature>
-```
-
-`session_id` è l'UUID canonico minuscolo della sessione; `expires_unix` è la
-scadenza Unix in secondi interi, **non** la durata del lease. La firma è costituita
-dai primi **32 caratteri esadecimali minuscoli** dell'HMAC-SHA256 calcolato sui
-byte UTF-8 di `"<UUID canonico> <scadenza intera>"`. La chiave è il testo UTF-8
-di `GATEWAY_SMS_KEY`, senza decodificarlo da base64 o esadecimale. Non includere
-prefisso, verbo, newline o spazi aggiuntivi nei byte firmati.
-
-```python
-import hashlib
-import hmac
-from uuid import UUID
-
-def sms_signature(session_id, expires_unix, sms_key):
-    payload = f"{UUID(session_id)} {int(expires_unix)}".encode("utf-8")
-    return hmac.new(sms_key.encode("utf-8"), payload, hashlib.sha256).hexdigest()[:32]
-```
-
-Verificare formato, firma con confronto a tempo costante e scadenza strettamente
-futura rispetto all'orologio UTC. Il numero mittente non sostituisce la firma.
-Inviare il messaggio ricevuto come `activation_token` nell'heartbeat: anche il
-server verifica la firma e che l'UUID sia quello della sessione ancora autorizzata.
-Un SMS valido non autorizza il traffico senza questa conferma HTTPS.
-
-Conservare il messaggio sul modem finché tunnel, rete e conferma di prontezza
-non sono riusciti; un errore HTTPS deve permettere di riprovare lo stesso SMS.
-Poi eliminarlo dal modem, mantenendo il token in memoria per gli heartbeat della
-sessione. I duplicati non creano nuove sessioni né prolungano la scadenza.
-Scartare messaggi alterati/scaduti; una risposta API negativa chiude il tentativo.
-Dopo un riavvio, se l'SMS è già stato eliminato serve un nuovo invio dal portale
-(`POST /api/v1/sessions/{id}/wake`, con autorizzazione del tecnico, non del gateway).
-Il reinvio non prolunga la sessione. Wi-Fi recupera invece una sessione valida
-al polling successivo.
-
-## Heartbeat e preparazione del tunnel
+Usare l'origin HTTPS `SERVER_URL` del pacchetto (esempio
+`https://vpn.example.com`). Verificare nome host e catena TLS, usare un orologio
+sincronizzato ed evitare redirect. HTTPS deve funzionare prima del tunnel.
 
 ```http
 POST /api/v1/gateways/heartbeat
@@ -87,26 +46,31 @@ Content-Type: application/json
 X-Gateway-Key: <GATEWAY_API_KEY>
 ```
 
-Body iniziale Wi-Fi; per SMS sostituire `activation_token` con il messaggio valido:
+I tre POST hanno lo stesso formato. I valori qui sotto sono dimostrativi.
+
+| Chiamata | `vpn_ip` | `ready_session_id` | `activation_token` |
+|---|---|---|---|
+| **1. Chiedere l'autorizzazione** | `null` | `null` | SMS ricevuto oppure `null` per Wi-Fi |
+| **2. Confermare l'IP del tunnel** | `"10.100.0.2"` | `null` | Come nella chiamata 1 |
+| **3. Confermare la prontezza** | `"10.100.0.2"` | `"11111111-1111-4111-8111-111111111111"` | Come nella chiamata 1 |
+
+Esempio di richiesta **1** per Wi-Fi:
 
 ```json
 {"vpn_ip": null, "ready_session_id": null, "activation_token": null}
 ```
 
-`vpn_ip` è l'IPv4 realmente assegnato al tunnel, mai l'IP LAN o mobile.
-`ready_session_id` rimane `null` finché la rete locale della sessione non è pronta;
-poi contiene l'UUID della sessione. `activation_token` è `null` in Wi-Fi e testo
-lungo al massimo 160 caratteri in SMS. Non inviare l'UUID del gateway nel body:
-l'identità deriva dalla credenziale. Le chiamate sono ripetibili senza
-`Idempotency-Key`.
+L'identità deriva dall'header. I POST sono ripetibili senza `Idempotency-Key`.
+`vpn_ip` è l'IPv4 realmente assegnato al tunnel. `activation_token` accetta al
+massimo 160 caratteri.
 
-Risposta senza autorizzazione:
+Risposta **HTTP 200** in assenza di autorizzazione:
 
 ```json
 {"connect": false, "network": null, "lease_seconds": 0}
 ```
 
-Esempio di risposta autorizzata:
+Risposta **HTTP 200** con autorizzazione:
 
 ```json
 {
@@ -117,116 +81,127 @@ Esempio di risposta autorizzata:
     "gateway_ip": "10.100.0.2"
   },
   "lease_seconds": 300,
-  "expires_at": "2030-01-01T15:00:00+00:00"
+  "expires_at": "2030-01-01T00:00:00+00:00"
 }
 ```
 
-Validare tipi e campi prima di modificare la rete. Gli indirizzi sono IPv4:
-gateway nel pool `10.100.0.0/17`, tecnico in `10.100.128.0/17`; `10.100.0.0`
-e `10.100.0.1` non sono indirizzi gateway. In SMS la sessione deve coincidere
-con quella firmata. Una risposta incoerente non rinnova l'autorizzazione.
+Verificare tipi, UUID e indirizzi di `network` prima di usare la risposta.
 
-1. Con `connect: false`, bloccare subito il traffico, fermare il proprio client
-   OpenVPN, eliminare l'attivazione SMS e tornare all'attesa.
-2. Con una nuova sessione autorizzata, mantenere il firewall bloccato e avviare
-   OpenVPN con il profilo installato. Attendere un handshake riuscito e verificare
-   che l'IP del tunnel coincida con `network.gateway_ip`: la sola presenza di
-   `tun0`, eventualmente rimasta dopo una riconnessione, non prova la prontezza.
-3. Riconfermare via heartbeat, con `vpn_ip` reale e `ready_session_id: null`.
-   Installare le regole solo se `connect` resta vero e la coppia/sessione è
-   invariata; usare esclusivamente il lease residuo di questa risposta.
-4. Quando le regole sono installate, inviare un heartbeat con `vpn_ip` e
-   `ready_session_id` valorizzati. Una risposta negativa o una coppia diversa
-   richiede blocco e arresto. Il worker centrale osserva entrambi i peer, prepara
-   la rete server bloccata e comunica la prontezza all'API, che imposta `ACTIVE`.
-   Abilita il lease server solo dopo la conferma API riuscita.
-5. Durante la sessione, ripetere controllo tunnel e heartbeat con il relativo
-   `ready_session_id` ogni `GATEWAY_POLL_INTERVAL`. Se cambia la coppia/sessione,
-   pulire prima la precedente e ripetere la preparazione.
+## Avviare, confermare e mantenere il tunnel
 
-La risposta heartbeat non contiene lo stato della sessione del portale:
-`connect: true` è un'autorizzazione limitata nel tempo, non la prova che il
-tecnico sia già collegato o che il percorso completo sia pronto.
-Sul server `REQUESTED` indica la preparazione, `ACTIVE` la prontezza comunicata dal worker;
-`CLOSED`, `EXPIRED` e `FAILED` sono terminali. Il firmware usa l'heartbeat,
-non le API del tecnico, per conoscere il comportamento richiesto.
+1. Dopo la chiamata **1**, tenere bloccato il traffico e avviare
+   `openvpn --config "$OPENVPN_CONFIG" --dev "$VPN_INTERFACE"`. Attendere
+   `Initialization Sequence Completed` e leggere l'IPv4 assegnato con
+   `ip -j addr show dev "$VPN_INTERFACE"`. Deve coincidere con `network.gateway_ip`.
+2. Con la chiamata **2**, inviare l'IPv4 assegnato e verificare `connect`, UUID
+   e coppia di indirizzi. Accettare un lease intero tra 1 e 900 secondi.
+   Detrarre il tempo trascorso dall'inizio della richiesta con un orologio
+   monotono e arrotondare per difetto. Se il residuo non è positivo, lasciare
+   bloccato il traffico. Usare `lease_seconds` per il firewall e `expires_at` per la
+   scadenza complessiva indicata dall'API.
+3. Consentire sull'interfaccia VPN solo traffico IPv4 tra `technician_ip` e
+   `gateway_ip` in entrambe le direzioni. Applicare il lease a ogni pacchetto,
+   anche su connessioni esistenti, con scadenza nel kernel. Bloccare il resto
+   del traffico del tunnel e l'inoltro da e verso la LAN. Conservare la rotta
+   al peer fornita da OpenVPN. Il pool VPN è `10.100.0.0/16`, con il gateway
+   in `10.100.0.0/17` (esclusi `10.100.0.0` e
+   `10.100.0.1`), tecnico in `10.100.128.0/17`.
+4. Dopo aver applicato le regole locali inviare la chiamata **3**. Proseguire
+   soltanto con `connect: true` e la stessa sessione e coppia. Questa chiamata
+   segnala che il gateway è pronto; il tecnico si collega con il proprio client.
+5. Ripetere il controllo ogni `GATEWAY_POLL_INTERVAL` durante la sessione.
+   L'agente di riferimento invia un heartbeat prima di verificare il tunnel
+   e un secondo dopo la verifica, da cui calcola il lease da rinnovare. Inviare
+   `ready_session_id` quando la rete locale è configurata e l'IP è presente.
+   Se l'API indica una nuova sessione, chiudere la precedente prima di
+   preparare quella nuova. Un keepalive OpenVPN non rinnova il lease.
 
-## Lease e regole di rete
+## Verificare l'SMS
 
-`lease_seconds` è un intero positivo, massimo 900; può essere inferiore a 30
-vicino alla scadenza. Il default server è 300, ulteriormente limitato da VPN,
-login e SSO. Non impostare cinque minuti fissi sul gateway e non usare
-`expires_at` come durata del firewall.
+Formato del messaggio:
 
-Misurare l'inizio della richiesta con orologio monotono. Prima di installare o
-rinnovare calcolare `floor(lease_seconds - tempo_trascorso_dall_invio)`: il tempo
-HTTP e di preparazione consuma il lease. Se il residuo è zero o negativo,
-bloccare; una risposta lenta non crea altro tempo autorizzato. Ogni nuovo rinnovo
-richiede una risposta HTTPS valida per la stessa coppia. Il keepalive OpenVPN
-non rinnova il lease e il traffico non prolunga la durata totale della sessione.
+```text
+FACTORYVPN: activate <session_id> <expires_unix> <signature>
+```
 
-Sul gateway le regole devono:
+- Verificare prefisso e verbo, leggere l'UUID e la scadenza Unix in secondi.
+  Scartare messaggi alterati o con scadenza già raggiunta.
+- Calcolare HMAC-SHA256 con la chiave `GATEWAY_SMS_KEY` in UTF-8 e il testo
+  `<UUID canonico minuscolo> <scadenza intera>` in UTF-8, con un solo spazio.
+  Confrontare i primi 32 caratteri esadecimali minuscoli con la firma ricevuta,
+  a tempo costante. Il numero del mittente non sostituisce il controllo HMAC.
+- Inviare l'intero messaggio verificato in `activation_token`. Un duplicato
+  può essere scartato quando la stessa attivazione è già in gestione.
+  L'SMS serve a chiedere l'autorizzazione via HTTPS.
 
-- consentire sull'interfaccia VPN soltanto pacchetti IPv4 fra
-  `technician_ip` e `gateway_ip`, in entrambe le direzioni, durante il lease;
-- applicare il limite a ogni pacchetto, comprese le risposte e le connessioni
-  già stabilite: un generico `established,related accept` non deve aggirarlo;
-- bloccare altro traffico in ingresso/uscita dal tunnel e tutto il forwarding
-  da e verso l'interfaccia VPN: nessun inoltro VPN↔LAN, NAT LAN o bridge;
-- far scadere le regole nel kernel anche se il processo agente si blocca.
+Per provare il calcolo offline, con chiave dimostrativa `demo-sms-key` e testo
+`11111111-1111-4111-8111-111111111111 1893456000`, la firma attesa è
+`e52c4e871049904383132effa1754c30`. Vedi il
+[verificatore Python](../../factoryvpn_common/protocol.py).
 
-L'implementazione Linux è [network.py](../../gateway-agent/network.py), con set
-nftables a timeout. Il server applica anche il proprio controllo della coppia.
-OpenVPN assegna gli IP e fornisce una rotta `/32` al peer; il firmware non deve
-aggiungere rotte verso la LAN, default route o sostituzioni DNS. Il pool
-`10.100.0.0/16` deve essere libero da sovrapposizioni locali. Servizi SSH/web,
-account e firewall dell'applicazione restano responsabilità del firmware.
+## Gestire rifiuti e guasti
 
-## Errori, arresto e ripresa
-
-| Evento | Azione |
+| Esito | Azione sul gateway |
 |---|---|
-| Timeout/errore di trasporto, HTTP `408`, `429`, `5xx` | Solo se esistono già rete autorizzata e tunnel in esecuzione: conservarli senza rinnovare il lease. L'agente riprova al normale intervallo del ciclo. Nessuna nuova autorizzazione offline. |
-| `401` | Credenziale operativa errata/revocata: bloccare, fermare il tunnel e richiedere verifica del provisioning. |
-| `403` | SMS non valido o di un'altra sessione: bloccare, fermare il tunnel e scartare l'attivazione. |
-| `404` | Identità non disponibile: bloccare e verificare la registrazione/provisioning. |
-| `409` | IP tunnel diverso da quello assegnato: bloccare e verificare profilo/IP. |
-| `422`, risposta malformata, errore locale di tunnel/firewall | Bloccare e fermare il tunnel; correggere la causa, senza conservare un'autorizzazione sulla base di dati non validi. |
-| `connect: false` o arresto dell'agente | Ritirare le regole prima di arrestare il client; conservare identità e profili persistenti. |
-| Lease scaduto durante un guasto HTTPS | Il kernel blocca il traffico autonomamente. Il processo OpenVPN può restare in esecuzione: la scadenza del lease non equivale all'arresto immediato del tunnel. |
+| `connect: false` | Ritirare subito le regole, fermare il proprio client OpenVPN e tornare in attesa. In SMS, scartare l'attivazione. |
+| Timeout, errore di trasporto, `408`, `429`, `5xx` | Ritentare. Un tunnel già in esecuzione può usare soltanto il lease già installato, fino alla scadenza nel kernel. Mai avviare o rinnovare offline. |
+| `401` o `404` | Bloccare e fermare il tunnel. Verificare credenziali e registrazione con l'operatore. |
+| `403` | Bloccare, fermare e scartare l'attivazione SMS rifiutata. |
+| `409` | Bloccare e fermare il tunnel. Verificare che l'IPv4 del tunnel sia quello assegnato. |
+| `422`, risposta incoerente, errore locale | Bloccare e fermare il tunnel. Controllare i payload, il profilo o il firewall secondo l'errore. |
 
-Una revoca ricevuta non beneficia della tolleranza ai guasti. Se HTTPS è
-irraggiungibile, il limite rimane il lease residuo; la scadenza kernel deve
-bloccare anche traffico già aperto. Dopo il recupero HTTPS una sessione ancora
-valida può riprendere, ma applicazioni e SSH potrebbero essersi già disconnessi.
-L'agente deve gestire solo il processo OpenVPN che possiede, con arresto a tempo
-limitato, senza terminare indiscriminatamente altri client del dispositivo.
+Un guasto HTTPS non proroga il lease. Alla scadenza il kernel blocca il traffico
+anche se OpenVPN è ancora in esecuzione. All'arresto dell'agente, rimuovere
+prima l'accesso e poi fermare il client posseduto dall'agente.
 
-## Osservabilità e collaudo firmware
+## Esempio Python per Yocto
 
-Diagnostica, inventario, telemetria e log sono facoltativi per il controllo VPN:
-non autorizzano traffico e non rinnovano lease. Tutti usano `X-Gateway-Key`;
-la tabella riporta i riferimenti pubblici per payload, risposte e validazioni.
-Il contratto OpenAPI destinato ai client del portale non comprende queste API macchina.
+Questa funzione esegue un POST. Caricare prima le variabili dal pacchetto e
+usare i valori della tabella per le tre fasi. Per SMS passare il testo già
+verificato dal modem. Per validazione, gestione del tunnel e firewall usare
+la sequenza sopra o l'[agente di riferimento](../../gateway-agent/main.py).
 
-| Metodo e percorso | Schemi | Gestione server |
-|---|---|---|
-| `POST /api/v1/gateways/sessions/{id}/diagnostics` | [GatewayObservation, ObservationResponse](../../api/schemas/diagnostics.py) | [Router gateways](../../api/routers/gateways.py), [controlli temporali e stato sessione](../../api/services/diagnostics.py) |
-| `POST /api/v1/gateways/system-info` | [SystemReport](../../factoryvpn_common/observability.py), [ObservationResponse](../../api/schemas/diagnostics.py) | [Router gateway_observability](../../api/routers/gateway_observability.py), [record_system](../../api/services/gateway_observability.py) |
-| `POST /api/v1/gateways/telemetry` | [GatewayTelemetry](../../api/schemas/telemetry.py), [ObservationResponse](../../api/schemas/diagnostics.py) | [Router telemetry](../../api/routers/telemetry.py), [controlli temporali](../../api/services/telemetry.py) |
-| `POST /api/v1/gateways/technical-logs` | [EventBatch, TechnicalEvent, BatchResult](../../factoryvpn_common/observability.py) | [Router gateway_observability](../../api/routers/gateway_observability.py), [record_logs e limiti](../../api/services/gateway_observability.py) |
+```python
+import os
 
-I codici degli eventi tecnici sono il catalogo `LOG_CODES` nel modulo
-`observability`; non accettano testo libero. Non inviare log grezzi o segreti.
-`recorded: false` indica un'osservazione non acquisita, non un rifiuto della VPN;
-la risposta dei log riporta invece `accepted`, `duplicates` e `discarded`.
+import httpx
 
-Prima della consegna verificare su hardware: SMS duplicato/alterato/scaduto,
-HTTPS indisponibile e risposte lente, riavvio e riconnessione OpenVPN, chiusura
-durante traffico TCP/UDP/ICMP, due coppie isolate, accesso LAN negato, agente
-bloccato fino alla scadenza kernel, rinnovo PKI e persistenza dopo perdita di
-alimentazione. Le prove del repository in
-[test_gateway_modes.py](../../tests/test_gateway_modes.py),
-[test_network_contract.py](../../tests/test_network_contract.py) e
-[network_smoke.py](../../tests/network_smoke.py) aiutano a verificare il contratto,
-ma non sostituiscono il collaudo del firmware e della rete effettivi.
+
+def heartbeat(vpn_ip=None, ready_session_id=None, activation_token=None):
+    url = os.environ["SERVER_URL"].rstrip("/") + "/api/v1/gateways/heartbeat"
+    body = {
+        "vpn_ip": vpn_ip,
+        "ready_session_id": ready_session_id,
+        "activation_token": activation_token,
+    }
+    timeout = float(os.getenv("CONTROL_API_TIMEOUT_SECONDS", "10"))
+    with httpx.Client(timeout=timeout, follow_redirects=False) as client:
+        response = client.post(
+            url, headers={"X-Gateway-Key": os.environ["GATEWAY_API_KEY"]}, json=body
+        )
+        response.raise_for_status()
+        return response.json()
+```
+
+`heartbeat()` esegue il primo controllo Wi-Fi. `heartbeat(activation_token=sms)`
+esegue il primo controllo SMS. Inviare l'heartbeat di prontezza soltanto dopo
+aver verificato OpenVPN e applicato le regole locali. Non registrare token,
+chiavi o profili nei log.
+
+## Collaudo sul dispositivo
+
+Provare entrambe le modalità, poi chiusura durante il traffico, SMS duplicato
+o scaduto, riavvio e perdita di HTTPS oltre il lease. Verificare che il tecnico
+raggiunga i servizi sull'IP VPN del gateway e che l'inoltro verso la LAN resti
+bloccato.
+
+Le seguenti richieste sono facoltative e usano lo stesso `X-Gateway-Key`:
+
+| POST | Schema del body |
+|---|---|
+| `/api/v1/gateways/sessions/{id}/diagnostics` | [`GatewayObservation`](../../api/schemas/diagnostics.py) |
+| `/api/v1/gateways/system-info` | [`SystemReport`](../../factoryvpn_common/observability.py) |
+| `/api/v1/gateways/telemetry` | [`GatewayTelemetry`](../../api/schemas/telemetry.py) |
+| `/api/v1/gateways/technical-logs` | [`EventBatch`](../../factoryvpn_common/observability.py) |
+
+Il [rinnovo del certificato](CERTIFICATE_RENEWAL.md) usa un flusso HTTPS dedicato.

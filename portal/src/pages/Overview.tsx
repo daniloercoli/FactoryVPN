@@ -10,6 +10,7 @@ import {
   Radio,
 } from "lucide-react";
 import { useAuth } from "../auth";
+import { APP_NAME } from "../branding";
 import { api, page, type Stats, type VPNClient } from "../api/client";
 import { useGroups } from "../hooks";
 import { Badge, ErrorBox, GroupTags, PageTitle, permissionInfo } from "../ui";
@@ -198,7 +199,7 @@ export default function Overview() {
           <h2>Il tuo ambito di accesso</h2>
           <p>
             {auth.user!.is_admin
-              ? "Puoi amministrare l’intera istanza FactoryVPN, inclusi identità SSO e amministratori."
+              ? `Puoi amministrare l’intera istanza ${APP_NAME}, inclusi identità SSO e amministratori.`
               : "I tuoi permessi si applicano a tutti e soli i gruppi assegnati."}
           </p>
           {!auth.user!.is_admin && (

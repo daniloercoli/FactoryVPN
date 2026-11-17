@@ -2,7 +2,6 @@
 
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
-import fcntl
 import json
 import os
 from pathlib import Path
@@ -52,6 +51,10 @@ def write_private(path, data, replace=False):
 
 @contextmanager
 def pki_lock(root):
+    # PKI mutation runs on Linux; schema export only needs the X.509 helpers
+    # and can import this module from Windows as well.
+    import fcntl
+
     path = Path(root) / "locks/pki.lock"
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)

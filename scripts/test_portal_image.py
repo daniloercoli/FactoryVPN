@@ -1,6 +1,7 @@
 """Smoke-test the built portal image over HTTPS, without the application stack."""
 
 import os
+from html import unescape
 from pathlib import Path
 import re
 import ssl
@@ -17,6 +18,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main():
+    # Set APP_NAME to the same value passed to the image build for custom labels.
+    app_name = os.environ.get("APP_NAME", "FactoryVPN").strip()
     name = "factoryvpn-portal-test-" + uuid4().hex[:12]
     container = None
     with tempfile.TemporaryDirectory(prefix="factoryvpn-nginx-") as folder:
@@ -57,6 +60,8 @@ def main():
                         raise
                     time.sleep(0.2)
             assert headers["Cache-Control"] == "no-store"
+            title = re.search(r"<title>(.*?)</title>", html)
+            assert title and unescape(title.group(1)) == f"{app_name} · Portale"
             assert "text/html" in headers["Content-Type"]
             assert headers["Referrer-Policy"] == "no-referrer"
             assert headers["X-Frame-Options"] == "DENY"
@@ -90,14 +95,14 @@ try {
   await page.addInitScript(() => { window.cspErrors = []; document.addEventListener('securitypolicyviolation', e => window.cspErrors.push(e.violatedDirective)); });
   await page.route('**/api/v1/**', route => route.fulfill({ status: route.request().url().endsWith('/web/session') ? 401 : 200, contentType: 'application/json', body: route.request().url().endsWith('/web/session') ? '{"detail":"No session"}' : '[]' }));
   await page.goto(process.env.FACTORYVPN_IMAGE_URL + '/app/login');
-  await page.getByRole('heading', { name: 'Accedi a FactoryVPN' }).waitFor();
+  await page.getByRole('heading', { name: 'Accedi a ' + process.env.APP_NAME, exact: true }).waitFor();
   if (errors.length || (await page.evaluate(() => window.cspErrors)).length) throw new Error('Bundle or CSP failure: ' + errors.join(';'));
 } finally { await browser.close(); }
 """
             subprocess.run(
                 ["node", "--input-type=module", "-e", code],
                 cwd=ROOT / "portal",
-                env={**os.environ, "FACTORYVPN_IMAGE_URL": origin},
+                env={**os.environ, "FACTORYVPN_IMAGE_URL": origin, "APP_NAME": app_name},
                 check=True,
                 timeout=30,
             )

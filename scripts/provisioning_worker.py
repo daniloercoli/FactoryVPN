@@ -83,12 +83,12 @@ GATEWAY_CONNECT_TIMEOUT_SECONDS={settings.GATEWAY_CONNECT_TIMEOUT_SECONDS}
             "gateway.env": env.encode(),
             "gateway.ovpn": profile,
             "LEGGIMI.txt": (
-                "FactoryVPN — installazione gateway\n\n"
+                f"{settings.APP_NAME} — installazione gateway\n\n"
                 "Questo archivio contiene chiavi private: conservarlo in modo protetto.\n"
                 "Con consegna manuale, dopo il download attivare il pacchetto nel portale.\n"
                 "Con arruolamento automatico, l'installatore verifica e salva i file, poi conferma il candidato via HTTPS.\n"
                 "Installare gateway.env e gateway.ovpn in /etc/factoryvpn/ con permessi 0600.\n"
-                "Configurare Internet nel sistema operativo e installare l'agente FactoryVPN.\n"
+                f"Configurare Internet nel sistema operativo e installare l'agente {settings.APP_NAME}.\n"
                 "Accesso Gateway Only: traffico IPv4 bidirezionale fra i due IP VPN autorizzati, senza filtri di porta o protocollo.\n"
                 "SSH, web, UDP e ping sono esempi; predisporre i servizi e gli account necessari sul gateway.\n"
                 "La VPN non configura né instrada la LAN; autorizzazione e lease restano necessari.\n"

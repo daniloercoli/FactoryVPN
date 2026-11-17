@@ -12,6 +12,8 @@ COPY factoryvpn_common/ ./factoryvpn_common/
 COPY pyproject.toml .env.example ./
 ARG FACTORYVPN_BUILD_ID=unknown
 ENV FACTORYVPN_BUILD_ID=$FACTORYVPN_BUILD_ID
+ARG APP_NAME=FactoryVPN
+ENV APP_NAME=$APP_NAME
 COPY scripts/ ./scripts/
 COPY alembic.ini ./
 COPY migrations/ ./migrations/

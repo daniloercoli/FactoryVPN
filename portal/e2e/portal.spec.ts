@@ -1,3 +1,4 @@
+import { appName } from "./branding";
 import { completeEmail, completeApi } from "./email";
 import { test, expect, type Page, type BrowserContext } from "./fixtures";
 const password = "factoryvpn-browser-tests";
@@ -54,9 +55,18 @@ async function currentLogout(page: Page) {
     .getByRole("button", { name: "Esci dal portale", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Accedi a FactoryVPN" }),
+    page.getByRole("heading", { name: `Accedi a ${appName}` }),
   ).toBeVisible();
 }
+
+test("configured name is shown consistently on the login page", async ({ page }) => {
+  await page.goto("/app/login");
+  await expect(page).toHaveTitle(`${appName} · Portale`);
+  await expect(page.getByRole("heading", { name: `Accedi a ${appName}`, exact: true })).toBeVisible();
+  await expect(page.locator(".brand-name")).toHaveText(appName);
+  await expect(page.locator(".brand-mark")).toHaveText(Array.from(appName)[0]);
+  await expect(page.locator(".login-copyright")).toHaveText(`${appName} · Portale accessi`);
+});
 
 test("local session uses HttpOnly cookies, rejects CSRF, and supports direct routes", async ({
   page,
@@ -365,7 +375,7 @@ test("password rotation keeps this browser and revokes other sessions", async ({
   expect((await other.request.get("/api/v1/web/session")).status()).toBe(401);
   await second.reload();
   await expect(
-    second.getByRole("heading", { name: "Accedi a FactoryVPN" }),
+    second.getByRole("heading", { name: `Accedi a ${appName}` }),
   ).toBeVisible();
   await other.close();
 });
@@ -403,7 +413,7 @@ test("portal logout preserves another browser and Bearer access; global logout r
     .getByRole("button", { name: "Disconnetti tutto", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Accedi a FactoryVPN" }),
+    page.getByRole("heading", { name: `Accedi a ${appName}` }),
   ).toBeVisible();
   expect((await context.request.get("/api/v1/web/session")).status()).toBe(401);
   expect((await other.request.get("/api/v1/web/session")).status()).toBe(401);

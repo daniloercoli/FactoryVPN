@@ -26,4 +26,6 @@ async def test_root_endpoint():
         response = await ac.get("/")
     
     assert response.status_code == 200
-    assert "FactoryVPN API" in response.json()["name"]
+    from api.config import settings
+
+    assert response.json()["name"] == f"{settings.APP_NAME} API"

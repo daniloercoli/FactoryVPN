@@ -3,6 +3,8 @@ WORKDIR /build
 COPY portal/package.json portal/package-lock.json ./
 RUN npm ci
 COPY portal/ ./
+ARG APP_NAME=FactoryVPN
+ENV APP_NAME=$APP_NAME
 RUN npm run build
 
 FROM nginx:stable-alpine

@@ -21,7 +21,7 @@ async def init_db():
     async with engine.connect() as conn:
         version = await conn.scalar(text("SELECT version_num FROM alembic_version"))
         if version != "factoryvpn_initial":
-            raise RuntimeError("Initialize the FactoryVPN schema before starting the API")
+            raise RuntimeError(f"Initialize the {settings.APP_NAME} schema before starting the API")
         from alembic.autogenerate import compare_metadata
         from alembic.migration import MigrationContext
         import api.models  # noqa: F401
@@ -54,7 +54,7 @@ async def init_db():
 
         if await conn.run_sync(differences):
             raise RuntimeError(
-                "Initialize the FactoryVPN schema matching this application; existing data was not modified"
+                f"Initialize the {settings.APP_NAME} schema matching this application; existing data was not modified"
             )
 
 

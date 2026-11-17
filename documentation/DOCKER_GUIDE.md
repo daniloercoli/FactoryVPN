@@ -37,6 +37,33 @@ Sostituire `vpn.example.com` con il nome effettivo. Prima dell'avvio controllare
 in `.env` l'origin HTTPS `PORTAL_PUBLIC_URL`, `OPENVPN_SERVER_HOST` e la porta
 `OPENVPN_SERVER_PORT`. Configurare SMTP come descritto sotto.
 
+### Nome visualizzato dell'applicazione
+
+Prima della build impostare `APP_NAME` nel `.env` generato dal bootstrap:
+
+```dotenv
+APP_NAME="Assistenza aziendale"
+```
+
+Il valore predefinito è `FactoryVPN`. Sono ammessi da 1 a 80 caratteri su una
+riga, senza caratteri di controllo; gli spazi iniziali e finali vengono rimossi.
+Il nome viene incorporato nelle immagini del portale e delle API e compare anche
+nelle email, nella diagnostica e nelle etichette del server. Non è un segreto.
+Per applicare un nome diverso ricostruire e ricreare i servizi:
+
+```bash
+docker compose up --build -d --wait
+```
+
+Un semplice riavvio non modifica il nome già compilato. Per build Docker dirette
+passare lo stesso `--build-arg APP_NAME="Assistenza aziendale"` a
+`docker/Dockerfile.portal` e `docker/Dockerfile.api`.
+Anche il sito statico usa `APP_NAME` tramite una build separata; per preparare i
+file pubblicabili seguire la [guida del sito](../website/README.md#build).
+Il parametro riguarda il
+nome visualizzato: identificatori `factoryvpn`, cookie, header, formati di file,
+servizi e domini conservano i propri nomi tecnici.
+
 ### Root offline e Sub-CA del server
 
 La chiave root viene creata su una macchina offline e non deve entrare nel server.

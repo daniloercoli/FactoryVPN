@@ -1,0 +1,16 @@
+# One gateway using the same Linux agent and dependencies as the lab.
+FROM alpine:3.24
+WORKDIR /app
+ENV PYTHONPATH=/app PYTHONUNBUFFERED=1
+RUN apk upgrade --no-cache && apk add --no-cache \
+    python3 py3-httpx py3-pydantic py3-dotenv py3-pyserial py3-cryptography \
+    openvpn openssl ca-certificates iproute2 nftables \
+    && ln -s /usr/bin/python3 /usr/local/bin/python
+COPY pyproject.toml ./
+COPY factoryvpn_common/ ./factoryvpn_common/
+COPY gateway-agent/ ./gateway-agent/
+COPY api/__init__.py ./api/__init__.py
+COPY api/schemas/__init__.py api/schemas/gateway.py ./api/schemas/
+COPY scripts/__init__.py scripts/standalone_gateway.py ./scripts/
+RUN python -c "import importlib; importlib.import_module('gateway-agent.main')"
+CMD ["python", "-m", "scripts.standalone_gateway", "serve"]

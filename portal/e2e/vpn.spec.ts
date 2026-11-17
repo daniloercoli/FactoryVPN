@@ -1,3 +1,4 @@
+import { appName } from "./branding";
 import { completeEmail, completeApi } from "./email";
 import {
   test,
@@ -340,7 +341,7 @@ test("revoking supervision clears its open confirmation and rejects administrati
     })).status()).toBe(401);
     expect((await (await request.get(`/api/v1/sessions/${id}`, { headers })).json()).status).toBe("REQUESTED");
     await admin.clock.fastForward(31000);
-    await expect(admin.getByRole("heading", { name: "Accedi a FactoryVPN" })).toBeVisible();
+    await expect(admin.getByRole("heading", { name: `Accedi a ${appName}` })).toBeVisible();
     await expect(admin.getByRole("dialog")).toHaveCount(0);
     await expect(admin.getByText(id, { exact: true })).toHaveCount(0);
   } finally {
@@ -429,7 +430,7 @@ for (const mode of ["local", "sso"]) {
       .getByRole("button", { name: "Esci dal portale", exact: true })
       .click();
     await expect(
-      page.getByRole("heading", { name: "Accedi a FactoryVPN" }),
+      page.getByRole("heading", { name: `Accedi a ${appName}` }),
     ).toBeVisible();
     const detail = await (await call(other, `/sessions/${id}`)).json();
     expect(detail.status).toBe("CLOSED");
@@ -530,7 +531,7 @@ test("logout in another tab closes its VPN and clears the first tab, preserving 
     .click();
   for (const tab of [page, second]) {
     await expect(
-      tab.getByRole("heading", { name: "Accedi a FactoryVPN" }),
+      tab.getByRole("heading", { name: `Accedi a ${appName}` }),
     ).toBeVisible();
     await expect(tab.getByText(id, { exact: true })).toHaveCount(0);
   }
@@ -726,7 +727,7 @@ test("an export response arriving after logout cannot download previous session 
     .getByRole("button", { name: "Esci dal portale", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Accedi a FactoryVPN" }),
+    page.getByRole("heading", { name: `Accedi a ${appName}` }),
   ).toBeVisible();
   const response = page.waitForResponse("**/api/v1/session-events.csv?**");
   release();

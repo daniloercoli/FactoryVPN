@@ -1,0 +1,33 @@
+name: factoryvpn-gateway
+
+services:
+  gateway:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.gateway
+    image: factoryvpn-gateway:local
+    init: true
+    # Network administration stays inside this container's network namespace.
+    cap_drop: [ALL]
+    # Read/write the protected bind directory even when its host owner is not root.
+    cap_add: [NET_ADMIN, NET_RAW, DAC_OVERRIDE]
+    devices: [/dev/net/tun:/dev/net/tun]
+    security_opt: [no-new-privileges:true]
+    environment:
+      FACTORYVPN_SIMULATOR_HTTP_PORT: ${FACTORYVPN_SIMULATOR_HTTP_PORT:-8080}
+    volumes:
+      # Mount the directory: certificate renewal replaces files atomically.
+      - type: bind
+        source: ${FACTORYVPN_GATEWAY_DIR:-../.factoryvpn-simulator/standalone-gateway}
+        target: /etc/factoryvpn
+        bind:
+          create_host_path: false
+    healthcheck:
+      # Process/demo liveness only; an authorized VPN is checked from the technician.
+      test: [CMD, python, -m, scripts.standalone_gateway, healthcheck]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    stop_grace_period: 30s
+    restart: unless-stopped

@@ -1041,16 +1041,17 @@ tbody tr:hover {
   font-size: 21px;
   font-weight: 650;
   letter-spacing: -0.7px;
-  white-space: nowrap;
+  min-width: 0;
 }
-.brand > span:last-child {
-  color: #9aafff;
-  font-weight: 450;
+.brand-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .brand:hover {
   text-decoration: none;
 }
 .brand-mark {
+  flex-shrink: 0;
   background: #5475ff;
   display: inline-flex;
   align-items: center;
@@ -1210,6 +1211,8 @@ tbody tr:hover {
 }
 .app-footer {
   display: flex;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
   justify-content: space-between;
   gap: 20px;
   font-size: 10px;
@@ -1448,6 +1451,15 @@ a.metric:hover {
   align-items: center;
   gap: 12px;
   margin-bottom: 6px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.network-art > div > span {
+  min-width: 0;
+}
+.network-art > div > svg {
+  flex-shrink: 0;
 }
 .network-art > div:after {
   content: "";
@@ -1501,6 +1513,7 @@ a.metric:hover {
   font-size: 27px;
   letter-spacing: -0.8px;
   line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 .login-box > .muted {
   margin: 12px 0 30px;
@@ -1549,6 +1562,8 @@ a.metric:hover {
   font-size: 10px;
   position: absolute;
   bottom: 24px;
+  max-width: calc(100% - 48px);
+  overflow-wrap: anywhere;
 }
 .login-box .notice {
   font-size: 12px;
