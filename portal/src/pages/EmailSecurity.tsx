@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { api, type EmailChallenge, type User } from "../api/client";
 import { useAuth } from "../auth";
 import EmailCode from "../EmailCode";
+import EmergencyCode from "../EmergencyCode";
 import { Badge, ErrorBox, Notice } from "../ui";
 
 export function EmailSecurity({
@@ -15,27 +16,42 @@ export function EmailSecurity({
   const user = auth.user!;
   const [action, setAction] = useState(user.email ? "confirm" : "enable");
   const [password, setPassword] = useState("");
+  const [emergency, setEmergency] = useState(false);
+  const [emergencyCode, setEmergencyCode] = useState("");
   const [email, setEmail] = useState("");
   const [challenge, setChallenge] = useState<EmailChallenge | null>(null);
   const [saved, setSaved] = useState("");
   const enabled = user.email_two_step || user.email_two_step_required;
   const start = useMutation({
     mutationFn: () =>
-      api<EmailChallenge>(
+      api<EmailChallenge | { completed: true }>(
         action === "confirm" ? "/web/email/confirm" : "/web/email/start",
         {
           method: "POST",
           body:
             action === "confirm"
-              ? { password }
+              ? {
+                  password,
+                  ...(emergency
+                    ? { emergency_code: emergencyCode.trim() }
+                    : {}),
+                }
               : { action, password, ...(email ? { email } : {}) },
         },
       ),
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       setPassword("");
       setSaved("");
-      setChallenge(result);
+      if ("challenge_required" in result) {
+        setChallenge(result);
+      } else {
+        setSaved(
+          "Identità confermata. Puoi proseguire con le operazioni protette per cinque minuti.",
+        );
+        await onChanged();
+      }
     },
+    onSettled: () => setEmergencyCode(""),
   });
   if (user.auth_mode !== "local") return null;
   return (
@@ -83,6 +99,7 @@ export function EmailSecurity({
         <form
           onSubmit={(event: FormEvent) => {
             event.preventDefault();
+            setSaved("");
             start.mutate();
           }}
         >
@@ -93,14 +110,14 @@ export function EmailSecurity({
               onChange={(e) => {
                 setAction(e.target.value);
                 setEmail("");
+                setEmergency(false);
+                setEmergencyCode("");
                 start.reset();
               }}
             >
-              {user.email && (
-                <option value="confirm">
-                  Conferma identità per operazioni protette
-                </option>
-              )}
+              <option value="confirm">
+                Conferma identità per operazioni protette
+              </option>
               {!enabled && (
                 <option value="enable">Attiva verifica in due passaggi</option>
               )}
@@ -137,9 +154,25 @@ export function EmailSecurity({
               autoComplete="current-password"
             />
           </label>
+          {action === "confirm" && (
+            <EmergencyCode
+              enabled={emergency}
+              code={emergencyCode}
+              onEnabledChange={(enabled) => {
+                setEmergency(enabled);
+                setEmergencyCode("");
+                start.reset();
+              }}
+              onCodeChange={setEmergencyCode}
+              disabled={start.isPending}
+              confirmation
+            />
+          )}
           <ErrorBox error={start.error} />
           <button className="button secondary" disabled={start.isPending}>
-            Invia codice email
+            {action === "confirm" && emergency
+              ? "Conferma identità"
+              : "Invia codice email"}
           </button>
         </form>
       )}

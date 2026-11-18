@@ -86,7 +86,9 @@ async def valid_web_session(db, identifier, user=None):
     else:
         from api.services.email_security import required
 
-        if required(user) and not row.second_factor_at:
+        if required(user) and (
+            not row.second_factor_at or row.second_factor_method not in {"email", "console"}
+        ):
             return None
     return row
 
@@ -103,7 +105,8 @@ async def authenticate(request, db):
         check_csrf(request, secret)
     user = await db.get(User, row.user_id)
     user._web_session_id = row.id
-    user._email_verified = row.second_factor_at is not None
+    user._second_factor_method = row.second_factor_method if row.second_factor_at else None
+    user._email_verified = user._second_factor_method == "email"
     if row.second_factor_at:
         user._second_factor_at = row.second_factor_at
     if row.sso_session_id:
@@ -171,6 +174,9 @@ async def issue(
     expires = now + timedelta(minutes=settings.PORTAL_SESSION_MINUTES)
     if sso_session:
         expires = min(expires, sso_session.expires_at)
+    method = getattr(user, "_second_factor_method", None)
+    if getattr(user, "_email_verified", False):
+        method = "email"
     row = WebSession(
         id=uuid4(),
         secret_hash=digest(secret),
@@ -181,9 +187,10 @@ async def issue(
         reauthenticated_at=now if sso_session is None or reauthenticated else None,
         second_factor_at=(
             getattr(user, "_second_factor_at", now)
-            if getattr(user, "_email_verified", False)
+            if method in {"email", "console"}
             else None
         ),
+        second_factor_method=method if method in {"email", "console"} else None,
     )
     db.add(row)
     response.set_cookie(

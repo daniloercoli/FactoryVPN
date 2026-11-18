@@ -2184,6 +2184,8 @@ export interface components {
         };
         /** BackupReauthentication */
         BackupReauthentication: {
+            /** Emergency Code */
+            emergency_code?: string | null;
             /** Password */
             password: string;
         };
@@ -3032,6 +3034,8 @@ export interface components {
         };
         /** LoginRequest */
         LoginRequest: {
+            /** Emergency Code */
+            emergency_code?: string | null;
             /** Password */
             password: string;
             /** Username */
@@ -6334,6 +6338,15 @@ export interface operations {
                     "application/json": components["schemas"]["LoginResponse"] | components["schemas"]["EmailChallengeResponse"];
                 };
             };
+            /** @description Invalid, expired, consumed or exhausted console access code. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
             /** @description Invalid username or password, or an inactive account. */
             401: {
                 headers: {
@@ -6359,6 +6372,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Email verification or mail delivery is unavailable on the email path. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
                 };
             };
         };
@@ -7094,7 +7116,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmailChallengeResponse"];
+                    "application/json": components["schemas"]["EmailChallengeResponse"] | components["schemas"]["EmailComplete"];
+                };
+            };
+            /** @description Invalid, expired, consumed or exhausted console access code. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
                 };
             };
             /** @description Invalid, expired or revoked credentials, or an inactive account. */
@@ -7131,6 +7162,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Email verification or mail delivery is unavailable on the email path. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
                 };
             };
         };
@@ -9296,7 +9336,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmailChallengeResponse"];
+                    "application/json": components["schemas"]["EmailChallengeResponse"] | components["schemas"]["EmailComplete"];
+                };
+            };
+            /** @description Invalid, expired, consumed or exhausted console access code. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
                 };
             };
             /** @description Invalid, expired or revoked credentials, or an inactive account. */
@@ -9333,6 +9382,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Email verification or mail delivery is unavailable on the email path. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
                 };
             };
         };
@@ -9539,6 +9597,15 @@ export interface operations {
                     "application/json": components["schemas"]["WebSessionResponse"] | components["schemas"]["EmailChallengeResponse"];
                 };
             };
+            /** @description Invalid, expired, consumed or exhausted console access code. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
             /** @description Invalid, expired or revoked credentials, or an inactive account. */
             401: {
                 headers: {
@@ -9573,6 +9640,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Email verification or mail delivery is unavailable on the email path. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
                 };
             };
         };

@@ -36,6 +36,7 @@ from factoryvpn_common.backup_archive import (
     decrypt,
 )
 from factoryvpn_common.backup_catalog import Catalog, identifier, now
+from factoryvpn_common.backup_configuration import CONFIG_KEYS
 from factoryvpn_common.certificates import pki_lock, read_bounded
 
 SERVICES = ("api", "provisioning-worker", "session-worker", "openvpn")
@@ -70,6 +71,10 @@ class Docker:
             str(self.project / "docker-compose.yml"),
         ]
 
+    def environment(self):
+        # Reload after restore rotates keys; the selected deployment is authoritative.
+        return {**os.environ, **dotenv_values(self.env_file)}
+
     def run(self, args, *, data=None, stdout=subprocess.PIPE, timeout=600):
         result = subprocess.run(
             args,
@@ -78,6 +83,7 @@ class Docker:
             stderr=subprocess.PIPE,
             timeout=timeout,
             cwd=self.project,
+            env=self.environment(),
         )
         if result.returncode:
             raise BackupError("service_command_failed")
@@ -115,6 +121,7 @@ class Docker:
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             cwd=self.project,
+            env=self.environment(),
         )
         try:
             process.stdin.write(json.dumps({"actor": actor}).encode() + b"\n")
@@ -150,7 +157,11 @@ class Docker:
         import selectors
 
         process = subprocess.Popen(
-            command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd=self.project
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            cwd=self.project,
+            env=self.environment(),
         )
         selector = selectors.DefaultSelector()
         try:
@@ -266,6 +277,7 @@ class Docker:
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
                 timeout=600,
+                env=self.environment(),
             )
         if result.returncode:
             raise BackupError("database_restore_failed")
@@ -710,8 +722,6 @@ class Coordinator:
 
     def apply(self, work, security, actor_id=None, recovery=None):
         configuration = json.loads((work / "configuration.json").read_bytes())
-        from scripts.backup_database import CONFIG_KEYS
-
         if set(configuration) != set(CONFIG_KEYS):
             raise BackupError("invalid_configuration")
         # Deployment endpoints stay those of the recovery target, including database password.
@@ -903,7 +913,7 @@ class Coordinator:
                 raise BackupError("different_installation")
             self.catalog.meta("installation_id", manifest["installation_id"])
         username = input("New recovery administrator username: ").strip()
-        from api.services.mail_service import email_address
+        from factoryvpn_common.email_address import email_address
 
         email = email_address(input("New recovery administrator email: "))
         import re

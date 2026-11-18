@@ -43,7 +43,8 @@ def main() -> int:
                 "--publish",
                 "127.0.0.1::5432",
                 "--tmpfs",
-                "/var/lib/postgresql/data:rw,noexec,nosuid,size=512m",
+                # Leave room for PostgreSQL WAL across the full disposable test suite.
+                "/var/lib/postgresql/data:rw,noexec,nosuid,size=1g",
                 "--env",
                 "POSTGRES_USER=factoryvpn_test",
                 "--env",

@@ -223,6 +223,7 @@ async def verify(db, secret, code, purposes, **kwargs):
     row.consumed_at = utc_now()
     user.email_failures, user.email_locked_until, user.email_last_sent_at = 0, None, None
     user._email_verified = True
+    user._second_factor_method = "email"
     user._second_factor_at = utc_now()
     record_user_event(db, "email_verified", user.id, user.id, await user_group_ids(db, user.id))
     return row, user

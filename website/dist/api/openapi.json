@@ -1577,6 +1577,19 @@
       "BackupReauthentication": {
         "additionalProperties": false,
         "properties": {
+          "emergency_code": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emergency Code"
+          },
           "password": {
             "maxLength": 1024,
             "minLength": 1,
@@ -4313,6 +4326,19 @@
       },
       "LoginRequest": {
         "properties": {
+          "emergency_code": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emergency Code"
+          },
           "password": {
             "maxLength": 128,
             "minLength": 8,
@@ -6631,7 +6657,7 @@
     "url": "https://factoryvpn.ercoliconsulting.eu/developers.html"
   },
   "info": {
-    "description": "HTTP API for customer clients and custom connectors. Authenticate with JSON at POST /api/v1/auth/login for local accounts, or use the SSO start/browser/exchange flow. When challenge_required is true, complete /auth/login/verify with the emailed code before receiving a JWT. Pass the returned FactoryVPN JWT as a bearer token. Access is restricted to assigned resource groups. Delegated administration requires the operation's capability within those groups; global administrators manage the instance. The API controls sessions; machine traffic requires a separately provisioned OpenVPN client. Use your deployment's API origin, not the public documentation website. Worker and gateway machine operations are intentionally excluded.",
+    "description": "HTTP API for customer clients and custom connectors. Authenticate with JSON at POST /api/v1/auth/login for local accounts, or use the SSO start/browser/exchange flow. When challenge_required is true, complete /auth/login/verify with the emailed code before receiving a JWT. During a mail outage, a deployment administrator can issue a single-use console code; supply it as emergency_code alongside the local username and password at login. This uses the normal token/session lifetime and does not verify email ownership. Pass the returned FactoryVPN JWT as a bearer token. Access is restricted to assigned resource groups. Delegated administration requires the operation's capability within those groups; global administrators manage the instance. The API controls sessions; machine traffic requires a separately provisioned OpenVPN client. Use your deployment's API origin, not the public documentation website. Worker and gateway machine operations are intentionally excluded.",
     "title": "FactoryVPN Customer API",
     "version": "2.0.0"
   },
@@ -11256,6 +11282,16 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Invalid, expired, consumed or exhausted console access code."
+          },
           "401": {
             "content": {
               "application/json": {
@@ -11285,6 +11321,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Email verification or mail delivery is unavailable on the email path."
           }
         },
         "summary": "Login",
@@ -12224,11 +12270,29 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EmailChallengeResponse"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EmailChallengeResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EmailComplete"
+                    }
+                  ],
+                  "title": "Response Reauthenticate Api V1 Backups Reauthenticate Post"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Invalid, expired, consumed or exhausted console access code."
           },
           "401": {
             "content": {
@@ -12269,6 +12333,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Email verification or mail delivery is unavailable on the email path."
           }
         },
         "security": [
@@ -16271,11 +16345,29 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EmailChallengeResponse"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EmailChallengeResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EmailComplete"
+                    }
+                  ],
+                  "title": "Response Confirm Api V1 Web Email Confirm Post"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Invalid, expired, consumed or exhausted console access code."
           },
           "401": {
             "content": {
@@ -16316,6 +16408,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Email verification or mail delivery is unavailable on the email path."
           }
         },
         "security": [
@@ -16604,6 +16706,16 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Invalid, expired, consumed or exhausted console access code."
+          },
           "401": {
             "content": {
               "application/json": {
@@ -16643,6 +16755,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIError"
+                }
+              }
+            },
+            "description": "Email verification or mail delivery is unavailable on the email path."
           }
         },
         "security": [],

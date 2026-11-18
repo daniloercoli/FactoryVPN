@@ -94,7 +94,9 @@ Lo stato deve essere `active (running)`; in caso contrario leggere
 `sudo journalctl -u factoryvpn-backup -n 80 --no-pager`.
 Il coordinatore
 controlla sempre il progetto indicato da `COMPOSE_PROJECT_NAME` in `.env`, oppure
-`factoryvpn`. Non usare override Compose esterni al file dell'installazione: i
+`factoryvpn`. Per tutti i comandi Compose del progetto rilegge la `.env` selezionata,
+che ha precedenza sulle variabili della shell, anche dopo la rotazione delle chiavi
+durante il ripristino. Non usare override Compose esterni al file dell'installazione: i
 comandi di recupero utilizzano esplicitamente quel file e quella configurazione.
 
 ## Utilizzo dal portale

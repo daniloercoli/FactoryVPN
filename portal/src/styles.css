@@ -2018,6 +2018,13 @@ a.metric:hover {
   gap: 0.4rem;
   max-width: 100%;
 }
+.backup-form label.check-row {
+  display: flex;
+}
+.emergency-code-help {
+  display: block;
+  margin-bottom: 0.75rem;
+}
 .backup-form input[type="file"] {
   max-width: 100%;
 }

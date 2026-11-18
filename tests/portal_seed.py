@@ -22,6 +22,7 @@ from api.time_utils import utc_now
 from api.services.auth_service import hash_password
 from api.services.lifecycle import allocation_lock
 from api.permissions import ALL_PERMISSIONS
+from factoryvpn_common.backup_catalog import Catalog
 
 
 def identifier(number):
@@ -157,6 +158,10 @@ async def seed():
 
 
 async def restore_machine_credentials():
+    # The browser coordinator only reports its heartbeat; it never consumes jobs.
+    # Do not let a queued operation from another scenario keep backup controls busy.
+    with Catalog(os.environ["BACKUP_CONTROL_DIR"]).connect() as backup_db:
+        backup_db.execute("DELETE FROM jobs")
     keys = json.loads(os.environ["FACTORYVPN_TEST_GATEWAY_KEYS"])
     async with async_session_maker() as db:
         await allocation_lock(db)

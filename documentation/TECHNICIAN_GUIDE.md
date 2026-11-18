@@ -2,6 +2,12 @@
 
 ## Prima connessione
 
+Se la posta è indisponibile e l'account locale richiede il codice email, chiedere
+all'amministratore del server un [codice di emergenza](TROUBLESHOOTING.md#accesso-di-emergenza-durante-un-guasto-della-posta).
+Nel login scegliere **Usa codice di emergenza** e usare il codice con username e
+password abituali. Il codice vale un solo uso entro 10 minuti; dopo il login
+restano le durate ordinarie dell'accesso e della VPN.
+
 1. Aprire `https://<server>/app/`. Accedere con username/password e l'eventuale
    codice email, oppure con il provider SSO indicato dall'amministratore.
 2. In **Il mio profilo → Il mio profilo VPN**, preparare e scaricare il proprio

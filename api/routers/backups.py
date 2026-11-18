@@ -28,7 +28,7 @@ from api.services.web_session_service import valid_web_session
 from api.time_utils import utc_now
 from factoryvpn_common.backup_archive import BackupError, CHUNK
 from factoryvpn_common.backup_catalog import public_job
-from api.schemas.email_security import EmailChallengeResponse
+from api.schemas.email_security import EmailChallengeResponse, EmailComplete
 
 router = APIRouter()
 
@@ -84,7 +84,7 @@ async def status(db=Depends(get_db), user=Depends(get_current_user)):
     }
 
 
-@router.post("/reauthenticate", response_model=EmailChallengeResponse)
+@router.post("/reauthenticate", response_model=EmailChallengeResponse | EmailComplete)
 async def reauthenticate(
     body: BackupReauthentication, db=Depends(get_db), user=Depends(get_current_user)
 ):
@@ -93,6 +93,12 @@ async def reauthenticate(
         raise HTTPException(409, "Use the SSO provider to authenticate again")
     if not verify_password(body.password, user.password_hash):
         raise HTTPException(401, "Invalid confirmation password")
+    if body.emergency_code is not None:
+        from api.services import console_access
+
+        await console_access.confirm(db, user, body.emergency_code, row)
+        await db.commit()
+        return {"completed": True}
     from api.services import email_security
 
     return await email_security.start(db, user, "confirm", session_id=row.id)

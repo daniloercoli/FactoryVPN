@@ -13,6 +13,7 @@ class BackupCommand(BaseModel):
 class BackupReauthentication(BaseModel):
     model_config = ConfigDict(extra="forbid")
     password: str = Field(min_length=1, max_length=1024)
+    emergency_code: str | None = Field(default=None, min_length=1, max_length=64, repr=False)
 
 
 class BackupRetention(BaseModel):

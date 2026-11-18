@@ -268,6 +268,12 @@ Seguire la [procedura completa](BACKUP_RESTORE.md), soprattutto prima di un recu
 
 ## Uscita e recupero
 
+Durante un guasto della posta, l'amministratore del server può emettere un
+[codice di emergenza da console](TROUBLESHOOTING.md#accesso-di-emergenza-durante-un-guasto-della-posta)
+per un amministratore o un tecnico locale. Il codice si usa insieme alla password
+abituale; l'accesso e la VPN mantengono le durate normali. La stessa procedura
+prevede codici distinti per riconfermare operazioni sensibili durante il guasto.
+
 **Esci dal portale** chiude le VPN avviate da quell'accesso; gli altri accessi
 restano indipendenti. **Disconnetti tutti gli accessi**, nel profilo, revoca gli
 accessi FactoryVPN dell'account. Chiudere la scheda del browser non esegue logout.

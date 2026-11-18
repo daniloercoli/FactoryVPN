@@ -2,7 +2,7 @@
 
 | Sintomo | Verifica e azione |
 | --- | --- |
-| Il codice email non arriva | Verificare la casella indicata, spam e scadenza. Attendere il tempo di reinvio. L'amministratore verifica relay, TLS e raggiungibilità SMTP dal container API. Non disattivare la verifica per aggirare il problema. |
+| Il codice email non arriva | Verificare la casella indicata, spam e scadenza. Attendere il tempo di reinvio. L'amministratore verifica relay, TLS e raggiungibilità SMTP dal container API. Per un guasto della posta usare l'[accesso di emergenza da console](#accesso-di-emergenza-durante-un-guasto-della-posta). |
 | Codice errato o scaduto | Usare l'ultimo codice della richiesta ancora valida. Cinque tentativi esauriscono la richiesta; dieci errori cumulativi bloccano la verifica per 15 minuti. |
 | Login SSO amministrativo rifiutato | Verificare associazione esplicita al `sub`, account attivo e claim MFA firmati accettati dalla policy. Il semplice successo sul provider non garantisce accesso FactoryVPN. |
 | Gateway non visibile | Verificare gruppo assegnato e appartenenza dell'utente. I gateway senza gruppo sono visibili solo globalmente. |
@@ -40,6 +40,61 @@ Per un intervento raccogliere UUID di gateway/sessione, orari con fuso, passaggi
 che fallisce e CSV filtrato della cronologia. L'audit amministrativo è separato
 dagli eventi VPN. I log grezzi dei servizi restano sul server e possono contenere
 dati sensibili: condividerne soltanto le parti necessarie dopo averle controllate.
+
+## Accesso di emergenza durante un guasto della posta
+
+L'amministratore del server può emettere un codice per un account locale attivo,
+compreso quello di un tecnico. L'operatore deve avere accesso amministrativo alla
+console o SSH del server; il destinatario usa la propria password insieme al codice.
+La generazione è disponibile soltanto da console, senza dipendere dal relay SMTP.
+
+Dalla directory dell'installazione, con l'account che gestisce Docker:
+
+```sh
+docker compose exec api python -m scripts.issue_console_code tecnico \
+  --operator operatore --reason "Posta indisponibile durante assistenza"
+```
+
+Sostituire `tecnico` con l'username dell'account e `operatore` con l'identità di chi
+emette il codice. Dopo avere verificato l'identità del destinatario, confermare
+con `EMETTI` e consegnare il codice mostrato attraverso un canale fidato disponibile.
+Nel login del portale il destinatario sceglie **Usa codice di emergenza** e inserisce
+username, password e codice.
+
+Se è già nella schermata del codice email, può premere **Non ricevi l’email? Usa
+un codice di emergenza**. Il login conserva l'username e seleziona il percorso
+di emergenza: occorre reinserire password e codice da console. Il pulsante è
+disponibile subito e anche dopo la scadenza del codice email, indipendentemente
+dall'esito SMTP: il relay può accettare un messaggio senza che arrivi alla casella.
+
+Il codice consente un solo uso entro **10 minuti**, con al massimo **5 tentativi**.
+Una nuova emissione sostituisce il precedente codice ancora pendente per lo
+stesso account e scopo. Scadenza del codice e durata dell'accesso sono distinte:
+dopo il login valgono le durate ordinarie configurate del portale e della VPN
+(predefinite: 12 ore e fino a 3 ore). Permessi, gruppi, revoche e lease restano
+quelli dell'account. L'emissione non chiude gli accessi o le VPN già attivi.
+I login successivi richiedono nuovamente il metodo ordinario oppure un nuovo
+codice emesso dalla console.
+
+Per riconfermare un'operazione sensibile durante il guasto, emettere un nuovo
+codice destinato alla conferma:
+
+```sh
+docker compose exec api python -m scripts.issue_console_code admin \
+  --operator operatore --reason "Riconferma durante guasto posta" --purpose confirm
+```
+
+Nella richiesta di riconferma del portale scegliere il codice di emergenza e
+inserire password e nuovo codice. La conferma mantiene il browser corrente e
+la scadenza dell'accesso, senza chiudere la VPN. Resta valida per i normali
+cinque minuti delle operazioni sensibili. Un codice per il login non può essere
+usato per la conferma e viceversa.
+
+L'audit registra l'emissione con account, operatore e motivazione, insieme agli
+eventi di uso ed errore; il codice non compare nell'audit e nel database ne è conservato
+soltanto l'hash. L'uso non attesta la proprietà della casella email e non ne cambia
+lo stato di verifica. Gli account SSO continuano a usare il recupero del provider.
+Il ripristino di un backup elimina i codici di emergenza pendenti.
 
 ## Recuperare l'accesso email
 

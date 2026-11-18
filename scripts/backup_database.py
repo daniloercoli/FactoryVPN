@@ -11,6 +11,7 @@ from uuid import UUID
 
 from pydantic import SecretStr
 from sqlalchemy import delete, select, text
+from factoryvpn_common.backup_configuration import CONFIG_KEYS
 
 from api.config import settings
 from api.db.session import engine, async_session_maker
@@ -29,6 +30,7 @@ from api.models import (
     Gateway,
     Group,
     EmailChallenge,
+    ConsoleAccessCode,
     TelemetrySnapshot,
     Config,
     CertificateRenewal,
@@ -37,38 +39,6 @@ from api.services.lifecycle import allocation_lock
 from api.services import backup_access
 from api.services.web_session_service import valid_web_session
 from api.time_utils import utc_now
-
-# Restore never changes the database connection, public origin, or host paths.
-CONFIG_KEYS = (
-    "PROVISIONING_SECRET_KEY",
-    "PROVISIONING_DOWNLOAD_MINUTES",
-    "SSO_TOKEN_KEY",
-    "SSO_PROVIDERS",
-    "SSO_SESSION_MINUTES",
-    "SSO_CHECK_INTERVAL_SECONDS",
-    "SSO_MAX_STALENESS_SECONDS",
-    "SSO_CLIENT_REDIRECT_URIS",
-    "PORTAL_SESSION_MINUTES",
-    "VPN_SESSION_MINUTES",
-    "VPN_LEASE_SECONDS",
-    "VPN_GATEWAY_CERTIFICATE_DAYS",
-    "VPN_TECHNICIAN_CERTIFICATE_DAYS",
-    "GATEWAY_POLL_INTERVAL",
-    "GATEWAY_WIFI_CHECK_INTERVAL",
-    "CONTROL_API_TIMEOUT_SECONDS",
-    "GATEWAY_CONNECT_TIMEOUT_SECONDS",
-    "SMS_PROVIDER",
-    "SMS_PROVIDER_API_KEY",
-    "SMS_PROVIDER_URL",
-    "TWILIO_ACCOUNT_SID",
-    "TWILIO_AUTH_TOKEN",
-    "TWILIO_FROM",
-    "OPENVPN_SERVER_HOST",
-    "OPENVPN_SERVER_PORT",
-    "PORTAL_PUBLIC_URL",
-    "SSO_PUBLIC_URL",
-)
-
 
 def reveal(value):
     if isinstance(value, SecretStr):
@@ -187,6 +157,7 @@ async def sanitize(db, current, *, actor_id=None, recovery=None):
     await db.execute(delete(SSOSession))
     await db.execute(delete(SSOLoginAttempt))
     await db.execute(delete(EmailChallenge))
+    await db.execute(delete(ConsoleAccessCode))
     await db.execute(delete(SessionRequest))
     await db.execute(delete(TelemetrySnapshot))
     await db.execute(delete(Config).where(Config.key.in_(("provisioning_worker",))))

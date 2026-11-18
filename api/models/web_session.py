@@ -20,5 +20,6 @@ class WebSession(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
     reauthenticated_at = Column(DateTime(timezone=True), nullable=True)
     second_factor_at = Column(DateTime(timezone=True), nullable=True)
+    second_factor_method = Column(String(16), nullable=True)
     expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
     revoked_at = Column(DateTime(timezone=True), nullable=True)

@@ -1,4 +1,5 @@
 import EmailCode from "../EmailCode";
+import EmergencyCode from "../EmergencyCode";
 import { useState, type FormEvent } from "react";
 import {
   Navigate,
@@ -26,6 +27,8 @@ export default function Login() {
   const location = useLocation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [emergency, setEmergency] = useState(false);
+  const [emergencyCode, setEmergencyCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [challenge, setChallenge] = useState<EmailChallenge | null>(null);
@@ -37,7 +40,11 @@ export default function Login() {
     try {
       const result = await api<Session | EmailChallenge>("/web/login", {
         method: "POST",
-        body: { username, password },
+        body: {
+          username,
+          password,
+          ...(emergency ? { emergency_code: emergencyCode.trim() } : {}),
+        },
       });
       setPassword("");
       if ("challenge_required" in result) {
@@ -50,6 +57,7 @@ export default function Login() {
       setError(e);
       setPassword("");
     } finally {
+      setEmergencyCode("");
       setBusy(false);
     }
   }
@@ -152,6 +160,13 @@ export default function Login() {
               challenge={challenge}
               prefix="/web/login"
               onCancel={() => setChallenge(null)}
+              onEmergency={() => {
+                setChallenge(null);
+                setEmergency(true);
+                setEmergencyCode("");
+                setPassword("");
+                setError(null);
+              }}
               onComplete={async (result) => {
                 if ("user" in result) {
                   await auth.accept(result);
@@ -171,7 +186,7 @@ export default function Login() {
                   minLength={3}
                   maxLength={50}
                   autoComplete="username"
-                  autoFocus
+                  autoFocus={!emergency}
                 />
               </label>
               <label>
@@ -185,8 +200,20 @@ export default function Login() {
                   minLength={8}
                   maxLength={128}
                   autoComplete="current-password"
+                  autoFocus={emergency}
                 />
               </label>
+              <EmergencyCode
+                enabled={emergency}
+                code={emergencyCode}
+                onEnabledChange={(enabled) => {
+                  setEmergency(enabled);
+                  setEmergencyCode("");
+                  setError(null);
+                }}
+                onCodeChange={setEmergencyCode}
+                disabled={busy}
+              />
               <button className="button full" disabled={busy}>
                 {busy ? "Accesso in corso…" : "Accedi"}
                 <ArrowRight size={17} />

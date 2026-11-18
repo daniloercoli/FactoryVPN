@@ -81,6 +81,9 @@ def customer_schema(source: dict, app_name: str = DEFAULT_APP_NAME) -> dict:
         "HTTP API for customer clients and custom connectors. Authenticate with JSON at "
         "POST /api/v1/auth/login for local accounts, or use the SSO start/browser/exchange flow. "
         "When challenge_required is true, complete /auth/login/verify with the emailed code before receiving a JWT. "
+        "During a mail outage, a deployment administrator can issue a single-use console code; "
+        "supply it as emergency_code alongside the local username and password at login. "
+        "This uses the normal token/session lifetime and does not verify email ownership. "
         f"Pass the returned {app_name} JWT as a bearer token. "
         "Access is restricted to assigned resource groups. Delegated administration requires "
         "the operation's capability within those groups; global administrators manage the instance. "
@@ -200,6 +203,14 @@ def customer_schema(source: dict, app_name: str = DEFAULT_APP_NAME) -> dict:
                 )
             if path == "/api/v1/sessions/" and method == "post":
                 errors["503"] = "No VPN addresses available."
+            if path in {
+                "/api/v1/auth/login",
+                "/api/v1/web/login",
+                "/api/v1/web/email/confirm",
+                "/api/v1/backups/reauthenticate",
+            }:
+                errors["400"] = "Invalid, expired, consumed or exhausted console access code."
+                errors["503"] = "Email verification or mail delivery is unavailable on the email path."
             if path in {
                 f"/api/v1/{surface}/login/{action}"
                 for surface in ("auth", "web")

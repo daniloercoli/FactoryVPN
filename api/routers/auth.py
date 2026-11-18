@@ -87,10 +87,18 @@ async def get_current_user(
     elif user.auth_mode != "local":
         raise HTTPException(401, "SSO authentication required")
     else:
-        if email_auth.required(user) and payload.get("email_verified") is not True:
+        method = payload.get("second_factor_method")
+        if method is None and payload.get("email_verified") is True:
+            method = "email"
+        if method not in (None, "email", "console"):
+            raise HTTPException(401, "Invalid authentication credentials")
+        if method == "email" and payload.get("email_verified") is not True:
+            raise HTTPException(401, "Invalid authentication credentials")
+        if email_auth.required(user) and method is None:
             raise HTTPException(401, "Email verification required")
-        user._email_verified = payload.get("email_verified") is True
-        if user._email_verified:
+        user._email_verified = method == "email"
+        user._second_factor_method = method
+        if method:
             from datetime import datetime, timezone
 
             try:
@@ -125,7 +133,11 @@ def login_response(user):
 @router.post("/login", response_model=LoginResponse | EmailChallengeResponse)
 async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
     user = await authenticate_local(db, request.username, request.password)
-    if email_auth.required(user):
+    if request.emergency_code is not None:
+        from api.services import console_access
+
+        await console_access.verify(db, user, request.emergency_code)
+    elif email_auth.required(user):
         return await email_auth.start(db, user, "login_api")
     user.last_login = utc_now()
     await db.commit()

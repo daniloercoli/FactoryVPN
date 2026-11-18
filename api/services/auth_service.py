@@ -59,9 +59,12 @@ def issue_access_token(user, *, sso_session=None, email_verified=False):
             timedelta(minutes=settings.JWT_EXPIRE_MINUTES), sso_session.expires_at - utc_now()
         )
         return create_access_token(data, expires_delta=lifetime)
-    verified = email_verified or bool(getattr(user, "_email_verified", False))
-    data["email_verified"] = verified
-    if verified:
+    method = getattr(user, "_second_factor_method", None)
+    if email_verified or getattr(user, "_email_verified", False):
+        method = "email"
+    data["email_verified"] = method == "email"
+    if method in {"email", "console"}:
+        data["second_factor_method"] = method
         data["second_factor_at"] = getattr(user, "_second_factor_at", utc_now()).timestamp()
     return create_access_token(data)
 

@@ -27,6 +27,12 @@ def test_fresh_lab_configuration_is_isolated(tmp_path, monkeypatch, simulator):
                         "nginx": {},
                         "openvpn": {},
                         "api": {
+                            "environment": {
+                                "JWT_SECRET": env["JWT_SECRET"],
+                                "WORKER_API_KEY": env["WORKER_API_KEY"],
+                                "VPN_SESSION_MINUTES": "180",
+                                "DATABASE_URL": "postgresql+asyncpg://isolated-db",
+                            },
                             "volumes": [
                                 {"source": "old", "target": "/backups"},
                                 {"source": "old", "target": "/backup-control"},
@@ -48,6 +54,15 @@ def test_fresh_lab_configuration_is_isolated(tmp_path, monkeypatch, simulator):
     assert config["openvpn"]["ports"] == []
     assert config["nginx"]["ports"][0]["host_ip"] == "127.0.0.1"
     assert all(v["source"].startswith(str(root)) for v in config["api"]["volumes"])
+    assert config["api"]["environment"] == {
+        "JWT_SECRET": "${JWT_SECRET}",
+        "WORKER_API_KEY": "${WORKER_API_KEY}",
+        "VPN_SESSION_MINUTES": "${VPN_SESSION_MINUTES}",
+        "DATABASE_URL": "postgresql+asyncpg://isolated-db",
+    }
+    assert (root / "migrations/versions/0001_initial.py").read_bytes() == (
+        local_lab.ROOT / "migrations/versions/0001_initial.py"
+    ).read_bytes()
     assert ("test-sms" in config) is simulator
     if simulator:
         provider = config["test-sms"]
@@ -67,6 +82,31 @@ def test_fresh_lab_configuration_is_isolated(tmp_path, monkeypatch, simulator):
     with pytest.raises(RuntimeError, match="fresh lab with --directory"):
         local_lab.initialize_lab(root, simulator=simulator)
     assert (root / "credentials.json").read_bytes() == secret
+
+
+def test_lab_commands_use_own_updated_environment(tmp_path, monkeypatch):
+    (tmp_path / "lab.json").write_text(json.dumps({
+        "purpose": "factoryvpn-local-lab", "project": "factoryvpn-lab-0123456789",
+    }))
+    certificate = tmp_path / ".runtime/https/cert.pem"
+    certificate.parent.mkdir(parents=True)
+    monkeypatch.setattr(local_lab.ssl, "create_default_context", lambda **kwargs: None)
+    monkeypatch.setenv("SMS_PROVIDER_URL", "https://unrelated.example.test/send")
+    environment = tmp_path / ".env"
+    environment.write_text("SMS_PROVIDER_URL=http://test-sms:8080/send\nJWT_SECRET=before\n")
+    seen = []
+
+    def invoke(args, **kwargs):
+        seen.append(kwargs["env"])
+        return b""
+
+    monkeypatch.setattr(local_lab, "command", invoke)
+    lab = local_lab.Lab(tmp_path)
+    lab.docker("config")
+    environment.write_text("SMS_PROVIDER_URL=http://test-sms:8080/send\nJWT_SECRET=after\n")
+    lab.docker("config")
+    assert all(env["SMS_PROVIDER_URL"] == "http://test-sms:8080/send" for env in seen)
+    assert [env["JWT_SECRET"] for env in seen] == ["before", "after"]
 
 
 def test_unmarked_directory_is_never_overwritten(tmp_path):

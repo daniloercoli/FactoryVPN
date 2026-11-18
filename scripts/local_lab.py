@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import re
 import secrets
+import shutil
 import socket
 import ssl
 import subprocess
@@ -47,8 +48,8 @@ def port():
         return sock.getsockname()[1]
 
 
-def command(args, *, data=None, timeout=180):
-    result = subprocess.run(args, input=data, capture_output=True, timeout=timeout)
+def command(args, *, data=None, timeout=180, env=None):
+    result = subprocess.run(args, input=data, capture_output=True, timeout=timeout, env=env)
     if result.returncode:
         # Do not echo command arguments or environment, which may contain secrets.
         raise RuntimeError(
@@ -106,7 +107,11 @@ class Lab:
         save(self.state_path, self.state)
 
     def docker(self, *args, **kwargs):
-        return command([*self.compose, *args], **kwargs)
+        return command(
+            [*self.compose, *args],
+            env={**os.environ, **dotenv_values(self.root / ".env")},
+            **kwargs,
+        )
 
     def peer(self, action, number, protocol="tcp"):
         return (
@@ -563,8 +568,14 @@ def initialize_lab(root=LAB, *, simulator=False):
     )
     config = json.loads(result.stdout)
     services = config["services"]
+    environment = dotenv_values(root / ".env")
     for service in services.values():
         service["restart"] = "no"
+        # Keep deployment values live: recovery rotates secrets in this .env.
+        # Compose's normalized output otherwise freezes the previous keys.
+        for key in service.get("environment", {}):
+            if key in environment:
+                service["environment"][key] = "${" + key + "}"
     services["nginx"]["ports"] = [
         {"target": 443, "published": origin.rsplit(":", 1)[1], "host_ip": "127.0.0.1"}
     ]
@@ -661,6 +672,12 @@ def initialize_lab(root=LAB, *, simulator=False):
                 "retries": 20,
             },
         }
+    # Recovery compares a restored database with the schema of this lab's build.
+    shutil.copytree(
+        ROOT / "migrations",
+        root / "migrations",
+        ignore=shutil.ignore_patterns("__pycache__"),
+    )
     save(root / "docker-compose.yml", config)
     save(
         root / "credentials.json",

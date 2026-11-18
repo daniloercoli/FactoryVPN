@@ -3,27 +3,10 @@
 import asyncio
 from contextlib import contextmanager, suppress
 from email.message import EmailMessage
-import re
 import smtplib
 import ssl
 from api.config import settings
-
-
-def email_address(value):
-    value = (value or "").strip().lower()
-    if len(value) > 255 or not re.fullmatch(
-        r"[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?", value
-    ):
-        raise ValueError("Invalid email address")
-    local, domain = value.split("@")
-    if (
-        local.startswith(".")
-        or local.endswith(".")
-        or ".." in value
-        or any(label.startswith("-") or label.endswith("-") for label in domain.split("."))
-    ):
-        raise ValueError("Invalid email address")
-    return value
+from factoryvpn_common.email_address import email_address
 
 
 def configured():

@@ -197,8 +197,10 @@ export function errorMessage(error: unknown): string {
       "Un dispositivo arruolato in fabbrica deve conservare una matricola.",
   };
   if (enrollmentErrors[error.detail]) return enrollmentErrors[error.detail];
+  if (error.detail === "Incorrect or expired console access code")
+    return "Codice di emergenza errato, già utilizzato o scaduto. Verifica il codice e l’operazione per cui è stato emesso, oppure richiedine uno nuovo all’amministratore.";
   if (error.detail === "Recent email verification required")
-    return "Conferma la tua identità con un codice email nella pagina Il mio profilo, poi ripeti l’operazione.";
+    return "Conferma la tua identità nella pagina Il mio profilo con un codice email o di emergenza, poi ripeti l’operazione.";
   if (
     [
       "Verification expired or invalid",

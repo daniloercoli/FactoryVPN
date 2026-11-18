@@ -72,7 +72,11 @@ async def login(
 ):
     web.check_login_request(request)
     user = await authenticate_local(db, body.username, body.password)
-    if email_auth.required(user):
+    if body.emergency_code is not None:
+        from api.services import console_access
+
+        await console_access.verify(db, user, body.emergency_code)
+    elif email_auth.required(user):
         return await email_auth.start(
             db, user, "login_web", browser_hash=email_auth.bind_browser(request, response)
         )

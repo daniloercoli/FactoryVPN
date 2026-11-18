@@ -1,4 +1,5 @@
 import EmailCode from "../EmailCode";
+import EmergencyCode from "../EmergencyCode";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DatabaseBackup, Download, RefreshCw } from "lucide-react";
@@ -81,6 +82,8 @@ function BackupManagement() {
   const { user } = useAuth();
   const [challenge, setChallenge] = useState<EmailChallenge | null>(null);
   const [password, setPassword] = useState("");
+  const [emergency, setEmergency] = useState(false);
+  const [emergencyCode, setEmergencyCode] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [keep, setKeep] = useState<number | null>(null);
   const [confirmation, setConfirmation] = useState("");
@@ -133,16 +136,22 @@ function BackupManagement() {
         );
         window.location.assign(result.authorization_url);
       } else {
-        setChallenge(
-          await api<EmailChallenge>("/backups/reauthenticate", {
+        const result = await api<EmailChallenge | { completed: true }>(
+          "/backups/reauthenticate",
+          {
             method: "POST",
-            body: { password },
-          }),
+            body: {
+              password,
+              ...(emergency ? { emergency_code: emergencyCode.trim() } : {}),
+            },
+          },
         );
+        setChallenge("challenge_required" in result ? result : null);
         setPassword("");
         await reload();
       }
     },
+    onSettled: () => setEmergencyCode(""),
   });
   const data = query.data;
   const busy =
@@ -233,18 +242,32 @@ function BackupManagement() {
                       }}
                     >
                       {user?.auth_mode === "local" && (
-                        <label>
-                          Password attuale
-                          <input
-                            type="password"
-                            autoComplete="current-password"
-                            value={password}
-                            onChange={(event) =>
-                              setPassword(event.target.value)
-                            }
-                            required
+                        <>
+                          <label>
+                            Password attuale
+                            <input
+                              type="password"
+                              autoComplete="current-password"
+                              value={password}
+                              onChange={(event) =>
+                                setPassword(event.target.value)
+                              }
+                              required
+                            />
+                          </label>
+                          <EmergencyCode
+                            enabled={emergency}
+                            code={emergencyCode}
+                            onEnabledChange={(enabled) => {
+                              setEmergency(enabled);
+                              setEmergencyCode("");
+                              reauthenticate.reset();
+                            }}
+                            onCodeChange={setEmergencyCode}
+                            disabled={reauthenticate.isPending}
+                            confirmation
                           />
-                        </label>
+                        </>
                       )}
                       <button
                         className="button secondary"

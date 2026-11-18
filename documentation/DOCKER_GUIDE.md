@@ -264,6 +264,10 @@ oppure configurare l'unità systemd descritta nella guida backup.
 
 Aprire `https://<server>/app/`. Il login amministrativo richiede password e codice
 email; verificare la consegna alla casella reale prima di proseguire.
+Durante un guasto della posta è disponibile l'[accesso di emergenza da console](TROUBLESHOOTING.md#accesso-di-emergenza-durante-un-guasto-della-posta),
+con password e codice monouso per uno specifico account locale. La procedura usa
+lo schema iniziale completo della versione corrente e mantiene le durate normali
+del portale e della VPN.
 
 ## SSO opzionale
 

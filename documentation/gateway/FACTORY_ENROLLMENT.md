@@ -25,34 +25,146 @@ la [sequenza SMS o Wi-Fi](RUNTIME_PROTOCOL.md).
 
 ## Abilitare una postazione sul server
 
-L'operatore del server abilita l'IP di uscita e la chiave della postazione.
-Con l'ambiente Python dell'installazione:
+La **postazione** è il PC o servizio che registra i gateway a fine linea.
+Per autorizzarla servono entrambi i controlli: Nginx deve consentire il suo IP
+di uscita e l'API deve riconoscere la sua chiave. Questa preparazione si esegue
+una volta per postazione; non va ripetuta per ogni gateway.
+
+### 1. Individuare il `.env` del server
+
+Eseguire i comandi nel terminale **Linux del server**, con lo stesso account del
+bootstrap, dalla directory dell'installazione Docker standard già inizializzata.
+Su Windows/WSL usare il terminale Ubuntu in cui gira il server. Gli esempi
+seguenti assumono il progetto in `$HOME/factoryvpn` e il runtime in `.runtime`:
+
+```bash
+cd "$HOME/factoryvpn"
+```
+
+Questi comandi riguardano lo **stack Docker standard**, anche quando gira in
+WSL. Il laboratorio avviato con `scripts.gateway_simulator` usa invece un
+`docker-compose.yml` generato con valori già incorporati: modificare soltanto
+il suo `.env` non aggiorna le chiavi riconosciute dall'API. Non applicare i
+comandi Compose sotto dalla radice dei sorgenti per gestire quel laboratorio.
+
+Il `.env` da usare è quello **esistente del server**, accanto a
+`docker-compose.yml`, generato durante la [prima installazione](../DOCKER_GUIDE.md#root-offline-e-sub-ca-del-server).
+Prima di aggiungere la prima postazione, la parte pertinente ha questo aspetto:
+
+```dotenv
+# Estratto: mantenere anche tutte le altre impostazioni e i segreti del server.
+FACTORYVPN_RUNTIME_DIR=./.runtime
+FACTORY_STATIONS={}
+FACTORY_REQUESTS_PER_MINUTE=60
+```
+
+`FACTORY_STATIONS={}` significa che nessuna postazione è abilitata; il limite
+predefinito è di 60 richieste al minuto per postazione. L'estratto non è un
+`.env` completo e non deve sostituire il file dell'installazione. Se ci sono
+già postazioni configurate, mantenere il loro contenuto: il comando successivo
+aggiunge la nuova voce automaticamente.
+
+`--env-file .env` indica il file da aggiornare. `--root .runtime` indica il
+runtime effettivo e deve corrispondere a `FACTORYVPN_RUNTIME_DIR`: se nel proprio
+`.env` vale, per esempio, `/srv/factoryvpn/runtime`, usare quel percorso in
+**tutti** gli argomenti `--root` e nei percorsi dei file sotto. Il comando non
+ricava automaticamente `--root` dal `.env`.
+
+### 2. Generare la chiave della postazione
+
+Scegliere un nome riconoscibile, per esempio `line-1`, ed eseguire sul server:
 
 ```bash
 .venv/bin/python -m scripts.factory_access --root .runtime --env-file .env \
   add-station --station line-1 --key-file .runtime/factory/line-1.key
-.venv/bin/python -m scripts.factory_access --root .runtime --env-file .env \
-  allow-ips 192.0.2.10/32 2001:db8:1234::/64
-docker compose up -d --force-recreate api nginx
 ```
 
-Gli indirizzi sono esempi: usare gli IP di uscita effettivi delle postazioni.
-`allow-ips` sostituisce l'intera lista; senza indirizzi torna a negare tutti.
-Adeguare `--root` a `FACTORYVPN_RUNTIME_DIR`. Trasferire il file `.key` alla
-postazione con un canale protetto e limitarne l'accesso all'operatore/servizio.
-Il comando non stampa la chiave; `.env` conserva soltanto il suo hash SHA-256.
-Non inserire questa chiave nei gateway o nell'immagine firmware.
-Il file `.key` sul server serve alla consegna iniziale: dopo il trasferimento
-verificato alla postazione, rimuovere quella copia temporanea. Le API non la usano.
+Il comando genera una chiave casuale, la salva in
+`.runtime/factory/line-1.key` con permessi `0600` e aggiorna il `.env` conservando
+le altre impostazioni. La riga risultante sarà simile a questa:
+
+```dotenv
+FACTORY_STATIONS='{"line-1": "18c07fbdef188d3ff1c506ca17aa4c751ae437c7642eeda2711a008aa5a44a6a"}'
+```
+
+L'hash mostrato è **solo dimostrativo**: il comando scrive quello della chiave
+appena generata. Lasciare il JSON su una sola riga, con virgolette singole esterne
+e doppie per nome e hash. Non occorre calcolare l'hash o compilare questa riga a
+mano. `line-1` identifica la postazione; il valore è l'hash SHA-256 della sua
+chiave, composto da 64 caratteri esadecimali minuscoli. La chiave in chiaro resta
+nel file `.key` e non viene stampata né inserita nel `.env`.
+
+### 3. Autorizzare l'IP di uscita
+
+Eseguire sul server, sostituendo l'indirizzo dimostrativo con quello effettivo:
+
+```bash
+.venv/bin/python -m scripts.factory_access --root .runtime --env-file .env \
+  allow-ips 192.0.2.10/32
+```
+
+Conta l'IP sorgente **visto da Nginx**: nella stessa LAN può essere l'IP del PC;
+se la postazione arriva da Internet attraverso un router NAT, normalmente è
+l'IP pubblico di uscita della fabbrica. Per un singolo IPv4 usare `/32`, per
+un singolo IPv6 `/128`. Non è l'IP del gateway da arruolare né l'indirizzo del
+server FactoryVPN.
+
+Gli IP **non si scrivono nel `.env`**. Il comando crea o sostituisce
+`.runtime/factory/allow.conf`; nell'esempio il contenuto utile è:
+
+```nginx
+allow 192.0.2.10/32;
+deny all;
+```
+
+La lista è comune a tutte le postazioni, mentre ogni postazione ha la propria
+chiave. `allow-ips` **sostituisce l'intera lista**: se ci sono più IP da mantenere,
+passarli tutti nella stessa chiamata, per esempio
+`allow-ips 192.0.2.10/32 192.0.2.11/32`. Senza indirizzi torna a negare tutti.
+
+Con un proxy a monte, concordare il filtro con chi gestisce l'ingresso: il
+controllo fornito usa l'IP del peer TCP e non considera attendibili gli header
+`X-Forwarded-For` o `X-Real-IP` inviati dal chiamante. L'allowlist riguarda le
+chiamate della postazione a `/api/v1/factory/`; il gateway usa invece la propria
+credenziale HTTPS individuale, anche da reti diverse.
+
+### 4. Applicare la configurazione e consegnare la chiave
+
+Sul server, in una finestra senza VPN di prova attive, eseguire un comando alla
+volta e proseguire solo se riesce:
+
+```bash
+docker compose --env-file .env config --quiet
+docker compose --env-file .env up -d --force-recreate --wait api nginx
+docker compose --env-file .env ps api nginx
+```
+
+La ricreazione passa i nuovi hash all'API e monta la nuova allowlist in Nginx.
+Per queste sole modifiche di configurazione non serve ricostruire le immagini.
+Se l'installazione usa opzioni Compose aggiuntive, mantenere lo stesso progetto,
+file e opzioni usati per avviarla.
+
+Trasferire **il solo file `line-1.key`** alla postazione con un canale protetto,
+per esempio nel percorso `/secure/factoryvpn/line-1.key` usato nel capitolo
+seguente. Limitare l'accesso al file all'operatore o servizio di fine linea.
+La postazione lo userà con `scripts.factory_station --key-file`; non occorre
+copiarle il `.env` del server. Non inserire la chiave della postazione nei gateway
+o nell'immagine firmware. Dopo il trasferimento verificato, rimuovere la copia
+temporanea `.runtime/factory/line-1.key` dal server: le API usano l'hash nel `.env`.
+
+Alla prima registrazione riuscita, il gateway compare in **Arruolamenti**.
+Un `403` di Nginx indica di verificare l'IP sorgente e la allowlist; un `401`
+dell'API indica di verificare la chiave della postazione, il suo hash e la
+ricreazione dell'API. Questi controlli non richiedono di generare un'altra
+identità del gateway.
+
+### Rotazione e revoca
 
 Per rotazione usare `add-station` con lo stesso nome, `--rotate` e un **nuovo**
 percorso `--key-file`; per revoca usare `revoke-station --station line-1`.
-Ricreare `api` dopo la modifica e distribuire la nuova chiave alla postazione.
+Usare gli stessi `--root` e `--env-file`, poi applicare la configurazione come
+al punto 4 e, in caso di rotazione, distribuire la nuova chiave alla postazione.
 Una rotazione non modifica le credenziali individuali dei dispositivi già registrati.
-
-Con un proxy a monte, applicare la restrizione all'IP effettivo della postazione.
-L'allowlist si applica alla chiamata della postazione, mentre il gateway si
-autentica via HTTPS con la sua credenziale individuale.
 
 ## Preparazione a fine linea
 

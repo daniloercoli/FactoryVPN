@@ -12,6 +12,7 @@ from api.models.group import Group, UserGroup
 from api.models.sso import ExternalIdentity, SSOSession, SSOLoginAttempt
 from api.models.web_session import WebSession
 from api.models.email_challenge import EmailChallenge
+from api.models.console_access import ConsoleAccessCode
 from api.models.session_request import SessionRequest
 from api.models.session_event import SessionEvent
 from api.models.gateway_observability import GatewaySystemSnapshot, GatewayTechnicalLog
@@ -35,6 +36,7 @@ __all__ = [
     "SSOLoginAttempt",
     "WebSession",
     "EmailChallenge",
+    "ConsoleAccessCode",
     "SessionRequest",
     "SessionEvent",
     "TelemetrySnapshot",

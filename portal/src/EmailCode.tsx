@@ -7,6 +7,7 @@ export default function EmailCode({
   prefix = "/web/email",
   onComplete,
   onCancel,
+  onEmergency,
 }: {
   challenge: EmailChallenge;
   prefix?: string;
@@ -14,6 +15,7 @@ export default function EmailCode({
     result: Session | { completed: boolean },
   ) => void | Promise<void>;
   onCancel: () => void;
+  onEmergency?: () => void;
 }) {
   const [current, setCurrent] = useState(challenge);
   const [code, setCode] = useState("");
@@ -118,6 +120,16 @@ export default function EmailCode({
           Indietro
         </button>
       </div>
+      {onEmergency && (
+        <button
+          type="button"
+          className="button secondary"
+          disabled={busy}
+          onClick={onEmergency}
+        >
+          Non ricevi l’email? Usa un codice di emergenza
+        </button>
+      )}
       <small>
         Il codice dura 5 minuti e consente al massimo 5 tentativi. Un nuovo
         invio sostituisce il codice senza prolungarne la scadenza.

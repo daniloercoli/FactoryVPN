@@ -45,9 +45,16 @@ async def local_password(db, user, password):
         raise HTTPException(400, "Invalid confirmation password")
 
 
-@router.post("/web/email/confirm", response_model=EmailChallengeResponse)
+@router.post("/web/email/confirm", response_model=EmailChallengeResponse | EmailComplete)
 async def confirm(body: BackupReauthentication, db=Depends(get_db), user=Depends(browser_user)):
     await local_password(db, user, body.password)
+    if body.emergency_code is not None:
+        from api.services import console_access
+
+        session = await db.get(WebSession, user._web_session_id)
+        await console_access.confirm(db, user, body.emergency_code, session)
+        await db.commit()
+        return {"completed": True}
     return await service.start(db, user, "confirm", session_id=user._web_session_id)
 
 
@@ -110,6 +117,7 @@ async def verify(
     if row.purpose == "confirm":
         session = await db.get(WebSession, row.web_session_id)
         session.reauthenticated_at = session.second_factor_at = utc_now()
+        session.second_factor_method = "email"
         user.email_verified_at = user.email_verified_at or utc_now()
         await db.commit()
         return {"completed": True}
