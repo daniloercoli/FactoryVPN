@@ -386,7 +386,6 @@ function UserEditor({
           . L’utente può cambiare email dal proprio profilo.
         </p>
       )}
-      {user && <EmailRecovery user={user} reload={reload} />}
       {!editable && (
         <Notice>
           Puoi consultare questo account, ma i suoi permessi superano quelli che
@@ -605,6 +604,7 @@ function UserEditor({
       {user && auth.user!.is_admin && (
         <IdentityEditor user={user} refresh={reload} />
       )}
+      {user && <EmailRecovery user={user} reload={reload} />}
       {user && editable && user.id !== auth.user!.id && (
         <section className="card padded danger-zone">
           <h2>Elimina account</h2>
