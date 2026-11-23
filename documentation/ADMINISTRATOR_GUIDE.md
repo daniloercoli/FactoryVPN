@@ -48,9 +48,10 @@ locale attivo è protetto da rimozione, disabilitazione e conversione a SSO.
 
 ## Supervisionare i client
 
-La **Panoramica** mostra account abilitati, gateway e, con `sessions.manage`,
-richieste in attesa, sessioni attive e risorse in pulizia. I conteggi operativi
-portano alla relativa vista **Client VPN**.
+Nella **Panoramica**, i contatori di account abilitati e gateway richiedono
+`audit.read`; quelli di richieste in attesa, sessioni attive e risorse in pulizia
+richiedono `sessions.manage`. I conteggi operativi portano alla relativa vista
+**Client VPN**.
 
 **Client VPN** mostra per default le sessioni in corso e quelle con risorse ancora
 riservate. Cercare tecnico, nome o identificativi del gateway (matricola, MAC,
@@ -130,8 +131,10 @@ identità. L'UUID e l'IP VPN già assegnato restano invariati. Le correzioni di 
 matricola, IMEI o ICCID non richiedono questa sostituzione. Il numero SMS rimane
 univoco per l'instradamento dei messaggi.
 
-Disabilitare/eliminare un utente revoca accessi e certificati personali. Riabilitarlo
-richiede un nuovo profilo VPN. Per un incidente su un certificato usare **Revoca**
+Per eliminare un utente, chiudere prima le sue VPN e attendere la pulizia.
+Disabilitare o eliminare un utente revoca accessi e certificati personali.
+Riabilitare un utente disabilitato richiede un nuovo profilo VPN.
+Per un incidente su un certificato usare **Revoca**
 nella relativa scheda e verificare la chiusura e il rilascio delle risorse.
 I certificati gateway e tecnici durano dieci anni per default; il certificato
 server OpenVPN cinque anni. Per i gateway con agente compatibile usare

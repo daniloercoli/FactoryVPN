@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "factoryvpn"
-version = "2.0.0"
+version = "0.9.0"
 description = "FactoryVPN industrial VPN platform for remote machine assistance"
 readme = "README.md"
 license = {text = "MIT"}

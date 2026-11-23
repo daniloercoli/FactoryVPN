@@ -67,7 +67,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=f"{settings.APP_NAME} API",
     description=f"{settings.APP_NAME} industrial VPN API for remote machine assistance",
-    version="2.0.0",
+    version="0.9.0",
     lifespan=lifespan,
     docs_url=None,
     redoc_url=None,
@@ -169,13 +169,13 @@ app.include_router(email_security.router, prefix="/api/v1", tags=["Email verific
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "version": "2.0.0"}
+    return {"status": "healthy", "version": "0.9.0"}
 
 
 @app.get("/")
 async def root():
     """Root endpoint"""
-    return {"name": f"{settings.APP_NAME} API", "version": "2.0.0", "docs": "/docs"}
+    return {"name": f"{settings.APP_NAME} API", "version": "0.9.0", "docs": "/docs"}
 
 
 @app.exception_handler(IntegrityError)

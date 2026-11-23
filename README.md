@@ -6,12 +6,23 @@
 
 FactoryVPN permette l'assistenza remota ai gateway industriali, con accessi autorizzati
 su richiesta e limitati nel tempo. La base software comprende API FastAPI/PostgreSQL,
-server OpenVPN, worker di rete e agente Linux con attivazione SMS o controllo Wi-Fi.
+portale React/TypeScript servito da Nginx, server OpenVPN, worker di rete e agente
+Linux con attivazione SMS o controllo Wi-Fi.
+
+La versione corrente di FactoryVPN e delle API è **0.9.0**, con modello
+**Gateway Only**. È in corso il completamento del rilascio **1.0**.
+La funzionalità [Single LAN](documentation/gateway/SINGLE_LAN_V2.md) è prevista
+**a partire dalla versione 2.0, attualmente non in fase di progettazione**.
+L'accesso diretto dal PC alla LAN del gateway non fa parte della versione corrente.
 
 Il [portale web](documentation/ADMINISTRATOR_GUIDE.md) gestisce utenti, gruppi, permessi, gateway e sessioni
 VPN, con accesso locale e SSO in `/app/`. Il tecnico seleziona un gateway e segue
 apertura, stato e chiusura; il client OpenVPN viene avviato manualmente.
-Gli amministratori globali dispongono di [backup cifrati e ripristino guidato](documentation/BACKUP_RESTORE.md),
+Il login locale amministrativo richiede password e codice email; per gli
+amministratori SSO il provider deve attestare MFA. Durante un guasto della posta,
+gli account locali possono usare un [codice di emergenza da console](documentation/TROUBLESHOOTING.md#accesso-di-emergenza-durante-un-guasto-della-posta)
+insieme alla password, senza modificare le normali durate di accesso e VPN.
+Gli amministratori globali dispongono di [backup manuali cifrati e ripristino guidato](documentation/BACKUP_RESTORE.md),
 con un coordinatore separato dal portale per gestire anche il recupero dopo un guasto.
 Impostare `PORTAL_PUBLIC_URL`
 all’origin HTTPS dell’istanza per abilitare le sessioni browser.
@@ -28,6 +39,13 @@ La pagina **Client VPN** riunisce supervisione, collegamenti osservati, ricerca
 dei tecnici e chiusura delle sessioni. Le schede gateway mostrano identificativi,
 versioni dei componenti, log tecnici e storico delle metriche; **Stato server**
 raccoglie componenti centrali, certificati, backup e verifica SMTP.
+Cronologia e audit descrivono accessi e operazioni amministrative, non le modifiche
+eseguite sui PLC. Telemetria e backup non includono allarmi automatici,
+pianificazione dei backup o copia remota automatica.
+
+Le credenziali VPN sono individuali. Il [rinnovo remoto dei certificati gateway](documentation/gateway/CERTIFICATE_RENEWAL.md)
+usa una CSR via HTTPS con chiave generata sul dispositivo; il rinnovo non aggira
+revoca delle credenziali o cambio del gruppo assegnato.
 
 ## Funzionamento
 
@@ -38,9 +56,9 @@ consentono amministrazione delegata entro gli stessi gruppi. Un gateway non
 assegnato non consente sessioni. La gestione comprende profilo, cambio password,
 logout globale, revoca dei token e degli accessi VPN. Vedere i
 [permessi amministrativi](documentation/ADMINISTRATOR_GUIDE.md#assegnare-i-permessi).
-Il tecnico richiede una sessione fino a 3 ore per default selezionando il gateway;
+Il tecnico richiede una sessione fino a 3 ore dalla richiesta per default selezionando il gateway;
 il login al portale dura 12 ore per default. Le due scadenze non si rinnovano con l'uso.
-Per le nuove sessioni dal portale, logout e scadenza dell'accesso chiudono anche
+Per le sessioni dal portale, logout e scadenza dell'accesso chiudono anche
 le VPN aperte da quell'accesso. L'API prenota la coppia tecnico/gateway per tutta
 la sessione e la successiva pulizia. Sono disponibili due modalità, configurate per dispositivo:
 
@@ -84,10 +102,28 @@ Una sessione chiusa/scaduta mantiene le proprie risorse riservate fino alla
 conferma di pulizia del worker. Un secondo accesso sullo stesso utente o gateway
 restituisce `409` durante la sessione e la pulizia.
 
+## API e integrazione
+
+La [guida per sviluppatori](website/dist/developers.html) e il
+[contratto OpenAPI](website/dist/api/openapi.json) descrivono le API HTTP per
+autenticazione, gateway, sessioni e amministrazione. I connettori verso portali,
+service desk o altre applicazioni vanno sviluppati per la specifica integrazione;
+le API non avviano automaticamente il client OpenVPN sul PC del tecnico.
+
+L'apertura di sessione supporta `Idempotency-Key`: in caso di risposta persa,
+riutilizzare la stessa chiave e lo stesso body per recuperare la richiesta.
+Il contratto pubblico del sito esclude le API riservate a gateway e worker;
+i protocolli gateway sono descritti nelle [guide di integrazione](documentation/README.md).
+Lo schema completo dell'istanza FastAPI resta disponibile in `/openapi.json`.
+La versione del software è distinta da quella del protocollo: il prefisso
+delle API resta `/api/v1`.
+
 ## Prima installazione
 
 Seguire la [guida di installazione](documentation/DOCKER_GUIDE.md) per server,
-HTTPS, SMTP, primo amministratore e gateway. Prima dell'uso operativo predisporre
+HTTPS, SMTP, primo amministratore e gateway, usando un database nuovo.
+Il modello previsto è una **nuova installazione**, senza migrazioni da versioni
+precedenti. Prima dell'uso operativo predisporre
 [backup e recupero](documentation/BACKUP_RESTORE.md) e completare i
 [controlli nell'ambiente di destinazione](documentation/DOCKER_GUIDE.md#verifica-prima-delluso-operativo).
 
@@ -163,10 +199,16 @@ insieme, con due gateway e LAN simulate. I test locali non sostituiscono i
 - [Guide operative essenziali](documentation/README.md): installazione, amministratore,
   tecnico, backup e risoluzione dei problemi.
 - Per gli sviluppatori gateway: [prima inizializzazione](documentation/gateway/INITIAL_SETUP.md),
+  [arruolamento di fine linea](documentation/gateway/FACTORY_ENROLLMENT.md),
   [protocollo operativo](documentation/gateway/RUNTIME_PROTOCOL.md) e
   [rinnovo remoto dei certificati](documentation/gateway/CERTIFICATE_RENEWAL.md).
-- [Sito statico e pubblicazione](website/README.md), [OpenAPI](website/dist/api/openapi.json).
+- [Guida alle API](website/dist/developers.html), [OpenAPI](website/dist/api/openapi.json),
+  [sito statico e pubblicazione](website/README.md).
+- [Single LAN dalla versione 2.0](documentation/gateway/SINGLE_LAN_V2.md):
+  comportamento futuro e requisiti da definire, non funzionalità della versione corrente.
+- [MQTT dalla versione 2.1](documentation/gateway/MQTT_V2_1.md):
+  futura messaggistica gateway–piattaforma, benefici e vincoli d'integrazione.
 
 ## Licenza
 
-MIT
+[MIT](LICENSE)

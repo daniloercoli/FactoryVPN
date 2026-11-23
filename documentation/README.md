@@ -26,3 +26,15 @@ Per integrare applicazioni con le API utente e amministratore sono disponibili l
 [contratto OpenAPI](../website/dist/api/openapi.json).
 Le API macchina per registrazione e rinnovo sono descritte nelle guide sopra,
 separatamente dal contratto OpenAPI dei client del portale.
+
+Per gli sviluppatori è disponibile anche il riferimento
+[Single LAN dalla versione 2.0](gateway/SINGLE_LAN_V2.md): significato, differenze
+da Gateway Only e requisiti della futura implementazione. La versione corrente
+è la 0.9.0, con la 1.0 in completamento; la 2.0 non è attualmente in fase di
+progettazione. Il documento non descrive
+una funzionalità disponibile nella versione corrente.
+
+L'evoluzione successiva è descritta in
+[MQTT dalla versione 2.1](gateway/MQTT_V2_1.md): benefici attesi del canale di
+messaggistica gateway–piattaforma, distinto dalla VPN. Anche questa funzionalità
+è futura e non disponibile nella 0.9.0.

@@ -6,6 +6,19 @@ Per la consegna manuale vedere il [primo avvio](INITIAL_SETUP.md).
 
 ## Processo
 
+Il flusso coinvolge quattro ruoli. La stessa persona può coprirne più di uno,
+e per ciascuna operazione è indicato dove eseguirla:
+
+| Chi | Dove opera | Responsabilità |
+|---|---|---|
+| Sviluppatori del firmware | Immagine Linux/Yocto del gateway | Includono agente, dipendenze e servizio; predispongono memoria persistente, rete e fiducia HTTPS. |
+| Amministratore del server | Terminale del server FactoryVPN | Abilita una volta la postazione di fine linea: chiave e IP di uscita autorizzato. |
+| Operatore di fine linea | PC di produzione, detto **postazione** | Per ogni dispositivo verifica la matricola, esegue la CLI e scrive l'identità individuale nella memoria del gateway. |
+| HQ, amministratore globale | Portale FactoryVPN | Verifica la pratica in **Arruolamenti**, sceglie il gruppo, approva e completa o corregge i dati. |
+
+Il gateway esegue poi automaticamente il bootstrap previsto dal firmware.
+La sequenza complessiva è:
+
 1. La postazione prepara UUID e credenziale casuale individuale, li salva in un
    registro locale protetto e scrive l'identità nella memoria persistente del gateway.
 2. Dalla rete fidata registra UUID, matricola e hash della credenziale su FactoryVPN.
@@ -22,6 +35,15 @@ Approvazione e primo contatto possono avvenire in qualsiasi ordine, anche a mesi
 di distanza. Una volta ottenuto l'accesso a Internet, usare HTTPS sulla connessione
 mobile o Wi-Fi del gateway. Per aprire una sessione dopo la registrazione seguire
 la [sequenza SMS o Wi-Fi](RUNTIME_PROTOCOL.md).
+
+Per usare gli strumenti forniti, seguire nell'ordine
+[abilitazione della postazione](#abilitare-una-postazione-sul-server),
+[preparazione di ogni dispositivo](#preparazione-a-fine-linea) e
+[configurazione del primo avvio](#dati-del-gateway-e-primo-avvio).
+Il [contratto HTTP](#contratto-http-per-firmware-o-postazioni-propri) descrive
+le API usate da questi strumenti e serve anche a chi realizza una postazione
+o un firmware propri. Le chiamate HTTP non sono operazioni da ripetere a mano
+dopo avere eseguito con successo la CLI e il bootstrap.
 
 ## Abilitare una postazione sul server
 
@@ -168,11 +190,53 @@ Una rotazione non modifica le credenziali individuali dei dispositivi già regis
 
 ## Preparazione a fine linea
 
-Installare l'agente come nella [guida al primo avvio su Yocto](INITIAL_SETUP.md#usare-lagente-su-yocto)
-o nella [guida Linux](../DOCKER_GUIDE.md#agente-linux). L'identità individuale
-deve stare fuori dall'immagine comune e sopravvivere agli aggiornamenti firmware.
-Il comando fornito può scriverla direttamente su un filesystem del dispositivo
-montato dalla postazione:
+Questa procedura si ripete **per ogni gateway**. Nell'esempio la matricola è
+`GW-000123`, la postazione è `line-1` e il server è `https://vpn.example.com`.
+Sostituire questi valori con quelli dell'installazione.
+
+### 1. Predisporre firmware e postazione
+
+**Sviluppatori del firmware, prima di avviare la produzione:** installare
+l'agente e il servizio come nella
+[guida al primo avvio su Yocto](INITIAL_SETUP.md#usare-lagente-su-yocto)
+o nella [guida Linux](../DOCKER_GUIDE.md#agente-linux). Predisporre una directory
+persistente scrivibile `/etc/factoryvpn` che sopravviva agli aggiornamenti.
+L'immagine comune non deve contenere identità o segreti di altri dispositivi.
+L'avvio del bootstrap va subordinato al completamento del punto 4.
+
+**Amministratore del server, una volta per postazione:** completare la
+[procedura di abilitazione](#abilitare-una-postazione-sul-server) e consegnare
+il file `line-1.key` al PC di fine linea. Sul server devono essere applicati
+sia l'hash della chiave sia la allowlist dell'IP di uscita.
+
+**Responsabile della postazione:** predisporre i sorgenti FactoryVPN e un
+ambiente Python con le dipendenze del progetto. I comandi sotto assumono una
+postazione Linux, un ambiente `.venv` pronto e l'esecuzione dalla radice dei
+sorgenti. L'account deve poter scrivere nella memoria del gateway collegato.
+
+### 2. Collegare il dispositivo corretto e identificare i file
+
+**Operatore di fine linea, per ogni dispositivo:** leggere la matricola fisica
+o dal gestionale e collegare il gateway alla postazione. Nell'esempio il suo
+filesystem persistente è montato sul PC in `/mnt/gateway`. Verificare che il
+mount corrisponda proprio al dispositivo con matricola `GW-000123`.
+
+| Percorso dell'esempio | Dove si trova | A cosa serve |
+|---|---|---|
+| `/secure/factoryvpn/line-1.key` | PC di fine linea | Chiave della postazione, riutilizzata per i dispositivi di quella linea; non va copiata sul gateway. |
+| `.factoryvpn-factory/GW-000123.json` | PC di fine linea | Registro della singola operazione, da conservare per riprendere un tentativo interrotto. |
+| `/mnt/gateway/etc/factoryvpn/enrollment.json` | Memoria persistente del gateway, vista dal PC | Identità e segreto iniziale individuale del dispositivo. All'avvio il gateway lo vedrà come `/etc/factoryvpn/enrollment.json`. |
+
+`/mnt/gateway` è soltanto il punto di montaggio sul PC. Non è una directory da
+creare nel gateway per ospitare una seconda copia dei file.
+Se la linea usa un programmatore o un trasferimento diverso, l'integrazione
+deve garantire scrittura e rilettura nella memoria del dispositivo: un export
+sul solo disco del PC non prova che il gateway abbia ricevuto l'identità.
+
+### 3. Eseguire la registrazione di fine linea dal PC
+
+**Operatore di fine linea:** eseguire il comando seguente **sul PC di produzione**,
+con il dispositivo corretto ancora montato:
 
 ```bash
 .venv/bin/python -m scripts.factory_station \
@@ -184,27 +248,102 @@ montato dalla postazione:
   --identity-file /mnt/gateway/etc/factoryvpn/enrollment.json
 ```
 
-`--identity-file` deve puntare alla memoria persistente del dispositivo corretto.
-Un adattatore per una linea diversa deve garantire scrittura e rilettura sul
-dispositivo prima di considerare terminata l'operazione; un semplice export su
-disco della postazione non prova la consegna al gateway.
 `--external-reference` è un riferimento gestionale facoltativo, privo di autorità
 sulle autorizzazioni VPN. La chiave può anche arrivare dall'ambiente
 `FACTORYVPN_FACTORY_KEY`; non passarla in chiaro nella riga di comando.
 
-Il comando genera UUID, segreto casuale di 32 byte e identificatore idempotente.
-Salva il registro **prima** della scrittura e della richiesta di rete. Un retry
-deve riusare gli stessi argomenti e lo stesso registro. Non cancellarlo per
-aggirare un errore: si creerebbe una seconda identità. Dopo conferma del server
-e verifica locale, il registro non conserva più il segreto individuale; questo
-rimane soltanto sul dispositivo. Registro e file identità sono privati (`0600`).
-Il percorso `.factoryvpn-factory/` è escluso da Git e dalle immagini Docker.
-Avviare il servizio sul gateway soltanto dopo il successo della registrazione
-della postazione: prima di quel momento l'identità non è ancora riconosciuta
-dal server. Se la linea ha già avviato l'agente e questo si è fermato per un
-rifiuto di autenticazione, riavviarlo dopo avere completato il retry di fine linea.
+**La CLI esegue automaticamente queste operazioni, nell'ordine:**
 
-Formato di `/etc/factoryvpn/enrollment.json` (valori dimostrativi):
+1. Genera UUID del dispositivo, segreto iniziale individuale da 32 byte casuali
+   codificati come testo e identificatore idempotente dell'operazione.
+2. Salva il registro sul PC **prima** di scrivere sul dispositivo o inviare
+   richieste di rete.
+3. Scrive `enrollment.json` nella memoria persistente del gateway e lo rilegge
+   per verificarne identità, URL e segreto.
+4. Chiama `POST /api/v1/factory/gateways` con la chiave della postazione,
+   l'UUID, la matricola e l'hash del segreto individuale. Il segreto individuale
+   in chiaro resta sul dispositivo e, fino al successo, nel registro locale.
+5. Controlla che il server confermi lo stesso UUID, marca il registro come
+   confermato e rimuove da quel registro il segreto individuale.
+
+Con gli strumenti forniti non occorre preparare a mano JSON, hash o richieste
+HTTP. In questa fase la CLI non genera `gateway.env` o `gateway.ovpn` e non
+approva la pratica: queste operazioni appartengono alle fasi successive.
+
+### 4. Verificare la conclusione del passaggio di fine linea
+
+**Operatore di fine linea:** il comando deve terminare con esito positivo e
+stampare l'UUID, per esempio:
+
+```text
+FactoryVPN gateway registered: 11111111-1111-4111-8111-111111111111
+```
+
+L'UUID è generato dalla CLI: quello mostrato è dimostrativo. A questo punto
+il server conosce la pratica e HQ può trovarla in **Arruolamenti**. La frase
+`gateway registered` stampata dalla CLI indica questa registrazione di fabbrica;
+la registrazione operativa e l'assegnazione dell'IP VPN avverranno al punto 6.
+
+In caso di timeout o errore, conservare registro e file identità e ripetere
+lo stesso comando, con gli stessi argomenti e percorsi. Non cancellare il
+registro o generare un altro UUID per aggirare l'errore. Lasciare il bootstrap
+fermo finché la CLI non conclude con successo. Se l'agente era già partito
+e si è fermato per un rifiuto di autenticazione, riavviarlo dopo il retry riuscito.
+
+Registro e file identità sono privati (`0600`); il registro rimane sul PC.
+Il percorso `.factoryvpn-factory/` è escluso da Git e dalle immagini Docker.
+
+### 5. Verificare e approvare la pratica nel portale
+
+**HQ, con un account amministratore globale:** aprire **Arruolamenti**, cercare
+la matricola o l'UUID appena confermati, verificare i dati, scegliere il gruppo
+e usare **Approva e assegna**. Non creare un secondo gateway con **Aggiungi gateway**
+per completare questa pratica: l'identità da conservare è quella di fine linea.
+
+HQ può approvare anche con dispositivo offline, SIM inattiva e dati operativi
+ancora incompleti. Prima di emettere il pacchetto devono però essere noti la
+modalità e il numero telefonico per SMS oppure la modalità e il MAC per Wi-Fi.
+IMEI e ICCID restano facoltativi. I dati possono arrivare dal gateway tramite
+`gateway.local.env` o essere completati da HQ, come nella sezione successiva.
+
+### 6. Avviare il gateway e lasciare completare il bootstrap
+
+**Operatore o installatore del gateway:** predisporre la connessione Internet,
+la fiducia HTTPS e gli eventuali dati in
+[`gateway.local.env`](#dati-del-gateway-e-primo-avvio). Avviare quindi il servizio
+sul gateway. Se è installata l'unità systemd fornita:
+
+```bash
+sudo systemctl start factoryvpn-agent.service
+```
+
+Questo comando si esegue **nel terminale del gateway**. Con un altro gestore
+di servizi usare il comando di avvio previsto dal firmware.
+
+**Agente del gateway, automaticamente:** legge `enrollment.json`, contatta il
+server via HTTPS e presenta i dati disponibili. Attende approvazione e dati
+completi; poi richiede il pacchetto, lo scarica, verifica e installa
+`gateway.env` e `gateway.ovpn` con journal persistente e conferma l'installazione.
+Il server attiva le credenziali operative e consuma il segreto iniziale.
+L'agente esegue infine `POST /api/v1/gateways/register`: il server assegna
+l'IP VPN fisso se manca.
+
+**Servizi del server, automaticamente:** le API e il worker di provisioning
+gestiscono preparazione ed emissione dei file dopo le verifiche previste.
+L'amministratore non deve eseguire un comando per ogni pacchetto.
+
+Approvazione HQ e primo contatto del gateway possono avvenire in ordine inverso:
+il gateway può avviarsi e attendere HQ. Il requisito per avviarlo è il successo
+della registrazione della postazione al punto 4.
+
+**Risultato finale da verificare:** pratica completata, registrazione ordinaria
+riuscita e IP VPN presente nella scheda del gateway. Il dispositivo è ora pronto
+ad attendere una richiesta SMS o Wi-Fi; la VPN si apre soltanto con una sessione
+autorizzata, come nel [protocollo operativo](RUNTIME_PROTOCOL.md).
+
+Il file `/etc/factoryvpn/enrollment.json` scritto dalla CLI al punto 3 ha questo
+**formato iniziale**, prima che il bootstrap consumi il segreto e lo trasformi
+in un marcatore di completamento (valori dimostrativi):
 
 ```json
 {
@@ -221,7 +360,9 @@ valgono come prova d'identità. HQ può correggere la matricola senza cambiare U
 
 ## Dati del gateway e primo avvio
 
-Preparare facoltativamente `/etc/factoryvpn/gateway.local.env`, protetto (`0600`):
+Questa sezione dettaglia la configurazione locale del punto 6. L'operatore o
+l'integrazione di produzione può predisporre
+`/etc/factoryvpn/gateway.local.env`, protetto (`0600`), con i dati già noti:
 
 ```dotenv
 GATEWAY_ACTIVATION_MODE=sms
@@ -280,6 +421,19 @@ lo stato operativo e il recupero previsto dal [protocollo di rinnovo](CERTIFICAT
 Non riportare il dispositivo allo stato iniziale cancellando il marcatore.
 
 ## Contratto HTTP per firmware o postazioni propri
+
+Questa è la **specifica delle API chiamate dagli strumenti descritti sopra**:
+
+| Componente fornito | Dove gira | Chiamate eseguite |
+|---|---|---|
+| `scripts.factory_station` | PC di fine linea | Crea la pratica con `POST /api/v1/factory/gateways`. |
+| Bootstrap dell'agente | Gateway | Consulta e aggiorna l'arruolamento, richiede, scarica e conferma il pacchetto tramite `/api/v1/gateway-enrollment/…`. |
+| Agente dopo l'attivazione | Gateway | Esegue la [registrazione ordinaria](INITIAL_SETUP.md#registrazione-https) con le nuove credenziali operative. |
+
+Chi usa CLI e agente forniti segue la procedura operativa; questa sezione serve
+a comprenderne le chiamate o a implementare componenti equivalenti.
+Per software propri, conservare la stessa ripartizione: la postazione crea
+l'identità, HQ approva dal portale, il gateway completa la consegna.
 
 Tutte le chiamate usano l'origin HTTPS configurata, senza query con credenziali.
 Per la CLI e il bootstrap usare soltanto schema, host ed eventuale porta,

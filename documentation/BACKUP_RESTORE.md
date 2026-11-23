@@ -22,7 +22,8 @@ versione**. La firma dello schema è derivata dal DDL iniziale, non dal solo nom
 
 Tra i parametri salvati ci sono durata VPN, lease, durata portale/SSO e tempi
 usati per generare i pacchetti gateway, oltre alle durate dei certificati client.
-Il formato è la versione 2: non importa archivi della vecchia CA singola.
+Il formato dell'archivio è alla versione 2, distinta dalla versione del prodotto:
+non importa archivi della vecchia CA singola.
 L'archivio non è una copia completa del
 `.env`: `WORKER_POLL_INTERVAL`, `OPENVPN_PING_SECONDS` e `OPENVPN_RESTART_SECONDS`
 restano quelli del server di destinazione, come i parametri SMTP. Conservare la
@@ -113,6 +114,11 @@ firmato, l'utente e la sessione browser originaria. Un provider che non conferma
 l'autenticazione recente non abilita queste operazioni. La conferma SSO conserva
 la sessione corrente e le sue VPN. Il connettore Cognito è sperimentale:
 verificare questo flusso con il provider effettivamente configurato.
+
+Per gli account locali, durante un guasto della posta è disponibile la
+[riconferma con codice di emergenza da console](TROUBLESHOOTING.md#accesso-di-emergenza-durante-un-guasto-della-posta).
+Servono la password e un nuovo codice con scopo `confirm`, distinto da quello
+usato per il login; la riconferma conserva la normale validità di cinque minuti.
 
 Creazione, prova, importazione, eliminazione e ripristino sono serializzati e hanno
 chiavi di idempotenza. Il coordinatore ricontrolla l'account prima dell'esecuzione;
