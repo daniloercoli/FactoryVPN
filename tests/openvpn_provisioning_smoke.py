@@ -114,7 +114,13 @@ def main():
         old_path, new_path = root / "old.ovpn", root / "new.ovpn"
         old_path.write_bytes(old_profile)
         new_path.write_bytes(new_profile)
-        for path in (old_path, new_path):
+        technician_id = uuid4()
+        technician_cert, technician_profile = issue_profile(
+            root, "technician", technician_id, "127.0.0.1", 1194
+        )
+        technician_path = root / "technician.ovpn"
+        technician_path.write_bytes(technician_profile)
+        for path in (old_path, new_path, technician_path):
             path.chmod(0o600)
         socket = str(root / "management.sock")
         management = ManagementClient(socket)
@@ -190,6 +196,22 @@ def main():
             )
             processes.append(server)
             wait_for(lambda: Path(socket).exists())
+            # SIGTERM must notify the server before its 600-second keepalive timeout.
+            technician_cn = f"technician-{technician_id}"
+            permitted.add(str(technician_cert.serial_number))
+            technician = start(technician_path, "technician.log")
+            wait_for(lambda: management.clients().get(technician_cn) == "10.100.128.2")
+            wait_for(
+                lambda: "Initialization Sequence Completed" in (root / "technician.log").read_text()
+            )
+            disconnected_at = time.monotonic()
+            stop(technician)
+            assert technician.returncode == 0
+            wait_for(lambda: technician_cn not in management.clients(), timeout=5)
+            print(
+                f"Technician orderly disconnect observed in {time.monotonic() - disconnected_at:.2f} s"
+            )
+            permitted.clear()
             permitted.add(str(old.serial_number))
             client = start(old_path, "old.log")
             wait_for(lambda: management.clients().get(cn) == "10.100.128.2")
@@ -292,7 +314,8 @@ def main():
             stop(expired_client)
             crl_path.write_bytes(bundle)
             print(
-                "OpenVPN: keepalive, serial binding, revoked/missing/expired CRLs, disconnect and replacement passed."
+                "OpenVPN: technician exit notification, keepalive, serial binding, "
+                "revoked/missing/expired CRLs, disconnect and replacement passed."
             )
         except Exception:
             # Logs contain public certificate identities, never private profile material.

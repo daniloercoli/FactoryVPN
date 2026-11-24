@@ -64,12 +64,14 @@ def issue_profile(root, kind, identifier, host, port, days=CLIENT_DAYS):
         cert = issue_certificate(root, kind, identifier, key.public_key(), days)
         _, _, issuers = load_authority(root)
         issuer = issuers[certificate_issuer(root, cert)]
+        # Let the server observe an orderly technician disconnect without the keepalive timeout.
+        exit_notify = "explicit-exit-notify 1\n" if kind == "technician" else ""
         profile = f"""# factoryvpn-trust-generation {load_authority(root)[0]["generation"]}
 client
 dev {'tun0' if kind == 'gateway' else 'tun'}
 proto udp
 remote {host} {port}
-resolv-retry infinite
+{exit_notify}resolv-retry infinite
 nobind
 persist-key
 persist-tun

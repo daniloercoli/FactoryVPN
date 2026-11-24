@@ -100,9 +100,10 @@ def test_complete_custom_build_keeps_protocols_and_excludes_deployment_data(monk
     monkeypatch.setenv("APP_NAME", "Unrelated process label")
     files = website.build_files(label)
     required = {
-        Path("index.html"), Path("developers.html"), Path("api/index.html"),
+        Path("index.html"), Path("roadmap.html"), Path("developers.html"), Path("api/index.html"),
         Path("api/openapi.json"), Path("styles.css"), Path("developers.js"),
-        Path("api/reference.js"), Path("vendor/swagger-ui/swagger-ui-bundle.js"),
+        Path("marketing.css"), Path("api/reference.js"),
+        Path("vendor/swagger-ui/swagger-ui-bundle.js"),
     }
     assert required <= files.keys()
     for name in required:

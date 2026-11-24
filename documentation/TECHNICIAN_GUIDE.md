@@ -104,6 +104,11 @@ Aprire la **Diagnostica del collegamento**. Mostra provider SMS, conferma gatewa
 tunnel, client, rete e pulizia con il momento dell'osservazione. **Non verificabile**
 significa che manca un dato recente: non conferma né connessione né disconnessione.
 
+La disconnessione regolare del client OpenVPN con i nuovi profili FactoryVPN notifica
+il server; la diagnostica del tecnico si aggiorna dopo i controlli del worker e
+del portale. La sessione rimane aperta, in attesa di un eventuale ricollegamento:
+per liberare le risorse premere **Chiudi sessione** nel portale.
+
 Un errore temporaneo delle API non interrompe subito una VPN già autorizzata.
 Il traffico può continuare fino alla scadenza del lease di rete già ricevuto,
 **fino a 5 minuti dall'ultimo rinnovo riuscito per default**, senza aggiungere tempo

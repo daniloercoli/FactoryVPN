@@ -385,6 +385,20 @@ VPN già funzionante. SSH, applicazioni e modem possono avere altri timeout:
 questa configurazione non garantisce la sopravvivenza dei processi remoti a ogni
 guasto. Il traffico Internet del tecnico resta sulla sua connessione abituale.
 
+**Disconnessione volontaria del tecnico.** I profili OpenVPN dei tecnici includono
+`explicit-exit-notify 1`: alla chiusura regolare del client, il server riceve la
+notifica e rimuove il collegamento senza attendere il timeout. Il worker rileva
+la disconnessione al ciclo successivo e il portale la mostra dopo il proprio
+aggiornamento. La sessione resta aperta, in attesa del tecnico, fino alla chiusura
+dal portale o alla scadenza. Crash, arresti forzati e perdita della rete possono
+impedire la notifica: in questi casi resta il timeout descritto sopra.
+
+La direttiva appartiene al file `.ovpn`: aggiornare il server non riscrive i
+profili già scaricati. Per abilitarla in un profilo tecnico conservato, aggiungere
+`explicit-exit-notify 1` fuori dai blocchi dei certificati e delle chiavi, quindi
+reimportare il profilo nel client se necessario. Questo aggiornamento della
+configurazione non richiede di sostituire il certificato.
+
 **Dove applicare i valori.** Preparare il `.env` prima del primo avvio Compose.
 I servizi leggono l'ambiente alla partenza: una modifica successiva richiede la
 [ricreazione coordinata dei container](#applicare-modifiche-al-server);

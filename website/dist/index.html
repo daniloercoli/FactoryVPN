@@ -3,75 +3,128 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>FactoryVPN — Remote access, built into your workflow</title>
-  <meta name="description" content="Session-based remote access for industrial machines. Connect FactoryVPN to your customer portal, service tools and existing systems through custom API connectors.">
+  <title>FactoryVPN — Remote assistance, built into your business</title>
+  <meta name="description" content="Bring remote assistance into your customer portal, service desk and compatible industrial gateways. Build your service workflow around your software and hardware with FactoryVPN.">
   <meta name="theme-color" content="#132fea">
   <link rel="canonical" href="https://factoryvpn.ercoliconsulting.eu/">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%23132fea%22%2F%3E%3Ctext%20x%3D%2216%22%20y%3D%2223%22%20text-anchor%3D%22middle%22%20fill%3D%22white%22%20font-family%3D%22sans-serif%22%20font-size%3D%2224%22%20font-weight%3D%22700%22%3EF%3C%2Ftext%3E%3C%2Fsvg%3E">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="marketing.css">
 </head>
-<body>
+<body class="home-page">
+  <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="0" height="0" focusable="false">
+    <symbol id="icon-window" viewBox="0 0 32 32"><rect x="4" y="5" width="24" height="22" rx="3"/><path d="M4 12h24M9 9h.1M13 9h.1M9 17h6M9 22h11"/></symbol>
+    <symbol id="icon-ticket" viewBox="0 0 32 32"><path d="M5 8h22v6a3 3 0 0 0 0 6v4H5v-4a3 3 0 0 0 0-6V8ZM20 9v3m0 4v2m0 4v1M10 13h5M10 18h5"/></symbol>
+    <symbol id="icon-grid" viewBox="0 0 32 32"><rect x="5" y="5" width="8" height="8" rx="1.5"/><rect x="19" y="5" width="8" height="8" rx="1.5"/><rect x="5" y="19" width="8" height="8" rx="1.5"/><rect x="19" y="19" width="8" height="8" rx="1.5"/></symbol>
+    <symbol id="icon-gateway" viewBox="0 0 32 32"><rect x="4" y="13" width="24" height="13" rx="3"/><path d="M9 13V6m14 7V6M9 19h.1M14 19h.1M20 20h4M8 26v2m16-2v2M12 7c2-2 6-2 8 0"/></symbol>
+    <symbol id="icon-board" viewBox="0 0 32 32"><rect x="6" y="5" width="20" height="22" rx="2"/><rect x="12" y="11" width="8" height="8" rx="1"/><path d="M10 2v3m6-3v3m6-3v3M10 27v3m6-3v3m6-3v3M3 10h3m-3 6h3m-3 6h3m20-12h3m-3 6h3m-3 6h3"/></symbol>
+    <symbol id="icon-connect" viewBox="0 0 32 32"><path d="m12 19-3 3a5 5 0 0 1-7-7l6-6a5 5 0 0 1 7 0m2 14a5 5 0 0 0 7 0l6-6a5 5 0 0 0-7-7l-3 3M10 22l12-12"/></symbol>
+    <symbol id="icon-factory" viewBox="0 0 32 32"><path d="M4 27V14l9-5v9l9-5v14H4Zm18 0V5h6v22M8 22h2m6 0h2M3 27h26"/></symbol>
+    <symbol id="icon-people" viewBox="0 0 32 32"><circle cx="12" cy="10" r="4"/><path d="M4 27v-3a8 8 0 0 1 16 0v3M22 6a4 4 0 0 1 0 8m3 13v-3a8 8 0 0 0-3-6"/></symbol>
+    <symbol id="icon-tools" viewBox="0 0 32 32"><path d="M26 4a8 8 0 0 0-10 10L5 25a2 2 0 0 0 3 3l11-11A8 8 0 0 0 29 7l-6 6-4-4 7-5Z"/></symbol>
+    <symbol id="icon-clock" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12"/><path d="M16 8v8l5 3"/></symbol>
+    <symbol id="icon-key" viewBox="0 0 32 32"><circle cx="11" cy="12" r="7"/><path d="m16 17 12 11m-6-6 3-3m-7-1 3-3M9 10h.1"/></symbol>
+    <symbol id="icon-check" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12"/><path d="m10 16 4 4 8-9"/></symbol>
+  </svg>
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header wrap">
     <a class="brand" href="./" aria-label="FactoryVPN home"><span class="brand-mark" aria-hidden="true">F</span><span class="brand-name">FactoryVPN</span></a>
-    <nav aria-label="Main navigation"><a href="#how-it-works">How it works</a><a href="#integrations">Integrations</a><a href="developers.html">Developers</a></nav>
+    <nav aria-label="Main navigation"><a href="#integrations">Software</a><a href="#gateway-integration">Gateways</a><a href="roadmap.html">Roadmap</a><a href="developers.html">Developers</a></nav>
   </header>
   <main id="main">
-    <section class="hero wrap">
+    <section class="hero home-hero wrap">
       <div class="hero-copy">
-        <p class="eyebrow"><span class="tiny-square" aria-hidden="true"></span> INDUSTRIAL REMOTE ACCESS</p>
-        <h1>Closer to your<br>machines.<br><span>Built into<br>your workflow.</span></h1>
-        <p class="intro">Give your service team remote access to industrial machines, for the time they need it. Bring that access into the systems your business already uses.</p>
-        <div class="actions"><a class="button primary" href="#integrations">Explore integrations</a><a class="text-link" href="#how-it-works">See how it works</a></div>
+        <p class="eyebrow">INDUSTRIAL REMOTE ASSISTANCE</p>
+        <h1>Your software.<br>Your gateways.<br><span>Connected.</span></h1>
+        <p class="intro">Bring remote assistance into the tools your team already uses and the industrial hardware your project needs.</p>
+        <div class="actions"><a class="button primary" href="#integrations">Connect your software</a><a class="text-link" href="#gateway-integration">Explore gateway integration</a></div>
+        <p class="hero-footnote">For machine builders, system integrators and service teams.</p>
       </div>
-      <div class="network-visual" role="img" aria-label="A technician connects through FactoryVPN to services on a factory gateway’s fixed VPN IP. Local machines are reached from the gateway. Your existing admin connects to FactoryVPN through a custom API connector.">
-        <div class="diagram-caption"><span>THE CONNECTION, SIMPLIFIED</span><span>01 / 03</span></div>
-        <div class="diagram-admin"><span class="node-symbol" aria-hidden="true">⌘</span><div><strong>Your existing admin</strong><small>Customer portal · Service tools</small></div><span class="mini-label">YOUR SYSTEMS</span></div>
-        <div class="connector-line"><span>Custom API connector</span></div>
-        <div class="diagram-core"><span class="core-monogram" aria-hidden="true">F</span><strong>FactoryVPN</strong><span>Authorize. Connect. Close.</span></div>
-        <div class="network-branches" aria-hidden="true"><span></span><span></span></div>
-        <div class="diagram-peers">
-          <div class="peer"><svg viewBox="0 0 40 40" aria-hidden="true"><rect x="8" y="7" width="24" height="19" rx="2"/><path d="M4 32h32M17 26v6m6-6v6"/></svg><strong>Service technician</strong><small>Provisioned VPN client</small></div>
-          <div class="peer"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M6 32V18l10-6v8l10-6v18M30 32V6h5v26M5 32h31M10 25h2m8 0h2"/></svg><strong>Factory gateway</strong><small>Fixed VPN IP · Device services</small></div>
+      <div class="integration-visual" role="img" aria-label="Your customer portal, service desk or application connects to FactoryVPN. A software agent integrates remote assistance into a compatible commercial gateway or your own device.">
+        <div class="visual-heading"><span>BUILT AROUND YOUR PROJECT</span><svg class="line-icon" aria-hidden="true"><use href="#icon-connect"/></svg></div>
+        <div class="visual-apps">
+          <div><svg class="line-icon" aria-hidden="true"><use href="#icon-ticket"/></svg><span>Service desk</span></div>
+          <div><svg class="line-icon" aria-hidden="true"><use href="#icon-window"/></svg><span>Customer portal</span></div>
+          <div><svg class="line-icon" aria-hidden="true"><use href="#icon-grid"/></svg><span>Your app</span></div>
         </div>
-        <div class="diagram-footer"><span class="lock-icon" aria-hidden="true">▣</span> One technician. One gateway. One authorized session.</div>
-      </div>
-    </section>
-    <div class="audience-strip"><div class="wrap"><p>Made for teams that keep machines running.</p><span>MACHINE BUILDERS</span><span>SYSTEM INTEGRATORS</span><span>SERVICE TEAMS</span></div></div>
-    <section id="how-it-works" class="section wrap">
-      <div class="section-heading"><p class="eyebrow">01 / REMOTE ASSISTANCE</p><h2>Access when it’s needed.<br>A clear beginning and end.</h2><p>FactoryVPN coordinates the technician, the gateway and the connection in a single, time-limited assistance session.</p><p>The included web portal manages users, groups, gateways and sessions. Gateway details show component versions, technical logs and metric history; the server page brings together service status, certificates, backups and SMTP checks.</p></div>
-      <div class="steps">
-        <article><span class="step-number">01</span><h3>Request access</h3><p>An authenticated technician selects a provisioned gateway and requests a session from the FactoryVPN portal or your integrated application.</p></article>
-        <article><span class="step-number">02</span><h3>Connect to the gateway</h3><p>The gateway activates via a signed SMS or a periodic HTTPS check over Wi-Fi. The technician manually starts OpenVPN with their provisioned profile, then uses services on the gateway’s fixed VPN IP, such as SSH or web.</p></article>
-        <article><span class="step-number">03</span><h3>Close the session</h3><p>Close access when the intervention ends. Signing out also closes VPNs opened by that portal login. Session status and timestamps remain available for your service workflow.</p></article>
-      </div>
-      <div class="feature-note"><strong>Different factories. Familiar network addresses.</strong><p>Customer LANs can use the same IPv4 subnet because the VPN exposes only each gateway’s fixed VPN address. Reach local devices from the gateway’s SSH shell. Each technician and gateway takes part in one session at a time, including cleanup.</p></div>
-      <div class="feature-note"><strong>Your Internet connection stays local.</strong><p>Gateway Only allows IPv4 traffic between the assigned technician and gateway, including TCP on custom ports, UDP and ICMP ping. Internet and DNS stay on the technician’s connection. Use the gateway’s SSH shell to reach local devices. <a href="developers.html#network-scope">Gateway Only access</a>.</p></div>
-      <div class="feature-note"><strong>Time for longer interventions.</strong><p>VPN sessions last up to 3 hours by default, with a 12-hour portal login. Temporary API failures preserve existing access for up to 5 minutes from the last successful authorization, within login and session deadlines. Durations are configurable; logout and revocation still apply. <a href="developers.html#timing">Durations and outage handling</a>.</p></div>
-    </section>
-    <section id="integrations" class="integration-section">
-      <div class="wrap integration-grid">
-        <div><p class="eyebrow">02 / FITS YOUR BUSINESS</p><h2>Your admin.<br>Your processes.<br><span>Connected.</span></h2><p class="intro">Add remote assistance to the tools your team already knows.</p><p>FactoryVPN is designed to integrate easily with your customer admin, service portal and existing business systems through custom API connectors. Keep your interface and build remote access into your own workflow.</p><p class="integration-detail">A connector maps your users, equipment and service requests to FactoryVPN accounts, gateways and sessions. Your team can build it, or scope an integration with Ercoli Consulting.</p></div>
-        <div class="integration-examples">
-          <article><span class="example-number">/ 01</span><div><h3>Customer admin &amp; portals</h3><p>Give operators a session action inside an existing machine or customer record.</p></div></article>
-          <article><span class="example-number">/ 02</span><div><h3>ERP, CRM &amp; service desks</h3><p>Associate a service request with a gateway and bring session status back into the ticket.</p></div></article>
-          <article><span class="example-number">/ 03</span><div><h3>Your own application</h3><p>Build a web interface, desktop tool or server-side integration with the documented HTTP API.</p></div></article>
-          <p class="connector-note">Integrations are built to match your systems. Connector development and any identity or SSO mapping are scoped per customer.</p>
+        <div class="visual-link" aria-hidden="true"></div>
+        <div class="visual-core"><span class="visual-monogram" aria-hidden="true">F</span><strong>FactoryVPN</strong><span>One remote assistance platform</span></div>
+        <div class="visual-link" aria-hidden="true"></div>
+        <div class="visual-gateways">
+          <div><svg class="line-icon" aria-hidden="true"><use href="#icon-gateway"/></svg><strong>Commercial gateway</strong><span>Your hardware choice</span></div>
+          <div><svg class="line-icon" aria-hidden="true"><use href="#icon-board"/></svg><strong>Your own device</strong><span>An agent built in</span></div>
         </div>
+        <p class="visual-caption">A tailored software connection. An agent in your gateway.</p>
       </div>
     </section>
-    <section id="developers" class="section wrap developer-section">
-      <div><p class="eyebrow">03 / OPEN TO YOUR DEVELOPERS</p><h2>Build the client<br>that fits your team.</h2><p>Use the API to authenticate users, find gateways, request sessions and manage their lifecycle. Administrative endpoints cover users, devices and audit events.</p><div class="actions"><a class="button primary" href="developers.html">Developer guide</a><a class="text-link" href="api/">API reference</a></div></div>
-      <div class="code-card"><div class="code-heading"><span>REQUEST AN ASSISTANCE SESSION</span><span>HTTP / JSON</span></div><pre><code><span class="code-accent">POST</span> /api/v1/sessions/
-Authorization: Bearer &lt;access_token&gt;
-Content-Type: application/json
 
-{
-  <span class="code-key">"gateway_id"</span>: <span class="code-value">"&lt;gateway-uuid&gt;"</span>
-}</code></pre><div class="code-footer">Documented endpoints. Downloadable OpenAPI schema.</div></div>
+    <div class="audience-strip"><div class="wrap"><p>Remote assistance that fits the way you work.</p><span>MACHINE BUILDERS</span><span>SYSTEM INTEGRATORS</span><span>SERVICE TEAMS</span></div></div>
+
+    <section id="integrations" class="integration-section home-software">
+      <div class="wrap integration-grid">
+        <div>
+          <p class="eyebrow">YOUR SOFTWARE</p>
+          <h2>Keep your tools.<br><span>Extend what<br>they can do.</span></h2>
+          <p class="intro">Make remote assistance part of the workflow, from the equipment record to the service request.</p>
+          <p>A connector tailored to your application brings FactoryVPN into your existing interface. Link people, equipment and assistance sessions while your team stays in familiar tools.</p>
+          <a class="text-link light-link" href="developers.html">Explore software integration</a>
+        </div>
+        <div class="integration-examples">
+          <article><svg class="line-icon feature-icon" aria-hidden="true"><use href="#icon-window"/></svg><div><h3>Customer portals</h3><p>Give your customers a service workflow connected to the equipment they use and the team that supports it.</p></div></article>
+          <article><svg class="line-icon feature-icon" aria-hidden="true"><use href="#icon-ticket"/></svg><div><h3>Service desks</h3><p>Associate a ticket with the right gateway and keep the assistance session in the context of the request.</p></div></article>
+          <article><svg class="line-icon feature-icon" aria-hidden="true"><use href="#icon-grid"/></svg><div><h3>ERP, CRM &amp; your own applications</h3><p>Build remote assistance into a business application, a desktop tool or a service portal created for your customers.</p></div></article>
+          <p class="connector-note">Connectors are developed for your systems and processes. Your team can build the integration, or scope the project with Ercoli Consulting.</p>
+        </div>
+      </div>
     </section>
-    <section class="wrap practical-section"><p class="eyebrow">BEFORE YOU CONNECT</p><div class="practical-grid"><article><h3>A gateway at the factory</h3><p>A factory-prepared gateway can retrieve its individual package after administrator approval. Manual ZIP setup remains available for service and test machines. The gateway needs its services configured on the VPN IP and independent HTTPS connectivity; SMS mode also needs a SIM and an AT modem.</p></article><article><h3>Access with a defined scope</h3><p>Technicians manage their own sessions; administrators manage accounts and resources. Individual VPN certificates work together with session authorization.</p></article><article><h3>A deployment built around you</h3><p>FactoryVPN 0.9.0 is a prerelease of version 1.0, focused on Gateway Only access. Hardware, network behavior, recovery and custom integrations must be validated in your environment before production use.</p></article></div></section>
+
+    <section id="gateway-integration" class="section wrap gateway-section">
+      <div class="gateway-copy">
+        <p class="eyebrow">YOUR HARDWARE</p>
+        <h2>Your gateway.<br>Our agent.<br><span>Your service.</span></h2>
+        <p class="intro">Build remote assistance into the hardware that fits your product.</p>
+        <p>The FactoryVPN software agent is designed to be integrated into compatible commercial gateways and custom devices. Bring a gateway into your service platform as part of your hardware project.</p>
+        <p>Prepare devices during production or set them up individually for a project. Manage their identity and access from the same platform.</p>
+        <a class="text-link" href="developers.html#gateway-setup">Explore agent integration</a>
+      </div>
+      <div class="hardware-panel">
+        <div class="hardware-scene" aria-hidden="true">
+          <div class="hardware-device"><svg class="line-icon"><use href="#icon-gateway"/></svg><div class="agent-label"><span class="agent-mark">F</span><span>Agent integrated</span></div></div>
+          <div class="hardware-orbit"><svg class="line-icon"><use href="#icon-connect"/></svg></div>
+          <div class="hardware-device custom-device"><svg class="line-icon"><use href="#icon-board"/></svg><div class="agent-label"><span class="agent-mark">F</span><span>Built into your device</span></div></div>
+        </div>
+        <div class="hardware-options"><span>Commercial gateways</span><span>Custom devices</span><span>Your product</span></div>
+        <p>Hardware compatibility and integration scope are confirmed for your project.</p>
+      </div>
+    </section>
+
+    <section id="service-scenarios" class="scenario-section">
+      <div class="wrap">
+        <div class="section-heading"><p class="eyebrow">IN YOUR EVERYDAY SERVICE</p><h2>A place in the work<br>your team already does.</h2><p>Three illustrative workflows for teams supporting installed equipment.</p></div>
+        <div class="scenario-grid">
+          <article class="scenario"><div class="scenario-art"><svg class="line-icon" aria-hidden="true"><use href="#icon-factory"/></svg><span class="scenario-symbol"><svg class="line-icon" aria-hidden="true"><use href="#icon-tools"/></svg></span></div><p class="scenario-context">MACHINE BUILDERS</p><h3>An issue at a customer site</h3><p>Identify the gateway for the machine in question. Open an authorized assistance session and use the service tools available on that gateway to decide the next step.</p></article>
+          <article class="scenario"><div class="scenario-art"><svg class="line-icon" aria-hidden="true"><use href="#icon-people"/></svg><span class="scenario-symbol"><svg class="line-icon" aria-hidden="true"><use href="#icon-key"/></svg></span></div><p class="scenario-context">SERVICE TEAMS</p><h3>One team. Many installations.</h3><p>Give technicians access to the gateways in their scope. Keep people, sites and the history of assistance organized in one place.</p></article>
+          <article class="scenario"><div class="scenario-art"><svg class="line-icon" aria-hidden="true"><use href="#icon-ticket"/></svg><span class="scenario-symbol"><svg class="line-icon" aria-hidden="true"><use href="#icon-connect"/></svg></span></div><p class="scenario-context">SYSTEM INTEGRATORS</p><h3>The intervention starts in a ticket</h3><p>A tailored connector links the service request, equipment and remote session. Your team keeps the context as the intervention moves forward.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="how-it-works" class="section wrap service-flow">
+      <div class="section-heading"><p class="eyebrow">ACCESS WITH A PURPOSE</p><h2>A clear beginning.<br>A clear end.</h2><p>Coordinate each intervention, from the request to the closure, with people and access managed in one place.</p></div>
+      <div class="flow-grid">
+        <article><svg class="line-icon" aria-hidden="true"><use href="#icon-key"/></svg><h3>Request access</h3><p>An authorized technician selects the gateway for the intervention.</p></article>
+        <article><svg class="line-icon" aria-hidden="true"><use href="#icon-clock"/></svg><h3>Work for the time you need</h3><p>The team connects for a time-limited assistance session and follows its progress.</p></article>
+        <article><svg class="line-icon" aria-hidden="true"><use href="#icon-check"/></svg><h3>Close and keep the history</h3><p>End access when the task is finished. Session status and timestamps remain available.</p></article>
+      </div>
+    </section>
+
+    <section class="home-next">
+      <div class="wrap next-grid">
+        <div><p class="eyebrow">BUILD YOUR NEXT SERVICE WORKFLOW</p><h2>Your project.<br>Connected.</h2><p>Start with your software, your gateway and the way your team works.</p><div class="actions"><a class="button primary" href="https://ercoliconsulting.eu/">Discuss your integration</a><a class="text-link" href="developers.html">Developer guide</a></div></div>
+        <div class="roadmap-teaser"><span class="roadmap-teaser-label">WHERE WE ARE HEADING</span><h3>What is here.<br>What comes next.</h3><p>Explore the current release and the next steps for remote access and gateway communication.</p><a class="text-link" href="roadmap.html">See the product roadmap</a></div>
+      </div>
+    </section>
   </main>
-  <footer class="site-footer wrap"><a class="brand" href="./"><span class="brand-mark" aria-hidden="true">F</span><span class="brand-name">FactoryVPN</span></a><p>Industrial connectivity, in your workflow.</p><div><a href="developers.html">Developers</a><a href="https://ercoliconsulting.eu/">Ercoli Consulting</a></div></footer>
+  <footer class="site-footer wrap"><a class="brand" href="./"><span class="brand-mark" aria-hidden="true">F</span><span class="brand-name">FactoryVPN</span></a><p>Industrial connectivity, in your workflow.</p><div><a href="roadmap.html">Roadmap</a><a href="developers.html">Developers</a><a href="https://ercoliconsulting.eu/">Ercoli Consulting</a></div></footer>
 </body>
 </html>

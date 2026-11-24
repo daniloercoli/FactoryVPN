@@ -1,6 +1,6 @@
 # FactoryVPN website
 
-English-only static product website, developer guide and customer API reference.
+English-only static product website, product roadmap, developer guide and customer API reference.
 The public document root is **`website/dist/`**. A Python build embeds the visible
 product name before publication; the result is ordinary HTML, CSS, JavaScript and
 JSON. Serving it requires no backend, Python, Node.js, account, external font,
@@ -59,7 +59,8 @@ Open <http://127.0.0.1:8873/>. Serve over HTTP rather than opening files directl
 Swagger UI fetches the local JSON specification.
 For a separate build, replace `website/dist` with its output directory.
 
-- `/` — product, assistance flow and custom connector integration.
+- `/` — software and gateway integration, illustrative service workflows and assistance flow.
+- `/roadmap.html` — current 0.9.0 prerelease toward 1.0, Single LAN 2.0 and MQTT 2.1.
 - `/developers.html` — authentication, examples, lifecycle, errors and client guidance.
 - `/developers.html#gateway-setup` — factory enrollment, manual ZIP setup, VPN/HTTPS trust and subsequent certificate renewal.
 - `/developers.html#network-scope` — split tunnel, local Internet and access to services on the gateway's fixed VPN IP.
@@ -109,6 +110,15 @@ defaults against [.env.example](../.env.example) and the code that consumes them
 The [installation guide](../documentation/DOCKER_GUIDE.md#durate-timeout-e-reti-instabili)
 is the operator reference for configuration and applying changes.
 
+Keep the homepage focused on software integration, compatible commercial
+gateways and the software agent. Use the roadmap for network modes, release
+status and future capabilities; keep technical contracts in the developer guide.
+Do not imply universal gateway compatibility or ready-made third-party connectors.
+Qualify hardware and connector scope for the individual integration project.
+Product-page styles live in `website/static/marketing.css`, loaded by the
+homepage and roadmap only. The shared stylesheet and developer pages are kept
+separate so marketing changes do not alter the API documentation layout.
+
 Check the four copyable shell examples in `website/src/developers.html`: login, session
 creation, readiness and closure. Keep closure in its own block so copying a
 readiness check cannot close the session. Preserve the same idempotency key and
@@ -145,7 +155,7 @@ then rebuild the website.
 3. Serve `index.html` as the directory index, including for `/api/`.
 4. Point the hostname's DNS record to the destination supplied by the hosting
    provider and enable HTTPS for the hostname.
-5. Verify the homepage, developer guide, Swagger UI and OpenAPI download over HTTPS.
+5. Verify the homepage, roadmap, developer guide, Swagger UI and OpenAPI download over HTTPS.
 
 Do not upload source templates, the repository root, deployment `.env`, private
 certificates or runtime directories. Keep the documentation origin distinct from the operational
